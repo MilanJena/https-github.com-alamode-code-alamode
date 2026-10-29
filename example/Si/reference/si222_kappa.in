@@ -1,0 +1,10 @@
+&general
+  PREFIX = si222
+  MODE = kappa
+  FCSFILE = si222_cubic.h5  # from step 5 of the tutorial
+/
+
+&kpoint
+  2
+  10 10 10
+/

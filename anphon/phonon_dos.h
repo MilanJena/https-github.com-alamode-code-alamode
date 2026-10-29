@@ -10,23 +10,35 @@
 
 #pragma once
 
-#include "pointers.h"
+#include <complex>
+#include <memory>
+#include <vector>
 #include "dynamical.h"
 #include "integration.h"
 #include "kpoint.h"
-#include <vector>
-#include <complex>
+#include "ndarray.h"
+#include "phonon.h"
 
-namespace PHON_NS {
-class Dos : protected Pointers {
+namespace PHON_NS
+{
+class Dos
+{
 public:
-    Dos(class PHON *);
+    Dos(const RunInfo &run, const System *system);
 
     ~Dos();
 
-    void setup();
+    void setup(const Integration &integration, bool store_eigenvectors);
 
-    void calc_dos_all();
+    // Allocate and initialize the uniform DOS k mesh (KPMODE = 2). Called
+    // from Kpoint::kpoint_setups; Dos owns the mesh and deletes it in the
+    // destructor.
+    void create_kmesh_dos(const unsigned int nk_in[3], const std::vector<SymmetryOperation> &symmlist,
+                          const Eigen::Matrix3d &rlavec_p, bool time_reversal_sym);
+
+    // classical must stay an argument: Thermodynamics::classical is broadcast in
+    // Thermodynamics::setup(), which runs after Dos::setup().
+    void calc_dos_all(const Integration &integration, bool classical);
 
     bool flag_dos;
     bool compute_dos;
@@ -38,89 +50,63 @@ public:
     int n_energy;
     double emin, emax, delta_e;
     std::vector<double> energy_dos;
-    double *dos_phonon;
-    double **pdos_phonon;
-    double *longitude_dos;
-    double ***dos2_phonon;
-    double total_sps3, ***sps3_mode;
-    double ****sps3_with_bose;
+    NDArray<double, 1> dos_phonon;
+    NDArray<double, 2> pdos_phonon;
+    NDArray<double, 1> longitude_dos;
+    NDArray<double, 3> dos2_phonon;
+    double total_sps3;
+    NDArray<double, 3> sps3_mode;
+    NDArray<double, 4> sps3_with_bose;
 
-    TetraNodes *tetra_nodes_dos;
-    KpointMeshUniform *kmesh_dos;
-    DymatEigenValue *dymat_dos;
+    std::unique_ptr<TetraNodes> tetra_nodes_dos;
+    std::unique_ptr<KpointMeshUniform> kmesh_dos;
+    std::unique_ptr<DymatEigenValue> dymat_dos;
 
-    void calc_dos_from_given_frequency(const KpointMeshUniform *kmesh_in,
-                                       const double *const *eval_in,
-                                       const unsigned int ntetra_in,
-                                       const unsigned int *const *tetras_in,
-                                       double *dos_out) const;
+    void calc_dos_from_given_frequency(const KpointMeshUniform *kmesh_in, const double *const *eval_in,
+                                       const unsigned int ntetra_in, const unsigned int *const *tetras_in,
+                                       const Integration &integration, double *dos_out) const;
 
-    void update_dos_energy_grid(const double emin_in,
-                                const double emax_in,
-                                const bool force_update = false);
+    void update_dos_energy_grid(const double emin_in, const double emax_in);
 
 private:
     void set_default_variables();
 
     void deallocate_variables();
 
-    void calc_dos(const unsigned int nk,
-                  const unsigned int nk_irreducible,
-                  const unsigned int *map_k,
-                  const double *const *eval,
-                  const unsigned int n,
-                  const std::vector<double> &energy,
-                  const unsigned int neval,
-                  const int smearing_method,
-                  const unsigned int ntetra,
-                  const unsigned int *const *tetras,
-                  double *ret) const;
+    void calc_dos(const unsigned int nk, const unsigned int nk_irreducible, const unsigned int *map_k,
+                  const double *const *eval, const unsigned int n, const std::vector<double> &energy,
+                  const unsigned int neval, const Integration &integration, const unsigned int ntetra,
+                  const unsigned int *const *tetras, double *ret) const;
 
-    void calc_atom_projected_dos(const unsigned int nk,
-                                 double *const *eval,
-                                 const unsigned int n,
-                                 const std::vector<double> &energy,
-                                 double **ret,
-                                 const unsigned int neval,
-                                 const unsigned int natmin,
-                                 const int smearing_method,
-                                 std::complex<double> ***evec) const;
+    void calc_atom_projected_dos(const unsigned int nk, const double *const *eval, const unsigned int n,
+                                 const std::vector<double> &energy, double **ret, const unsigned int neval,
+                                 const unsigned int natmin, const Integration &integration,
+                                 const std::complex<double> *const *const *evec) const;
 
-    void calc_two_phonon_dos(double *const *eval,
-                             const unsigned int n,
-                             const std::vector<double> &energy,
-                             const int smearing_method,
-                             double ***ret) const;
+    void calc_two_phonon_dos(const double *const *eval, const unsigned int n, const std::vector<double> &energy,
+                             const Integration &integration, double ***ret) const;
 
-    void calc_total_scattering_phase_space(double *const *eval_in,
-                                           const int smearing_method,
-                                           double ***ret_mode,
-                                           double &ret) const;
+    void calc_total_scattering_phase_space(const double *const *eval_in, const Integration &integration,
+                                           double ***ret_mode, double &ret) const;
 
-    void calc_scattering_phase_space_with_Bose(const double *const *eval_in,
-                                               const int smearing_method,
-                                               double ****ret) const;
+    void calc_scattering_phase_space_with_Bose(const double *const *eval_in, const Integration &integration,
+                                               bool classical, double ****ret) const;
 
-    void calc_scattering_phase_space_with_Bose_mode(const unsigned int nk,
-                                                    const unsigned int ns,
-                                                    const unsigned int N,
-                                                    const double omega,
-                                                    const double *const *eval,
-                                                    const double *temperature,
-                                                    const unsigned int *k_pair,
-                                                    const int smearing_method,
-                                                    double **ret) const;
+    void calc_scattering_phase_space_with_Bose_mode(const unsigned int nk, const unsigned int ns, const unsigned int N,
+                                                    const double omega, const double *const *eval,
+                                                    const double *temperature, const unsigned int *k_pair,
+                                                    const Integration &integration, bool classical, double **ret) const;
 
-    void calc_longitudinal_projected_dos(const unsigned int nk,
-                                         const double *const *xk_in,
-                                         const double rlavec_p[3][3],
-                                         double *const *eval,
-                                         const unsigned int n,
-                                         const std::vector<double> &energy,
-                                         double *ret,
-                                         const unsigned int neval,
-                                         const unsigned int natmin,
-                                         const int smearing_method,
-                                         std::complex<double> ***evec) const;
+    void calc_longitudinal_projected_dos(const unsigned int nk, const double *const *xk_in,
+                                         const Eigen::Matrix3d &rlavec_p, const double *const *eval,
+                                         const unsigned int n, const std::vector<double> &energy, double *ret,
+                                         const unsigned int neval, const unsigned int natmin,
+                                         const Integration &integration,
+                                         const std::complex<double> *const *const *evec) const;
+
+private:
+    // Collaborators (non-owning; owned by PHON, which outlives this object).
+    const RunInfo &run;
+    const System *system;
 };
-}
+} // namespace PHON_NS

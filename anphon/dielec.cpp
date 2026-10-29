@@ -8,27 +8,28 @@
  or http://opensource.org/licenses/mit-license.php for information.
 */
 
-#include "mpi_common.h"
 #include "dielec.h"
+#include <algorithm>
+#include <cmath>
+#include <complex>
+#include <cstdlib>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <string>
+#include <vector>
 #include "constants.h"
 #include "dynamical.h"
 #include "error.h"
+#include "fcs_phonon.h"
 #include "mathfunctions.h"
 #include "memory.h"
+#include "mpi_common.h"
 #include "system.h"
-#include "write_phonons.h"
-#include "parsephon.h"
-#include "phonon_dos.h"
-#include "fcs_phonon.h"
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <vector>
-#include <complex>
 
 using namespace PHON_NS;
 
-Dielec::Dielec(PHON *phon) : Pointers(phon)
+Dielec::Dielec(const RunInfo &run_in, const System *system_in) : run(run_in), system(system_in)
 {
     set_default_variables();
 }
@@ -41,32 +42,38 @@ Dielec::~Dielec()
 void Dielec::set_default_variables()
 {
     calc_dielectric_constant = 0;
-    dielec = nullptr;
-    omega_grid = nullptr;
     emin = 0.0;
     emax = 1.0;
     delta_e = 1.0;
     nomega = 1;
+    file_born = "";
+    symmetrize_borncharge = 0;
+    dielec_tensor.setZero();
 }
 
 void Dielec::deallocate_variables()
 {
     if (dielec) {
-        deallocate(dielec);
+        dielec.clear();
     }
     if (omega_grid) {
-        deallocate(omega_grid);
+        omega_grid.clear();
+    }
+    if (borncharge) {
+        borncharge.clear();
     }
 }
 
-void Dielec::init()
+void Dielec::init(const double emin_dos, const double emax_dos, const double delta_e_dos,
+                  const unsigned int nonanalytic, const bool print_zmode, const bool print_irreps,
+                  const std::vector<SymmetryOperationWithMapping> &symops, const bool use_efield, const bool relaxing)
 {
-    // This should be called after Dos::setup()
+    // This should be called after Dos::setup(). The arguments are read on rank 0 only.
 
-    if (mympi->my_rank == 0) {
-        emax = dos->emax;
-        emin = dos->emin;
-        delta_e = dos->delta_e;
+    if (run.my_rank == 0) {
+        emax = emax_dos;
+        emin = emin_dos;
+        delta_e = delta_e_dos;
         nomega = static_cast<int>((emax - emin) / delta_e);
     }
 
@@ -76,107 +83,390 @@ void Dielec::init()
     MPI_Bcast(&emax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&delta_e, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    if (calc_dielectric_constant) {
 
-        if (mympi->my_rank == 0) {
-            if (dynamical->file_born == "") {
-                exitall("Dielec::init()", "BORNINFO must be set when DIELEC = 1.");
+    // Born-charge data is needed by the nonanalytic correction, DIELEC and EFIELD
+    // (BORNINFO required, hard error when absent) and by the ZMODE and
+    // IRREPS analyses and the polarization of a relaxed structure (used only
+    // when BORNINFO is given).  file_born lives
+    // on rank 0 only, so the decision is made there and broadcast;
+    // setup_dielectric() is collective.
+    int need_born_data = 0;
+    if (run.my_rank == 0) {
+        const auto borninfo_given = !file_born.empty();
+        if (nonanalytic || calc_dielectric_constant || use_efield) {
+            if (!borninfo_given) {
+                if (use_efield) {
+                    exit("Dielec::init()", "BORNINFO must be set when EFIELD is nonzero or POL_REF is given.");
+                }
+                if (calc_dielectric_constant) {
+                    exit("Dielec::init()", "BORNINFO must be set when DIELEC = 1.");
+                }
+                exit("Dielec::init()", "BORNINFO must be set when NONANALYTIC>0.");
             }
+            need_born_data = 1;
+        } else if (borninfo_given && (print_zmode || print_irreps || relaxing)) {
+            need_born_data = 1;
         }
+    }
+    MPI_Bcast(&need_born_data, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-        allocate(omega_grid, nomega);
+    if (need_born_data) {
+        setup_dielectric(symops, run.verbosity);
+    }
+
+    if (calc_dielectric_constant) {
+        omega_grid.resize(nomega);
 
         for (auto i = 0; i < nomega; ++i) {
             omega_grid[i] = emin + delta_e * static_cast<double>(i);
         }
+    }
+}
 
-        // If borncharge in dynamical class is not initialized, do it here.
-        if (!dynamical->borncharge) {
-            const auto verbosity_level = 1;
-            dynamical->setup_dielectric(verbosity_level);
+void Dielec::setup_dielectric(const std::vector<SymmetryOperationWithMapping> &symops, const unsigned int verbosity)
+{
+    if (borncharge) borncharge.clear();
+
+    borncharge.resize(system->get_primcell().number_of_atoms, 3, 3);
+    if (run.my_rank == 0) load_born(symmetrize_borncharge, symops, verbosity);
+
+    MPI_Bcast(dielec_tensor.data(), 9, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&borncharge[0][0][0], 9 * system->get_primcell().number_of_atoms, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+}
+
+void Dielec::load_born(const unsigned int flag_symmborn, const std::vector<SymmetryOperationWithMapping> &symops,
+                       const unsigned int verbosity)
+{
+    // Read the dielectric tensor and born effective charges from file_born
+
+    unsigned int i, j, k;
+    double sum_born[3][3];
+    std::ifstream ifs_born;
+
+    const auto natmin_tmp = system->get_primcell().number_of_atoms;
+
+    ifs_born.open(file_born.c_str(), std::ios::in);
+    if (!ifs_born) exit("load_born", "cannot open file_born");
+
+    // The file must hold exactly eps_inf (9 numbers) and one Z* (9 numbers) per atom of the
+    // primitive cell (&cell); a file written for another cell would otherwise be read silently.
+    std::vector<double> values;
+    std::string token;
+    while (ifs_born >> token) {
+        std::size_t pos = 0;
+        double val = 0.0;
+        try {
+            val = std::stod(token, &pos);
+        } catch (const std::exception &) {
+            pos = 0;
+        }
+        if (pos != token.size() || !std::isfinite(val)) {
+            exit("load_born",
+                 ("Entry '" + token + "' in BORNINFO file " + file_born + " is not a finite number.").c_str());
+        }
+        values.push_back(val);
+    }
+    ifs_born.close();
+
+    if (values.size() != 9 * (natmin_tmp + 1)) {
+        std::string str_error = "BORNINFO file " + file_born + " has " + std::to_string(values.size()) +
+                                " numbers, but the dielectric tensor plus one Born effective charge tensor per atom\n"
+                                " of the primitive cell (" +
+                                std::to_string(natmin_tmp) + " atoms) need " + std::to_string(9 * (natmin_tmp + 1)) +
+                                ".";
+        if (values.size() >= 9 && values.size() % 9 == 0) {
+            str_error +=
+                " The file holds " + std::to_string(values.size() / 9 - 1) + " Born effective charge tensors; ";
+            str_error += values.size() < 9 * (natmin_tmp + 1) ? "too few." : "too many.";
+        }
+        str_error += "\n List one Z* tensor per atom of the &cell, in the order of the primitive cell atoms.";
+        exit("load_born", str_error.c_str());
+    }
+
+    for (i = 0; i < 3; ++i) {
+        for (j = 0; j < 3; ++j) {
+            dielec_tensor(i, j) = values[3 * i + j];
+        }
+    }
+    if (!(dielec_tensor.determinant() > 0.0)) {
+        exit("load_born",
+             ("The dielectric tensor in BORNINFO file " + file_born + " is singular or has a negative determinant.")
+                 .c_str());
+    }
+
+    for (i = 0; i < natmin_tmp; ++i) {
+        for (j = 0; j < 3; ++j) {
+            for (k = 0; k < 3; ++k) {
+                borncharge[i][j][k] = values[9 + 9 * i + 3 * j + k];
+            }
+        }
+    }
+
+    if (verbosity > 0) {
+        std::cout << "  Dielectric constants and Born effective charges are read from " << file_born << ".\n\n";
+        std::cout << "  Dielectric constant tensor in Cartesian coordinate : \n";
+        for (i = 0; i < 3; ++i) {
+            for (j = 0; j < 3; ++j) {
+                std::cout << std::setw(15) << dielec_tensor(i, j);
+            }
+            std::cout << '\n';
+        }
+        std::cout << '\n';
+
+        std::cout << "  Born effective charge tensor in Cartesian coordinate\n";
+        for (i = 0; i < natmin_tmp; ++i) {
+            std::cout << "  Atom" << std::setw(5) << i + 1 << "(" << std::setw(3)
+                      << system->symbol_kd[system->get_supercell(0).kind[system->get_map_p2s(0)[i][0]]] << ") :\n";
+
+            for (j = 0; j < 3; ++j) {
+                for (k = 0; k < 3; ++k) {
+                    std::cout << std::setw(15) << std::fixed << std::setprecision(6) << borncharge[i][j][k];
+                }
+                std::cout << '\n';
+            }
+        }
+    }
+
+
+    // Check if the ASR is satisfied. If not, enforce it.
+
+    for (i = 0; i < 3; ++i) {
+        for (j = 0; j < 3; ++j) {
+            sum_born[i][j] = 0.0;
+            for (k = 0; k < natmin_tmp; ++k) {
+                sum_born[i][j] += borncharge[k][i][j];
+            }
+        }
+    }
+
+    double res = 0.0;
+    for (i = 0; i < 3; ++i) {
+        for (j = 0; j < 3; ++j) {
+            res += pow2(sum_born[i][j]);
+        }
+    }
+
+    if (res > eps10) {
+        if (verbosity > 0) {
+            std::cout << '\n';
+            std::cout << "  WARNING: Born effective charges do not satisfy the acoustic sum rule.\n";
+            std::cout << "           The born effective charges are modified to satisfy the ASR.\n";
+        }
+
+        for (i = 0; i < natmin_tmp; ++i) {
+            for (j = 0; j < 3; ++j) {
+                for (k = 0; k < 3; ++k) {
+                    borncharge[i][j][k] -= sum_born[j][k] / static_cast<double>(system->get_primcell().number_of_atoms);
+                }
+            }
+        }
+    }
+
+    if (flag_symmborn) {
+
+        // Symmetrize Born effective charges. Necessary to avoid the violation of ASR
+        // particularly for NONANALYTIC=3 (Ewald summation).
+
+        int iat;
+        NDArray<double, 3> born_sym;
+        double rot[3][3];
+
+        born_sym.resize(natmin_tmp, 3, 3);
+
+        for (iat = 0; iat < natmin_tmp; ++iat) {
+            for (i = 0; i < 3; ++i) {
+                for (j = 0; j < 3; ++j) {
+                    born_sym[iat][i][j] = 0.0;
+                }
+            }
+        }
+
+        for (auto isym = 0; isym < symops.size(); ++isym) {
+            for (i = 0; i < 3; ++i) {
+                for (j = 0; j < 3; ++j) {
+                    rot[i][j] = symops[isym].rot[3 * i + j];
+                }
+            }
+
+            for (iat = 0; iat < natmin_tmp; ++iat) {
+                int iat_sym = symops[isym].mapping[iat];
+
+                for (i = 0; i < 3; ++i) {
+                    for (j = 0; j < 3; ++j) {
+                        for (k = 0; k < 3; ++k) {
+                            for (int m = 0; m < 3; ++m) {
+                                born_sym[iat_sym][i][j] += rot[i][k] * rot[j][m] * borncharge[iat][k][m];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (iat = 0; iat < natmin_tmp; ++iat) {
+            for (i = 0; i < 3; ++i) {
+                for (j = 0; j < 3; ++j) {
+                    born_sym[iat][i][j] /= static_cast<double>(symops.size());
+                }
+            }
+        }
+
+        // Check if the Born effective charges given by the users satisfy the symmetry.
+
+        auto diff_sym = 0.0;
+        for (iat = 0; iat < natmin_tmp; ++iat) {
+            for (i = 0; i < 3; ++i) {
+                for (j = 0; j < 3; ++j) {
+                    diff_sym = std::max<double>(diff_sym, std::abs(borncharge[iat][i][j] - born_sym[iat][i][j]));
+                }
+            }
+        }
+
+        if (diff_sym > 0.5 && verbosity > 0) {
+            std::cout << '\n';
+            std::cout << "  WARNING: Born effective charges are inconsistent with the crystal symmetry.\n";
+        }
+
+        for (iat = 0; iat < natmin_tmp; ++iat) {
+            for (i = 0; i < 3; ++i) {
+                for (j = 0; j < 3; ++j) {
+                    borncharge[iat][i][j] = born_sym[iat][i][j];
+                }
+            }
+        }
+        born_sym.clear();
+
+        if (verbosity > 0) {
+            if (diff_sym > eps8 || res > eps10) {
+                std::cout << '\n';
+                std::cout << "  Symmetrized Born effective charge tensor in Cartesian coordinate." << '\n';
+                for (i = 0; i < natmin_tmp; ++i) {
+                    std::cout << "  Atom" << std::setw(5) << i + 1 << "(" << std::setw(3)
+                              << system->symbol_kd[system->get_supercell(0).kind[system->get_map_p2s(0)[i][0]]]
+                              << ") :" << '\n';
+
+                    for (j = 0; j < 3; ++j) {
+                        for (k = 0; k < 3; ++k) {
+                            std::cout << std::setw(15) << borncharge[i][j][k];
+                        }
+                        std::cout << '\n';
+                    }
+                }
+            }
+        }
+    }
+    std::cout << std::scientific;
+    dump_born_if_requested();
+}
+
+void Dielec::dump_born_if_requested() const
+{
+    // Test hook: ALAMODE_DUMP_BORN=<file> writes the processed (ASR-corrected, optionally
+    // symmetrized, or taken from a relaxed state) dielectric tensor and Born charges at full
+    // precision.
+    const auto *const dump = std::getenv("ALAMODE_DUMP_BORN");
+    if (!dump || run.my_rank != 0) return;
+    std::ofstream ofs(dump);
+    ofs << std::scientific << std::setprecision(17);
+    for (auto i = 0; i < 3; ++i) {
+        for (auto j = 0; j < 3; ++j) ofs << dielec_tensor(i, j) << '\n';
+    }
+    for (auto i = 0u; i < system->get_primcell().number_of_atoms; ++i) {
+        for (auto j = 0; j < 3; ++j) {
+            for (auto k = 0; k < 3; ++k) ofs << borncharge[i][j][k] << '\n';
         }
     }
 }
 
-double *Dielec::get_omega_grid(unsigned int &nomega_in) const
+void Dielec::set_born_data(const std::vector<double> &eps_inf, const std::vector<double> &zstar)
+{
+    const auto natmin = system->get_primcell().number_of_atoms;
+    if (!borncharge || eps_inf.size() != 9 || zstar.size() != 9 * natmin) {
+        exit("set_born_data", "Born charges of the wrong size, or none loaded.");
+    }
+    for (auto i = 0; i < 3; ++i) {
+        for (auto j = 0; j < 3; ++j) dielec_tensor(i, j) = eps_inf[3 * i + j];
+    }
+    std::copy(zstar.begin(), zstar.end(), &borncharge[0][0][0]);
+    dump_born_if_requested();
+}
+
+const double *Dielec::get_omega_grid(unsigned int &nomega_in) const
 {
     nomega_in = nomega;
     return omega_grid;
 }
 
-double ***Dielec::get_dielectric_func() const
+const double *const *const *Dielec::get_dielectric_func() const
 {
     return dielec;
 }
 
-void Dielec::run_dielec_calculation()
+void Dielec::run_dielec_calculation(const Dynamical &dynamical, const std::vector<FcsArrayWithCell> &fc2,
+                                    const Ewald &ewald)
 {
-    double *xk;
-    double *eval;
-    std::complex<double> **evec;
-    const auto ns = dynamical->neval;
+    NDArray<double, 1> xk;
+    NDArray<double, 1> eval;
+    NDArray<std::complex<double>, 2> evec;
+    const auto ns = 3 * system->get_primcell().number_of_atoms;
 
-    allocate(xk, 3);
-    allocate(eval, ns);
-    allocate(evec, ns, ns);
-    allocate(dielec, nomega, 3, 3);
+    xk.resize(3);
+    eval.resize(ns);
+    evec.resize(ns, ns);
+    dielec.resize(nomega, 3, 3);
 
     for (auto i = 0; i < 3; ++i) xk[i] = 0.0;
 
-    dynamical->eval_k(xk, xk, fcs_phonon->fc2_ext, eval, evec, true);
+    dynamical.diagonalize_gamma_analytic(eval, evec, true, fc2, *this, ewald);
 
-    compute_dielectric_function(nomega, omega_grid,
-                                eval, evec, dielec);
+    compute_dielectric_function(nomega, omega_grid, eval, evec, dielec);
 
-    deallocate(xk);
-    deallocate(eval);
-    deallocate(evec);
+    xk.clear();
+    eval.clear();
+    evec.clear();
 }
 
-void Dielec::compute_dielectric_function(const unsigned int nomega_in,
-                                         double *omega_grid_in,
-                                         double *eval_in,
-                                         std::complex<double> **evec_in,
-                                         double ***dielec_out)
+void Dielec::compute_dielectric_function(const unsigned int nomega_in, const double *omega_grid_in, double *eval_in,
+                                         std::complex<double> **evec_in, double ***dielec_out) const
 {
-    const auto ns = dynamical->neval;
-    const auto zstar = dynamical->borncharge;
+    const auto ns = 3 * system->get_primcell().number_of_atoms;
+    const auto &zstar = borncharge;
 
 #ifdef _DEBUG
     for (auto i = 0; i < ns; ++i) {
-        std::cout << "eval = " << eval_in[i] << std::endl;
+        std::cout << "eval = " << eval_in[i] << '\n';
         for (auto j = 0; j < ns; ++j) {
             std::cout << std::setw(15) << evec_in[i][j].real();
             std::cout << std::setw(15) << evec_in[i][j].imag();
-            std::cout << std::endl;
+            std::cout << '\n';
         }
-        std::cout << std::endl;
+        std::cout << '\n';
     }
 #endif
 
     for (auto i = 0; i < ns; ++i) {
         for (auto j = 0; j < ns; ++j) {
-            evec_in[i][j] /= std::sqrt(system->mass[system->map_p2s[j / 3][0]]);
+            evec_in[i][j] /= std::sqrt(system->get_mass_super()[system->get_map_p2s(0)[j / 3][0]]);
         }
     }
 
 #ifdef _DEBUG
     for (auto i = 0; i < ns; ++i) {
-        std::cout << "U = " << eval_in[i] << std::endl;
+        std::cout << "U = " << eval_in[i] << '\n';
         for (auto j = 0; j < ns; ++j) {
             std::cout << std::setw(15) << real(evec_in[i][j]);
             std::cout << std::setw(15) << evec_in[i][j].imag();
-            std::cout << std::endl;
+            std::cout << '\n';
         }
-        std::cout << std::endl;
+        std::cout << '\n';
     }
 #endif
 
-    double ***s_born;
-    double **zstar_u;
+    NDArray<double, 3> s_born;
+    NDArray<double, 2> zstar_u;
 
-    allocate(zstar_u, 3, ns);
-    allocate(s_born, 3, 3, ns);
+    zstar_u.resize(3, ns);
+    s_born.resize(3, 3, ns);
 
     for (auto i = 0; i < 3; ++i) {
         for (auto is = 0; is < ns; ++is) {
@@ -196,7 +486,7 @@ void Dielec::compute_dielectric_function(const unsigned int nomega_in,
         }
         std::cout << '\n';
     }
-    std::cout << std::endl;
+    std::cout << '\n';
 
     std::cout << "S_born:\n";
     for (auto is = 0; is < ns; ++is) {
@@ -220,7 +510,7 @@ void Dielec::compute_dielectric_function(const unsigned int nomega_in,
     }
 
     auto freq_conv_factor = time_ry * time_ry / (Hz_to_kayser * Hz_to_kayser);
-    auto factor = 8.0 * pi / system->volume_p;
+    auto factor = 8.0 * pi / system->get_primcell().volume;
     double w2_tmp;
     for (auto iomega = 0; iomega < nomega_in; ++iomega) {
         w2_tmp = omega_grid_in[iomega] * omega_grid_in[iomega] * freq_conv_factor;
@@ -237,42 +527,32 @@ void Dielec::compute_dielectric_function(const unsigned int nomega_in,
         }
     }
 
-    deallocate(zstar_u);
-    deallocate(s_born);
+    zstar_u.clear();
+    s_born.clear();
 }
 
-std::vector<std::vector<double>> Dielec::get_zstar_mode() const
+std::vector<std::vector<double>>
+Dielec::get_zstar_mode(const Dynamical &dynamical, const std::vector<FcsArrayWithCell> &fc2, const Ewald &ewald) const
 {
-    const auto ns = dynamical->neval;
+    const auto ns = 3 * system->get_primcell().number_of_atoms;
     std::vector<std::vector<double>> zstar_mode(ns, std::vector<double>(3));
-    compute_mode_effective_charge(zstar_mode, false);
+    compute_mode_effective_charge(dynamical, fc2, ewald, zstar_mode, false);
     return zstar_mode;
 }
 
-void Dielec::compute_mode_effective_charge(std::vector<std::vector<double>> &zstar_mode,
+void Dielec::compute_mode_effective_charge(const Dynamical &dynamical, const std::vector<FcsArrayWithCell> &fc2,
+                                           const Ewald &ewald, std::vector<std::vector<double>> &zstar_mode,
                                            const bool do_normalize) const
 {
     // Compute the effective charges of normal coordinate at q = 0.
 
-    if (dynamical->file_born.empty()) {
-        exitall("Dielec::compute_mode_effective_charge()",
-                "BORNINFO must be set when DIELEC = 1.");
-    }
-
-    // If borncharge in dynamical class is not initialized, do it here.
-    if (!dynamical->borncharge) {
-        const auto verbosity_level = 0;
-        dynamical->setup_dielectric(verbosity_level);
-    }
-
     std::vector<double> xk(3);
-    double *eval;
-    std::complex<double> **evec;
-    const auto ns = dynamical->neval;
-    const auto zstar_atom = dynamical->borncharge;
+    NDArray<double, 1> eval;
+    NDArray<std::complex<double>, 2> evec;
+    const auto ns = 3 * system->get_primcell().number_of_atoms;
 
-    allocate(eval, ns);
-    allocate(evec, ns, ns);
+    eval.resize(ns);
+    evec.resize(ns, ns);
 
     for (auto i = 0; i < 3; ++i) xk[i] = 0.0;
 
@@ -280,39 +560,84 @@ void Dielec::compute_mode_effective_charge(std::vector<std::vector<double>> &zst
     std::vector<std::vector<double>> projectors;
     std::vector<double> vecs(3);
 
-    if (!dynamical->get_projection_directions().empty()) {
-        dynamical->project_degenerate_eigenvectors(system->lavec_p,
-                                                   fcs_phonon->fc2_ext,
-                                                   &xk[0],
-                                                   dynamical->get_projection_directions(),
-                                                   evec);
+    if (!dynamical.get_projection_directions().empty()) {
+        dynamical.project_degenerate_eigenvectors(system->get_primcell().lattice_vector,
+                                                  fc2,
+                                                  &xk[0],
+                                                  dynamical.get_projection_directions(),
+                                                  evec);
     } else {
-        dynamical->eval_k(&xk[0], &xk[0], fcs_phonon->fc2_ext, eval, evec, true);
+        dynamical.diagonalize_gamma_analytic(eval, evec, true, fc2, *this, ewald);
     }
 
-    // Divide by sqrt of atomic mass to get normal coordinate
-    for (auto i = 0; i < ns; ++i) {
-        for (auto j = 0; j < ns; ++j) {
-            evec[i][j] /= std::sqrt(system->mass[system->map_p2s[j / 3][0]] / amu_ry);
-//            evec[i][j] /= std::sqrt(system->mass[system->map_p2s[j / 3][0]]);
-        }
+    compute_mode_effective_charge(zstar_mode, evec, do_normalize);
+
+    eval.clear();
+    evec.clear();
+}
+
+void Dielec::compute_mode_effective_charge(std::vector<std::vector<std::complex<double>>> &zstar_mode,
+                                           const std::complex<double> *const *evec_in) const
+{
+    // Compute mode effective charges from mass-weighted Gamma eigenvectors
+    // [Gonze & Lee, PRB 55, 10355 (1997), Eq. (53)]. Apply mass division during
+    // accumulation without modifying evec_in; retain complex phases.
+
+    const auto ns = 3 * system->get_primcell().number_of_atoms;
+    const auto &zstar_atom = borncharge;
+
+    std::vector<double> invsqrt_mass_amu(ns);
+    for (auto j = 0; j < ns; ++j) {
+        invsqrt_mass_amu[j] = 1.0 / std::sqrt(system->get_mass_super()[system->get_map_p2s(0)[j / 3][0]] / amu_ry);
     }
 
-    // Compute the mode effective charges defined by Eq. (53) or its numerator of
-    // Gonze & Lee, PRB 55, 10355 (1997).
-    for (auto i = 0; i < 3; ++i) {
-        for (auto is = 0; is < ns; ++is) {
-            zstar_mode[is][i] = 0.0;
-            auto normalization_factor = 0.0;
-
+    for (auto is = 0; is < ns; ++is) {
+        for (auto i = 0; i < 3; ++i) {
+            zstar_mode[is][i] = std::complex<double>(0.0, 0.0);
             for (auto j = 0; j < ns; ++j) {
-                zstar_mode[is][i] += zstar_atom[j / 3][i][j % 3] * evec[is][j].real();
-                normalization_factor += std::norm(evec[is][j]);
+                zstar_mode[is][i] += zstar_atom[j / 3][i][j % 3] * evec_in[is][j] * invsqrt_mass_amu[j];
             }
-            if (do_normalize) zstar_mode[is][i] /= std::sqrt(normalization_factor);
         }
     }
+}
 
-    deallocate(eval);
-    deallocate(evec);
+void Dielec::compute_mode_effective_charge(std::vector<std::vector<double>> &zstar_mode,
+                                           const std::complex<double> *const *evec_in, const bool do_normalize) const
+{
+    // Historical real-valued interface (ZMODE): the real part of the complex
+    // mode effective charge, optionally normalized by the normal-coordinate
+    // amplitude.
+
+    const auto ns = 3 * system->get_primcell().number_of_atoms;
+
+    std::vector<std::vector<std::complex<double>>> zstar_complex(ns, std::vector<std::complex<double>>(3));
+    compute_mode_effective_charge(zstar_complex, evec_in);
+
+    std::vector<double> invsqrt_mass_amu(ns);
+    for (auto j = 0; j < ns; ++j) {
+        invsqrt_mass_amu[j] = 1.0 / std::sqrt(system->get_mass_super()[system->get_map_p2s(0)[j / 3][0]] / amu_ry);
+    }
+
+    for (auto is = 0; is < ns; ++is) {
+        auto normalization_factor = 0.0;
+        for (auto j = 0; j < ns; ++j) {
+            normalization_factor += std::norm(evec_in[is][j] * invsqrt_mass_amu[j]);
+        }
+        for (auto i = 0; i < 3; ++i) {
+            zstar_mode[is][i] = zstar_complex[is][i].real();
+            if (do_normalize) {
+                zstar_mode[is][i] /= std::sqrt(normalization_factor);
+            }
+        }
+    }
+}
+
+const double *const *const *Dielec::get_borncharge() const
+{
+    return borncharge;
+}
+
+Eigen::Matrix3d Dielec::get_dielec_tensor() const
+{
+    return dielec_tensor;
 }

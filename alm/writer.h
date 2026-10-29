@@ -10,36 +10,43 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <map>
-#include <unordered_map>
+#include <cmath>
 #include <functional>
-#include "system.h"
-#include "symmetry.h"
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "cluster.h"
-#include "patterndisp.h"
-#include "fcs.h"
 #include "constraint.h"
-#include "optimize.h"
+#include "fcs.h"
 #include "files.h"
+#include "optimize.h"
+#include "patterndisp.h"
+#include "symmetry.h"
+#include "system.h"
+#include "units.h"
+
+#define H5_USE_EIGEN 1
+
+#include <highfive/H5Easy.hpp>
 
 
-namespace ALM_NS {
-class AtomProperty {
+namespace ALM_NS
+{
+class AtomProperty
+{
 public:
     double x, y, z;
     int kind;
     size_t atom, tran;
 
-    AtomProperty() = default;;
+    AtomProperty() = default;
 
     AtomProperty(const AtomProperty &other) = default;
 
-    AtomProperty(const double *pos,
-                 const int kind_in,
-                 const int atom_in,
-                 const int tran_in)
+    AtomProperty &operator=(const AtomProperty &other) = default;
+
+    AtomProperty(const double *pos, const int kind_in, const int atom_in, const int tran_in)
     {
         x = pos[0];
         y = pos[1];
@@ -50,144 +57,203 @@ public:
     }
 };
 
-class SystemInfo {
+class SystemInfo
+{
 public:
     double lattice_vector[3][3];
     std::vector<AtomProperty> atoms;
     size_t nat, natmin, ntran;
     size_t nspecies;
 
-    SystemInfo() = default;;
+    SystemInfo() = default;
+    ;
 };
 
-class Writer {
+class ForceConstantsWithShifts
+{
+public:
+    std::vector<int> atoms_p, atoms_s;
+    std::vector<int> coords;
+    std::vector<Eigen::Vector3d> shifts;
+    double fcs_value;
+
+    ForceConstantsWithShifts() = default;
+
+    ForceConstantsWithShifts(const std::vector<int> &atoms_p_, const std::vector<int> &atoms_s_,
+                             const std::vector<int> &coords_, const std::vector<Eigen::Vector3d> shifts_,
+                             const double fcs_value_)
+    {
+        coords = coords_;
+        atoms_p = atoms_p_;
+        atoms_s = atoms_s_;
+        shifts = shifts_;
+        fcs_value = fcs_value_;
+    }
+
+    bool operator<(const ForceConstantsWithShifts &obj) const
+    {
+        // Total order: (3*atoms_p+coords), then atoms_s, then shifts rounded to 1e-6,
+        // so periodic images of one FC sort independently of round-off.
+        const auto key = [](const ForceConstantsWithShifts &f) {
+            std::vector<long long> k;
+            for (size_t i = 0; i < f.coords.size(); ++i) k.push_back(3 * f.atoms_p[i] + f.coords[i]);
+            k.insert(k.end(), f.atoms_s.begin(), f.atoms_s.end());
+            for (const auto &s: f.shifts) {
+                for (auto j = 0; j < 3; ++j) k.push_back(std::llround(s[j] * 1.0e6));
+            }
+            return k;
+        };
+        return key(*this) < key(obj);
+    }
+};
+
+class Writer
+{
 public:
     Writer();
 
     ~Writer();
 
-    void writeall(const System *system,
-                  const Symmetry *symmetry,
-                  const Cluster *cluster,
-                  const Constraint *constraint,
-                  const Fcs *fcs,
-                  const Optimize *optimize,
-                  const Files *files,
-                  const int verbosity) const;
+    auto writeall(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                  const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Constraint> &constraint,
+                  const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Optimize> &optimize,
+                  const std::unique_ptr<Files> &files, const int verbosity) const -> void;
 
-    void write_input_vars(const System *system,
-                          const Symmetry *symmetry,
-                          const Cluster *cluster,
-                          const Displace *displace,
-                          const Fcs *fcs,
-                          const Constraint *constraint,
-                          const Optimize *optimize,
-                          const Files *files,
-                          const std::string run_mode) const;
+    // Keep the echo for HDF5 metadata even when print is false.
+    auto write_input_vars(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                          const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Displace> &displace,
+                          const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Constraint> &constraint,
+                          const std::unique_ptr<Optimize> &optimize, const std::unique_ptr<Files> &files,
+                          const std::string &run_mode, const bool print = true) -> void;
 
-    void write_displacement_pattern(const Cluster *cluster,
-                                    const Displace *displace,
-                                    const std::string prefix,
-                                    const int verbosity) const;
+    auto write_displacement_pattern(const std::unique_ptr<System> &system, const std::unique_ptr<Cluster> &cluster,
+                                    const std::unique_ptr<Displace> &displace, const std::string &prefix,
+                                    const int verbosity) const -> void;
 
-    void save_fcs_with_specific_format(const std::string fcs_format,
-                                       const System *system,
-                                       const Symmetry *symmetry,
-                                       const Cluster *cluster,
-                                       const Constraint *constraint,
-                                       const Fcs *fcs,
-                                       const Optimize *optimize,
-                                       const Files *files,
-                                       const int verbosity) const;
+    auto save_fcs_with_specific_format(const std::string &fcs_format, const std::unique_ptr<System> &system,
+                                       const std::unique_ptr<Symmetry> &symmetry,
+                                       const std::unique_ptr<Cluster> &cluster,
+                                       const std::unique_ptr<Constraint> &constraint, const std::unique_ptr<Fcs> &fcs,
+                                       const std::unique_ptr<Optimize> &optimize, const std::unique_ptr<Files> &files,
+                                       const int verbosity) const -> void;
 
-    void set_fcs_save_flag(const std::string key_str, const int val);
+    auto set_fcs_save_flag(const std::string &key_str, const int val) -> void;
 
-    int get_fcs_save_flag(const std::string key_str);
+    [[nodiscard]] auto get_fcs_save_flag(const std::string &key_str) -> int;
 
-    void set_filename_fcs(const std::string filename_in);
+    auto set_filename_fcs(const std::string &filename_in) -> void;
 
-    std::string get_filename_fcs() const;
+    [[nodiscard]] auto get_filename_fcs() const -> std::string;
 
-    void set_output_maxorder(const int maxorder);
+    auto set_output_maxorder(const int maxorder) -> void;
 
-    int get_output_maxorder() const;
+    [[nodiscard]] auto get_output_maxorder() const -> int;
+
+    auto set_compression_level(const int level) -> void;
+
+    [[nodiscard]] auto get_compression_level() const -> int;
+
+    [[nodiscard]] auto has_input_echo() const -> bool;
+
+    auto set_input_vars(const std::map<std::string, std::string> &input_var_dict) -> void;
+
+    [[nodiscard]] auto get_input_var(const std::string &key) const -> std::string;
+
+    auto set_format_patternfile(const std::string &format_name) -> void;
+
+    [[nodiscard]] auto get_format_patternfile() const -> std::string;
+
+    // Unit system of the "alamode_h5" output (FCS_UNIT_OUTPUT). The XML and
+    // .fcs outputs always stay in Rydberg atomic units.
+    auto set_fcs_unit_output(const std::string &unit_system) -> void;
+
+    [[nodiscard]] auto get_fcs_unit_output() const -> std::string;
 
 private:
-    void write_force_constants(const Cluster *cluster,
-                               const Fcs *fcs,
-                               const Symmetry *symmetry,
-                               const double *fcs_vals,
-                               const int verbosity,
-                               const std::string fname_save) const;
+    auto write_force_constants(const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                               const std::unique_ptr<Symmetry> &symmetry, const double *fcs_vals, const int verbosity,
+                               const std::string &fname_save) const -> void;
 
-    void save_fcs_alamode_oldformat(const System *system,
-                                    const Symmetry *symmetry,
-                                    const Cluster *cluster,
-                                    const Fcs *fcs,
-                                    const Constraint *constraint,
-                                    const double *fcs_vals,
-                                    const std::string fname_dfset,
-                                    const std::string fname_fcs,
-                                    const int verbosity) const;
+    auto save_fcs_alamode_oldformat(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                                    const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                                    const std::unique_ptr<Constraint> &constraint, const double *fcs_vals,
+                                    const std::string &fname_dfset, const std::string fname_fcs,
+                                    const int verbosity) const -> void;
 
-    void write_hessian(const System *system,
-                       const Symmetry *symmetry,
-                       const Fcs *fcs,
-                       const std::string fname_out,
-                       const int verbosity) const;
+    auto save_fcs_alamode(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                          const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                          const double *fcs_vals, const std::string &fname_fcs, int verbosity) const -> void;
 
-    void save_fc2_QEfc_format(const System *system,
-                              const Symmetry *symmetry,
-                              const Fcs *fcs,
-                              const std::string fname_out,
-                              const int verbosity) const;
+    static auto write_structures_h5(H5Easy::File &file, const Cell &cell, const Spin &spin, const std::string &celltype,
+                                    const std::vector<std::string> &kdnames, const size_t ntran,
+                                    const std::vector<std::vector<int>> &mapping_info,
+                                    const units::FcUnitSystem unit_system) -> void;
 
-    void save_fc3_shengbte_format(const System *system,
-                                  const Symmetry *symmetry,
-                                  const Cluster *cluster,
-                                  const Constraint *constraint,
-                                  const Fcs *fcs,
-                                  const std::string fname_out,
-                                  const int verbosity) const;
+    static auto write_forceconstant_at_given_order_h5(H5Easy::File &file, const int order,
+                                                      const std::vector<ForceConstantTable> &fc_cart,
+                                                      const std::vector<Eigen::MatrixXd> &x_image,
+                                                      const std::vector<Maps> &map_s2tp,
+                                                      const std::unique_ptr<Cluster> &cluster,
+                                                      const units::FcUnitSystem unit_system,
+                                                      const int compression_level = 9) -> void;
 
-    void save_fc4_shengbte_format(const System *system,
-                                  const Symmetry *symmetry,
-                                  const Cluster *cluster,
-                                  const Constraint *constraint,
-                                  const Fcs *fcs,
-                                  const std::string fname_out,
-                                  const int verbosity) const;
+    auto write_hessian(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                       const std::unique_ptr<Fcs> &fcs, const std::string &fname_out,
+                       const int verbosity) const -> void;
 
-    std::string easyvizint(int) const;
+    static auto save_fc2_QEfc_format(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                                     const std::unique_ptr<Fcs> &fcs, const std::string fname_out,
+                                     const int verbosity) -> void;
 
-    std::string double2string(double,
-                              int nprec = 15) const;
+    static auto save_fc3_shengbte_format(const std::unique_ptr<System> &system,
+                                         const std::unique_ptr<Symmetry> &symmetry,
+                                         const std::unique_ptr<Cluster> &cluster,
+                                         const std::unique_ptr<Constraint> &constraint, const std::unique_ptr<Fcs> &fcs,
+                                         const std::string &fname_out, const int verbosity) -> void;
+
+    static auto save_fc4_shengbte_format(const std::unique_ptr<System> &system,
+                                         const std::unique_ptr<Symmetry> &symmetry,
+                                         const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                                         const std::string &fname_out, int verbosity) -> void;
+
+    [[nodiscard]] static auto easyvizint(int) -> std::string;
+
+    [[nodiscard]] static auto double2string(double, int nprec = 15) -> std::string;
 
     std::map<std::string, int> save_format_flags;
-    int output_maxorder;
+    int output_maxorder, compression_level;
     std::string file_fcs, file_hes;
     std::string filename_fcs;
+    std::string format_pattern;
+    units::FcUnitSystem fcs_unit_output{units::FcUnitSystem::ry_bohr};
+
+    std::map<std::string, std::string> input_variables;
+    std::map<std::string, std::string> input_variables_echo; // log header values
 };
-}
+} // namespace ALM_NS
 
 // Helper function to combine hash values
 template <class T>
-inline void hash_combine(std::size_t& seed, const T& value) {
+inline auto hash_combine(std::size_t &seed, const T &value) -> void
+{
     seed ^= std::hash<T>()(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
 // Hash function for tuple
-namespace std {
+namespace std
+{
 template <typename... Types>
-struct hash<std::tuple<Types...>> {
-    size_t operator()(const std::tuple<Types...>& t) const {
-        return std::apply([](auto&&... args) {
-            size_t seed = 0;
-            (hash_combine(seed, args), ...);
-            return seed;
-        }, t);
+struct hash<std::tuple<Types...>>
+{
+    auto operator()(const std::tuple<Types...> &t) const -> size_t
+    {
+        return std::apply(
+            [](auto &&...args) {
+                size_t seed = 0;
+                (hash_combine(seed, args), ...);
+                return seed;
+            },
+            t);
     }
 };
-}
-
-
+} // namespace std

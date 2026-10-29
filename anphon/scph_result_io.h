@@ -1,0 +1,228 @@
+/*
+ scph_result_io.h
+
+ Copyright (c) 2026 Terumasa Tadano
+
+ This file is distributed under the terms of the MIT license.
+ Please see the file 'LICENCE.txt' in the root directory
+ or http://opensource.org/licenses/mit-license.php for information.
+*/
+
+#pragma once
+
+#include <Eigen/Core>
+#include <array>
+#include <complex>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace HighFive
+{
+class File;
+}
+
+namespace PHON_NS
+{
+// Plain-data descriptions of what goes into PREFIX.scph.h5 / PREFIX.qha.h5
+// (schema "alamode:scph_state"). Assembled by ScphQhaCommon; no HDF5 types
+// appear here.
+struct ScphSettingsH5
+{
+    std::string mode;                                   // "SCPH" or "QHA"
+    std::map<std::string, std::string> input_variables; // log header values
+    unsigned int kmesh_interpolate[3] = {0, 0, 0};
+    unsigned int kmesh_dense[3] = {0, 0, 0};
+    std::vector<double> temperatures; // K
+    int nonanalytic = 0;              // warn on mismatch at restart
+    int selfenergy_offdiag = 1;       // exit on mismatch at restart
+    int relax_str = 0;
+    // EFIELD [eV/Angstrom] and the (ASR-corrected) Born charges it acts on,
+    // [natmin * 9] row-major. Written only for a nonzero field; absent means
+    // zero field. Exit on mismatch.
+    std::array<double, 3> efield{};
+    std::vector<double> born_charges;
+    // POL_REF [C/m^2] and the clamped-ion piezoelectric tensor e0 as used
+    // [e/Bohr^2, (3,3,3)], independent of the field. Each is written only when
+    // nonzero; absent means zero. Exit on mismatch.
+    std::array<double, 3> pol_ref{};
+    std::array<double, 27> piezo0{};
+    // The second-order clamped-ion tensor B [e/Bohr^2, (3,3,3,3,3)] and the strain
+    // derivative of the reduced Born charges Lambda [e, (natmin,3,3,3,3)] as used
+    // (mapped onto the primitive cell, ASR-corrected; born_strain empty when absent).
+    // Written only when nonzero; absent means zero. Exit on mismatch.
+    std::array<double, 243> piezo2{};
+    std::vector<double> born_strain;
+    // The dielectric tensor and Born charges as this run processed them (ASR correction,
+    // BORNSYM with the run's operations): 9 + 9 * natmin, eps_inf then Z* per atom,
+    // row-major. Written whenever Born charges were loaded; a RELAXED_STRUCTURE = 1
+    // follow-up uses them instead of reprocessing BORNINFO with another group.
+    std::vector<double> born_processed;
+    // STRAIN_FC5 (&relax), STRAIN_FC5_CHANNELS = DIAG, and the fingerprint of the quintic
+    // IFCs (Fcs_phonon::fc5_fingerprint). Written only when STRAIN_FC5 = 1; absent means
+    // 0. Exit on mismatch.
+    int strain_fc5 = 0;
+    int strain_fc5_diag = 0;
+    std::array<double, 5> fc5_fingerprint{};
+};
+
+// Primitive cell of the SCPH run; the virtual supercell (primitive cell
+// tiled by KMESH_INTERPOLATE) is derived from it inside the writer.
+struct ScphCellsH5
+{
+    Eigen::Matrix3d lavec_prim; // columns = a1,a2,a3, bohr
+    Eigen::MatrixXd xf_prim;    // [natmin, 3]
+    std::vector<int> kinds;     // 0-based
+    std::vector<std::string> elements;
+    std::vector<double> masses_amu;
+    int spin_polarized = 0;
+    std::vector<std::vector<double>> magmom;
+    int noncollinear = 0;
+    int time_reversal_symmetry = 1;
+    unsigned int ncell_grid[3] = {1, 1, 1}; // = KMESH_INTERPOLATE
+};
+
+// Relaxed structure per temperature, written only when RELAX_STR != 0.
+// It is the deformation that turns the *reference* primitive cell (the
+// PrimitiveCell group of this file) into the equilibrium structure at that
+// temperature: lavec -> (I + u_tensor) lavec and a Cartesian displacement
+// u0 per primitive-cell atom. A follow-up KAPPA/BUBBLE run reads it to put
+// itself on the relaxed crystal; the SCPH/QHA run itself never needs it,
+// since it carries the deformation in reciprocal space.
+//
+// Two caveats for consumers. The structure is the one the text outputs
+// .atom_disp / .umn_tensor report, which is one optimizer update past the
+// structure whose /dymat rows were computed; the convergence test bounds
+// that last step by COORD_CONV_TOL / CELL_CONV_TOL. And a temperature whose
+// structural optimization failed still has a row here -- it holds the
+// fallback structure, which may be the input distortion paired with
+// reference harmonic data -- so /convergence/structure must be honored.
+struct ScphStructureH5
+{
+    std::vector<double> u_tensor;       // [NT * 9] row-major, dimensionless
+    std::vector<double> u0;             // [NT * 3 * natmin], Cartesian bohr
+    std::vector<std::string> spg_label; // [NT], e.g. "P4mm (#99)"
+};
+
+// Fingerprint of the IFCs the producing run loaded (Fcs_phonon::fcs_nrows /
+// fcs_checksum), written alongside a relaxed structure so that a consumer
+// can verify it is deforming with the same force constants the relaxation
+// used. Empty vectors mean the run recorded none.
+//
+// Entry counts are compared exactly and the sums with a relative tolerance,
+// since summation order may differ between runs. See Fcs_phonon for what
+// the sums can and cannot distinguish.
+struct ScphProvenanceH5
+{
+    std::vector<std::size_t> fcs_nrows;
+    std::vector<double> fcs_sum_abs;
+    std::vector<double> fcs_sum_signed;
+    std::vector<double> fcs_sum_sq;
+};
+
+// Renormalized FC2 on the virtual supercell, in the row layout of the
+// alamode force-constant schema (/ForceConstants/Order2). base_values holds
+// the coarse-mesh-folded harmonic FC2; values_per_temperature the total
+// (harmonic + anharmonic correction) FC2 per temperature.
+struct ScphFc2RowsH5
+{
+    Eigen::MatrixXi atom_indices;               // [nrows, 2]
+    Eigen::MatrixXi atom_indices_super;         // [nrows, 2]
+    Eigen::MatrixXi coord_indices;              // [nrows, 2]
+    Eigen::MatrixXd shift_vectors;              // [nrows, 3], Cartesian bohr
+    Eigen::ArrayXd base_values;                 // [nrows], Ry/bohr^2
+    std::vector<double> values_per_temperature; // [NT * nrows] row-major, Ry/bohr^2
+    std::string variant;                        // "scph" or "qha"
+};
+
+// Writer/reader of the unified SCPH/QHA state file. All methods must be
+// called from MPI rank 0 only. The file is written once, after the full
+// temperature loop, as <filename>.part and published with an atomic rename,
+// so a crash can never leave a partially written file under the final name.
+class ScphResultIOH5
+{
+public:
+    explicit ScphResultIOH5(std::string filename);
+
+    ~ScphResultIOH5();
+
+    // True when the file exists, carries the alamode:scph_state schema, and
+    // is marked complete.
+    [[nodiscard]] bool is_restartable() const;
+
+    // Hard-exit on mesh/SELF_OFFDIAG mismatches, warn on NONANALYTIC —
+    // mirroring the legacy text loader.
+    void validate_settings(const ScphSettingsH5 &settings) const;
+
+    // Load a /dymat dataset ("delta" or "delta_harm_renorm") for the
+    // requested temperatures, which may be any subset of the file's grid
+    // (a missing temperature is fatal). dymat_out is [NT][ns][ns][ncell].
+    void load_dymat(const std::string &name, const std::vector<double> &temps_requested, unsigned int ns,
+                    unsigned int ncell, std::complex<double> ****dymat_out) const;
+
+    void load_v0(const std::vector<double> &temps_requested, std::vector<double> &v0_out) const;
+
+    // Relaxed structure at one temperature. Returns false when the file
+    // carries no /structure group (RELAX_STR = 0, or a file written before
+    // the group existed), leaving the outputs untouched. u_tensor_out is
+    // row-major 3x3; u0_out is Cartesian bohr, 3 per primitive-cell atom.
+    // lavec_out / xf_out receive the *reference* primitive cell the
+    // deformation is relative to, so that a consumer can check it is the
+    // same cell and map the displacements onto its own atom order.
+    bool load_structure(double temp_requested, std::vector<double> &u_tensor_out, std::vector<double> &u0_out,
+                        std::string &spg_label_out, Eigen::Matrix3d &lavec_out, Eigen::MatrixXd &xf_out) const;
+
+    // Orders whose IFC fingerprint disagrees with the stored one; empty when
+    // they match or the file carries none. Only orders both runs loaded are
+    // compared -- a consumer may legitimately load fewer.
+    std::vector<unsigned int> compare_provenance(const ScphProvenanceH5 &current) const;
+
+    // Write the complete state atomically. delta_harm_renorm, v0, fc2, and
+    // the convergence vectors may be null when the run does not produce
+    // them (absent /convergence datasets mean "unknown", e.g. a legacy
+    // import, and are accepted on read).
+    void write_state(const ScphSettingsH5 &settings, const ScphCellsH5 &cells,
+                     const std::complex<double> *const *const *const *delta_main,
+                     const std::complex<double> *const *const *const *delta_harm_renorm, const std::vector<double> *v0,
+                     const ScphFc2RowsH5 *fc2, const std::vector<unsigned char> *converged_scph,
+                     const std::vector<unsigned char> *converged_structure, const ScphStructureH5 *structure = nullptr,
+                     const ScphProvenanceH5 *provenance = nullptr,
+                     const std::vector<double> *data_temperature = nullptr) const;
+
+    // Refuse (or, with allow_unconverged, only warn about) temperatures
+    // whose SCPH iteration or structural optimization did not converge.
+    void check_convergence(const std::vector<double> &temps_requested, bool allow_unconverged) const;
+
+    // The STRAIN_FC5 setting of the run that wrote the file (absent: 0). When it is 1,
+    // diag is its STRAIN_FC5_CHANNELS = DIAG flag and fingerprint the stored
+    // Fcs_phonon::fc5_fingerprint (empty when absent).
+    int strain_fc5_record(int &diag, std::vector<double> &fingerprint) const;
+
+    // Whether the /dymat corrections are relative to the full harmonic matrix
+    // (/settings/delta_baseline = 1); older files: relative to the analytic part.
+    bool delta_on_full_harmonic() const;
+
+    // The stored convergence flags of the requested temperatures (1 where the
+    // file carries none, as check_convergence treats them).
+    void load_convergence(const std::vector<double> &temps_requested, std::vector<unsigned char> &scph_out,
+                          std::vector<unsigned char> &structure_out) const;
+
+    // The processed dielectric tensor (9) and Born charges (9 * natmin) of the run that wrote
+    // the file (ScphSettingsH5::born_processed), with the fractional coordinates of its
+    // primitive cell for mapping the atoms. False when the file carries none.
+    bool load_born_processed(std::vector<double> &eps_out, std::vector<double> &zstar_out,
+                             Eigen::MatrixXd &xf_out) const;
+
+    [[nodiscard]] const std::string &get_filename() const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+};
+
+// A sentence naming where the stored data of temperature row `row` come from, for the unconverged-data messages: a copy of another temperature
+// or the harmonic data. Empty when the row holds its own data, or when the file
+// predates /convergence/data_temperature.
+std::string scph_row_data_note(const HighFive::File &fh, size_t row);
+} // namespace PHON_NS

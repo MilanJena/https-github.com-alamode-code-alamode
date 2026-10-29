@@ -5,194 +5,282 @@ ANPHON: Output files
 
 .. |umulaut_u|    unicode:: U+00FC
 
-
-* ``PREFIX``.bands
-
- Phonon dispersion along given :math:`k` paths in units of cm :sup:`-1`.
- Created when ``MODE = phonons`` with **KPMODE** = 1.
-
-* ``PREFIX``.dos
-
- Phonon density of states (DOS). Atom projected phonon DOSs are also printed when ``PDOS = 1``.
- Created when ``MODE = phonons`` with **KPMODE** = 2.
-
-* ``PREFIX``.tdos
-
- Two-phonon density of states for all irreducible :math:'k' points. 
- Created when ``MODE = phonons`` with **KPMODE** = 2 and ``TDOS = 1``.
-
-* ``PREFIX``.thermo
-
- Constant volume heat capacity, vibrational entropy, internal energy, and vibrational free energy.
- Created when ``MODE = phonons`` with **KPMODE** = 2.
- When ``FE_BUBBLE = 1`` is set in the **&analysis** field, an additional bubble correction term 
- to the vibrational free energy is also calculated.
-
-* ``PREFIX``.msd
- 
- Mean-square-displacements of atoms.
- Created when ``MODE = phonons`` with **KPMODE** = 2 and ``PRINTMSD = 1``.
-
-* ``PREFIX``.sps
-
- Total and mode-decomposed scattering phase space. 
- Created when ``MODE = phonons`` with **KPMODE** = 2 and ``SPS = 1``.
-
-* ``PREFIX``.pr
-
- Participation ratio of every phonon modes. 
- Created when ``MODE = phonons`` and ``PRINTPR = 1``.
-
-* ``PREFIX``.apr
-
- Atomic participation ratio of every phonon modes. 
- Created when ``MODE = phonons`` and ``PRINTPR = 1``.
-
-* ``PREFIX``.phvel
-
- Phonon group velocity along given :math:`k` paths.
- Created when ``MODE = phonons`` with **KPMODE** = 1 and ``PRINTVEL = 1``.
-
-* ``PREFIX``.phvel_all
-
- Magnitude of group velocity :math:`|\boldsymbol{v}|` of all phonon modes at the uniform :math:`k` grid. 
- Created when ``MODE = phonons`` with **KPMODE** = 2 and ``PRINTVEL = 1``.
-
-* ``PREFIX``.evec, ``PREFIX``.band.evec, ``PREFIX``.mesh.evec
-
- Eigenvalues and eigenvectors of dynamical matrices.
- Eigenvalues are printed in Rydberg atomic units.
- Created when ``MODE = phonons`` with ``PRINTEVEC = 1``.
-
-* ``PREFIX``.gru
-
- Gr\ |umulaut_u|\ neisen parameters along given :math:`k` paths.
- Created when ``MODE = phonons`` with **KPMODE** = 1 and ``GRUNEISEN = 1``.
-
-
-* ``PREFIX``.gru_all
-
- Gr\ |umulaut_u|\ neisen parameters of all phonon modes at the uniform :math:`k` grid.
- Created when ``MODE = phonons`` with **KPMODE** = 2 and ``GRUNEISEN = 1``.
-
-
-* ``PREFIX``.zmode
-
- Mode effective charges of zone-center phonon modes.
- Created when ``MODE = phonons`` with ``ZMODE = 1``.
-
-* ``PREFIX``.axsf
-
- Zone-center phonon modes with directions indicated by arrows.
- This file can be visualized by XcrySDen.
- Created when ``MODE = phonons`` with ``PRINTXSF = 1``.
-
-* ``PREFIX``.anime???.axsf and ``PREFIX``.anime???.xyz
-
- Files for animating phonon modes. ??? is the mode number.
- Created when ``MODE = phonons`` with a proper ``ANIME``-tag.
- If ``ANIME_FORMAT = xsf``, axsf files will be created which can be displayed by XcrySDen.
- If ``ANIME_FORMAT = xyz``, xyz files will be created which can be visualized by VMD, Jmol, etc.
-
-````
-
-* ``PREFIX``.result
-
- In this file, phonon frequency, group velocity, and anharmonic phonon linewidths are printed.
- This file is updated during thermal conductivity calculations (``MODE = RTA``).
- In addition, this file is read when the restart mode is turned on (``RESTART = 1``).
-
-* ``PREFIX``.kl
-
- Lattice thermal conductivity tensor (Peierls term). Created when ``MODE = RTA``.
-
-* ``PREFIX``.kl_spec
-
- Spectra of lattice thermal conductivity. Only diagonal components are saved.
- Created when ``MODE = RTA`` and ``KAPPA_SPEC = 1``.
-
-
-* ``PREFIX``.kl_coherent
-
- Coherent component of lattice thermal conductivity. Created when ``KAPPA_COHERENT > 0`` in ``MODE = RTA``.
-
-
-* ``PREFIX``.kc_elem
-
- Momentum- and mode-decomposed contributions to the coherent components of lattice thermal conductivity. 
- Created when ``KAPPA_COHERENT = 2`` in ``MODE = RTA``.
-
-
-* ``PREFIX``.gamma_isotope
-
- Phonon selfenergy due to isotope scatterings calculated by the Tamura's formula.
- Created when ``MODE = RTA`` and ``ISOTOPE = 2``.
-
-````
-
-* ``PREFIX``.scph_dymat
-
- Anharmonic dynamical matrix calculated on the :math:`k` grid defined by the ``KMESH_INTERPOLATE`` tag.
- This file is used to restart the SCPH calculation.
-
-* ``PREFIX``.scph_bands
-
- Anharmonic phonon dispersion curves. 
-
-* ``PREFIX``.scph_dos
-
- Anharmonic phonon DOS. Created when ``MODE = SCPH`` and ``DOS = 1`` with **KPMODE** = 2.
-
-
-* ``PREFIX``.scph_thermo
-
- Constant volume heat capacity, vibrational entropy, and vibrational free energy calculated based on the self-consistent phonon calculation. 
- Created when ``MODE = SCPH`` with **KPMODE** = 2.
- 
-..  When ``FE_BUBBLE = 1`` is set in the **&analysis** field, an additional bubble correction term 
-..  to the vibrational free energy is also calculated.
-
-* ``PREFIX``.scph_msd
-
- Mean square displacement calculated within the SCPH theory. Created when ``MODE = SCPH`` and ``PRINTMSD = 1`` with **KPMODE** = 2.
-
-* ``PREFIX``.scph_dfc2
-
- This file contains :math:`\Delta D(\boldsymbol{q}) = D_{\mathrm{SCPH}}(\boldsymbol{q}) - D_{\mathrm{Harmonic}}(\boldsymbol{q})`.
- For the definition, see the :ref:`formalism of the SCPH calculation <formalism_SCPH>`.
-
-````
-
-* ``PREFIX``.atom_disp
- 
- Temperature-dependence of the atomic displacements :math:`u^{(0)}_{\alpha \mu}` in Cartesian representation. Created when ``MODE = SCPH`` and ``RELAX_STR != 0``.
-
-* ``PREFIX``.normal_disp
-
- Temperature-dependence of the atomic displacement :math:`q^{(0)}_{\lambda}` in normal coordinate representation. Created when ``MODE = SCPH`` and ``RELAX_STR != 0``.
-
-* ``PREFIX``.umn_tensor
-
- Temperature-dependence of the displacement gradient tensor :math:`u_{\mu \nu}`. Created when ``MODE = SCPH`` and ``RELAX_STR = 2, -1, -2``.
-
-* ``PREFIX``.V0
-
- Temperature-dependent zero-th order IFC :math:`U_0`. Created when ``MODE = SCPH`` and ``RELAX_STR != 0``.
- This file is used to restart the SCPH/QHA + structural optimization.
-
-* ``PREFIX``.renorm_harm_dymat
-
- Renormalization of harmonic dynamical matrix by the structure change. Created when ``MODE = SCPH`` and ``RELAX_STR != 0``.
- This file is used to restart the SCPH/QHA + structural optimization.
-
-* step_q0.txt
-
- Record of atomic displacement :math:`q^{(0)}_{\lambda}` at all steps of structural optimization.
-
-* step_u0.txt
-
- Record of atomic displacements :math:`u^{(0)}_{\alpha \mu}` at all steps of structural optimization.
-
-* step_u_tensor.txt
-
- Record of displacement gradient tensor :math:`u_{\mu \nu}` at all steps of structural optimization.
+The files are listed by ``MODE``. ``PREFIX`` is the value of the ``PREFIX`` tag.
+Several files come in two formats: the HDF5 version is written by default, and the plain-text version with ``FILE_FORMAT = text``.
+The layouts of the HDF5 files are described in :doc:`../hdf5_format`.
+
+``MODE = phonons``
+~~~~~~~~~~~~~~~~~~
+
+Files written for the points of the ``&kpoint`` field. *KPMODE* 0, 1, and 2 give a list of points, band paths, and a uniform mesh, respectively.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - File
+     - Written when
+     - Contents
+   * - ``PREFIX``.bands
+     - *KPMODE* = 1
+     - Phonon dispersion (cm\ :sup:`-1`) along the paths
+   * - ``PREFIX``.connection
+     - *KPMODE* = 1, ``BCONNECT = 2``
+     - How the branches connect along the paths
+   * - ``PREFIX``.dos
+     - *KPMODE* = 2 (``DOS = 1``, default)
+     - Phonon DOS; atom-projected DOS with ``PDOS = 1``
+   * - ``PREFIX``.tdos
+     - *KPMODE* = 2, ``TDOS = 1``
+     - Two-phonon DOS at the irreducible :math:`k` points
+   * - ``PREFIX``.longitudinal_dos
+     - *KPMODE* = 2, ``LONGITUDINAL_DOS = 1``
+     - Longitudinal-projected DOS
+   * - ``PREFIX``.thermo
+     - *KPMODE* = 2
+     - Heat capacity, entropy, internal energy, and free energy vs. temperature. With
+       ``FE_BUBBLE = 1``, the bubble correction to the free energy is added as the last column
+       (not included in the harmonic free energy)
+   * - ``PREFIX``.msd
+     - *KPMODE* = 2, ``PRINTMSD = 1``
+     - Mean-square displacements of atoms vs. temperature
+   * - ``PREFIX``.ucorr
+     - *KPMODE* = 2, ``UCORR = 1``
+     - Displacement–displacement correlation function (``SHIFT_UCORR``)
+   * - ``PREFIX``.sps, ``PREFIX``.sps_Bose
+     - *KPMODE* = 2, ``SPS = 1`` or ``2``
+     - Three-phonon scattering phase space; ``.sps_Bose`` includes the Bose factor
+   * - ``PREFIX``.phvel, ``PREFIX``.phvel_all
+     - ``PRINTVEL = 1`` with *KPMODE* = 1 or 2
+     - Group velocities along the paths, or at every mesh point (magnitude and components)
+   * - ``PREFIX``\ [.band | .mesh].eval.h5
+     - ``PRINTEVAL = 1``
+     - Phonon eigenvalues. The file name follows *KPMODE* 0, 1, 2 (no suffix, ``.band``, ``.mesh``);
+       plain text ``PREFIX``\ [.band | .mesh].eval with ``FILE_FORMAT = text``
+   * - ``PREFIX``\ [.band | .mesh].evec.h5
+     - ``PRINTEVEC = 1``
+     - Phonon eigenvalues and eigenvectors, named as above;
+       plain text ``PREFIX``\ [.band | .mesh].evec with ``FILE_FORMAT = text``. Both can be given to ``displace.py --evec``
+   * - ``PREFIX``\ [.band | .mesh].pr, .apr
+     - ``PRINTPR = 1``
+     - Participation ratio and atomic participation ratio of every mode, named as above
+   * - ``PREFIX``\ [.band | .mesh].axsf
+     - ``PRINTXSF = 1``
+     - Mode directions at the given :math:`k` points, for XCrySDen, named as above
+   * - ``PREFIX``.animeNNN.xyz, ``PREFIX``.animeNNN.axsf
+     - ``ANIME`` (with ``ANIME_CELLSIZE``)
+     - Animation of mode NNN; XYZ (default) or AXSF with ``ANIME_FORMAT``
+   * - ``PREFIX``.gru_kpoints, ``PREFIX``.gruneisen, ``PREFIX``.gru_all
+     - ``GRUNEISEN >= 1`` with *KPMODE* = 0, 1, or 2
+     - Gr\ |umulaut_u|\ neisen parameters at the given points, along the paths, or on the mesh:
+       volumetric (``GRUNEISEN = 1``) or for each strain component (``2``, ``3``)
+   * - ``PREFIX``\_+.h5, ``PREFIX``\_-.h5
+     - ``NEWFCS = 1``
+     - Force constants of the crystal strained by :math:`\pm u`, usable as ``FCSFILE``
+       (``.xml`` with ``FILE_FORMAT = text``)
+   * - ``PREFIX``.dielec
+     - ``DIELEC = 1`` (needs ``BORNINFO``)
+     - Phonon contribution to the dielectric function :math:`\epsilon(\omega)`
+   * - ``PREFIX``.zmode
+     - ``ZMODE = 1`` (needs ``BORNINFO``)
+     - Mode effective charges of the zone-center modes
+   * - ``PREFIX``.irreps
+     - ``IRREPS = 1``
+     - Irreducible representations and IR/Raman activities at :math:`\Gamma`
+   * - ``PREFIX``.fc2_ewald
+     - ``NONANALYTIC = 3``, ``FC2_EWALD = 1`` (any ``MODE``)
+     - Harmonic force constants split into the dipole–dipole and short-range parts
+
+``MODE = kappa``
+~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - File
+     - Written when
+     - Contents
+   * - ``PREFIX``.kappa.h5
+     - Always (default format)
+     - All results: frequencies, velocities, linewidths, and thermal conductivity. Updated during the run and used for restarting;
+       read by ``analyzer.py``. See :ref:`label_hdf5_kappa`
+   * - ``PREFIX``.result, ``PREFIX``.4ph.result
+     - ``FILE_FORMAT = text``
+     - Legacy text versions of the three- and four-phonon linewidths
+   * - ``PREFIX``.kl
+     - ``SOLVER = RTA``
+     - Thermal conductivity tensor vs. temperature
+   * - ``PREFIX``.kl3, ``PREFIX``.kl4
+     - ``SOLVER = RTA``, ``INCLUDE_4PH = 1`` (instead of ``.kl``)
+     - Thermal conductivity with three-phonon scattering only, and with three- and four-phonon scattering
+   * - ``PREFIX``.kl_iter
+     - ``SOLVER = IBTE``, ``VBTE``, or ``DBTE``
+     - Thermal conductivity from the solution of the Boltzmann equation beyond the RTA
+   * - ``PREFIX``.kl_spec
+     - ``SOLVER = RTA``, ``KAPPA_SPEC = 1``
+     - Spectrum of the thermal conductivity (diagonal components)
+   * - ``PREFIX``.kl_coherent
+     - ``SOLVER = RTA``, ``KAPPA_COHERENT >= 1``
+     - Coherent (off-diagonal) contribution to the thermal conductivity
+   * - ``PREFIX``.kc_elem
+     - ``SOLVER = RTA``, ``KAPPA_COHERENT = 2``
+     - Mode-resolved contributions to the coherent term
+   * - ``PREFIX``.self_isotope
+     - ``SOLVER = RTA``, ``ISOTOPE = 2``
+     - Linewidths due to isotope scattering
+   * - ``PREFIX``.interpolated_gamma
+     - ``INCLUDE_4PH = 1``, ``WRITE_INTERPOL = 1``
+     - Four-phonon linewidths interpolated onto the three-phonon mesh
+   * - ``PREFIX``.velmat_check
+     - ``KAPPA_COHERENT >= 1``
+     - Diagnostic of the velocity matrix: largest deviation of its diagonal from the group velocities and largest
+       deviation from hermiticity
+
+``MODE = selfenergy``
+~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - File
+     - Written when
+     - Contents
+   * - ``PREFIX``.selfenergy.h5
+     - Always (default format)
+     - Results of all target modes. See :ref:`label_hdf5_selfenergy`
+   * - ``PREFIX``.Gamma.N
+     - ``FILE_FORMAT = text``, ``LINEWIDTH = 1`` (default)
+     - Linewidth :math:`2\Gamma` vs. temperature of target N
+   * - ``PREFIX``.Shift.N
+     - ``FILE_FORMAT = text``, ``SHIFT = 1``
+     - Frequency shifts vs. temperature
+   * - ``PREFIX``.Self.N
+     - ``FILE_FORMAT = text``, ``SELF_W = 1``
+     - Self-energy as a function of frequency
+   * - ``PREFIX``.fw.N
+     - ``FILE_FORMAT = text``, ``FSTATE_W = 1``
+     - Frequency-resolved final-state analysis of the linewidth
+   * - ``PREFIX``.spectrum
+     - ``FILE_FORMAT = text``, ``INTERPOLATE = 1``
+     - Spectral function :math:`A(\boldsymbol{q}, \omega)`, total and per branch
+   * - ``PREFIX``.V3.N, .Phi3.N, .V4.N, .Phi4.N
+     - ``PRINTV3``, ``PRINTV4`` = 1 or 2 (always text)
+     - Three- and four-phonon matrix elements involving target N
+
+In the text files, N numbers the targets on the integration mesh first and the other targets after them;
+the header of each file gives the wave vector and the branch.
+The same per-target files are written in ``MODE = kappa`` with the ``KS_INPUT`` analysis (``SELF_ENERGY = 1``, ``REALPART = 1``, ...).
+
+``MODE = SCPH`` and ``MODE = QHA``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The file names start with ``PREFIX``.scph for ``MODE = SCPH`` and ``PREFIX``.qha for ``MODE = QHA``.
+With ``BUBBLE = 1, 2, 3``, SCPH additionally writes the bubble-corrected versions
+``PREFIX``.scph+bubble(0), ``+bubble(w)``, or ``+bubble(wQP)`` of the eval, bands, dos, msd, ucorr, and dfc2 files.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - File
+     - Written when
+     - Contents
+   * - ``PREFIX``.scph.h5, ``PREFIX``.qha.h5
+     - Always (default format)
+     - Results at every temperature, used by later runs (``FC2_TEMPERATURE``, ``RELAXED_STRUCTURE``) and for restarting.
+       The FC2 corrections of each temperature are projected onto the space group of the structure
+       of that temperature (the spglib group of the relaxed structure with ``RELAX_STR`` > 0, at the
+       run's ``TOLERANCE``; the operations of the run otherwise). See :ref:`label_hdf5_scph`, and
+       :ref:`label_hdf5_scph_nonanalytic` for the force constants with ``NONANALYTIC > 0``
+   * - ``PREFIX``.scph_eval, .qha_eval
+     - *KPMODE* = 0
+     - Frequencies vs. temperature at the given :math:`k` points
+   * - ``PREFIX``.scph_bands, .qha_bands
+     - *KPMODE* = 1
+     - Dispersion vs. temperature. With ``RELAX_STR`` > 0, the :math:`k` axis is that of the
+       reference cell at every temperature (the frequencies are those of the relaxed structure);
+       a run with ``RELAXED_STRUCTURE = 1`` uses the axis of the relaxed cell
+   * - ``PREFIX``.scph_dos, .qha_dos
+     - *KPMODE* = 2 (``DOS = 1``, default)
+     - DOS vs. temperature
+   * - ``PREFIX``.scph_thermo, .qha_thermo
+     - *KPMODE* = 2
+     - Heat capacity, entropy, and free energy vs. temperature. With ``FE_BUBBLE = 1``
+       (``.scph_thermo`` only), the bubble correction to the free energy is written in a separate column
+       and included in ``F_{total}``, but not in Cv and S. For a temperature whose SCPH or
+       structural iterations did not converge, Cv, F and S are written as NaN (``Phi0`` is kept),
+       and so are the anharmonic Cv correction (also at the neighbouring temperatures, which use it
+       in a central difference) and the rows of that temperature in ``.scph_dos`` / ``.qha_dos``,
+       the MSD and ucorr files, and their ``+bubble`` versions. The log names what the arrays of that
+       temperature hold: the last SCP iterate, or after a failed structural optimization a copy of
+       the last converged temperature or the harmonic data. ``ALLOW_UNCONVERGED = 1`` prints the
+       values computed from those data instead
+   * - ``PREFIX``.scph_hessian
+     - ``BUBBLE = 4`` (MODE = SCPH, ``RELAX_STR > 0``)
+     - Curvature of the SCP free energy at each converged temperature: frequencies of the SCPH
+       and of the free-energy curvature (static bubble + quartic ladder) along the :math:`\Gamma`
+       displacements; negative values are unstable directions. With a cell (``RELAX_STR = 2, 4``),
+       ``#`` lines with the clamped- and relaxed-ion elastic curvature (Voigt, GPa)
+   * - ``PREFIX``.scph_fe.h5
+     - ``BUBBLE = 4``
+     - The SCPH state file again, with the correction of the free-energy curvature at every
+       point of the mesh (:math:`\Gamma` for ``KMESH_SCPH = 1 1 1``) added to the renormalized
+       FC2. Use it with ``DFC2FILE`` (or ``FC2FILE``) and ``FC2_TEMPERATURE`` for dispersions and
+       DOS interpolated like the SCPH ones; exact at the points of the mesh. Temperatures without
+       a curvature are flagged unconverged. Like the SCPH correction in ``PREFIX``.scph.h5, the sum
+       is projected onto the space group of the relaxed structure of each temperature, so it can
+       differ from ``.scph_hessian`` / ``.scph_hessian_q`` at the level of numerical noise
+   * - ``PREFIX``.scph_hessian_q
+     - ``BUBBLE = 4`` on a k-mesh
+     - Curvature of the SCP free energy at the irreducible :math:`\boldsymbol{Q}`-points of the mesh
+       other than :math:`\Gamma`: for each converged temperature and :math:`\boldsymbol{Q}`, the
+       frequencies of the SCPH and of the free-energy curvature (all branches); negative values are
+       unstable modulations
+   * - ``PREFIX``.scph_hessian_displace
+     - ``BUBBLE = 4``, a negative curvature
+     - For each unstable direction, the ``&displace`` (``DISPMODE = 1``, Cartesian, bohr) and
+       ``&strain`` fields of the converged structure moved 0.05 bohr along it, with the space group
+       of the displaced structure
+   * - ``PREFIX``.scph_msd, .qha_msd
+     - *KPMODE* = 2, ``PRINTMSD = 1``
+     - Mean-square displacements vs. temperature
+   * - ``PREFIX``.scph_ucorr, .qha_ucorr
+     - *KPMODE* = 2, ``UCORR = 1``
+     - Displacement correlation function vs. temperature
+   * - ``PREFIX``.scph_dielec, .qha_dielec
+     - ``DIELEC = 1``
+     - Dielectric function vs. temperature
+   * - ``PREFIX``.scph_dfc2, .qha_dfc2
+     - Always
+     - Change of the harmonic force constants :math:`\Delta\Phi_2` at each temperature
+       (see the :ref:`formalism of the SCPH calculation <formalism_SCPH>`), relative to the full
+       harmonic dynamical matrix of the run; the comment line ``# Header = -1 : NONANALYTIC = n ;
+       DELTA_BASELINE = 1`` gives the ``NONANALYTIC`` to use with it (files without it are of
+       version 1.x, see :ref:`label_hdf5_scph_nonanalytic`)
+   * - ``PREFIX``.atom_disp, ``PREFIX``.normal_disp
+     - ``RELAX_STR`` > 0
+     - Atomic displacements vs. temperature, in Cartesian and normal coordinates
+   * - ``PREFIX``.umn_tensor
+     - ``RELAX_STR = 2`` or ``4`` (QHA: ``2``, ``3``, or ``4``)
+     - Displacement gradient tensor :math:`u_{\mu\nu}` vs. temperature
+   * - step_q0.txt, step_u0.txt, step_u_tensor.txt
+     - ``RELAX_STR = 1``, ``2``, or ``4`` (step_u_tensor.txt: ``2`` or ``4``)
+     - History of the structural optimization at every step (fixed names in the working directory)
+   * - ``PREFIX``.polarization
+     - ``RELAX_STR = 1``, ``2``, or ``4`` with ``BORNINFO``
+     - Polarization of the relaxed structure vs. temperature
+   * - ``PREFIX``.V0
+     - ``RELAX_STR`` > 0
+     - Potential energy :math:`U_0` vs. temperature
+   * - ``PREFIX``.scph_dymat, ``PREFIX``.renorm_harm_dymat
+     - ``FILE_FORMAT = text`` (``.renorm_harm_dymat``: ``RELAX_STR`` > 0)
+     - Legacy restart files: the change of the dynamical matrix
+
+The optimization files (``atom_disp``, ``step_*.txt``, ...) and the dfc2 files are written by a new calculation, not by a restart.
+
+.. note::
+   A calculation restarts automatically when the restart files of an earlier run with the same ``PREFIX`` are found
+   (``PREFIX``.kappa.h5 or ``.result``, ``PREFIX``.scph.h5 or ``.scph_dymat``, ...).
+   Remove them, or change ``PREFIX``, to start from scratch.

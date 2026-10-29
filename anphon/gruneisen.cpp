@@ -8,64 +8,27 @@ Please see the file 'LICENCE.txt' in the root directory
 or http://opensource.org/licenses/mit-license.php for information.
 */
 
-#include "mpi_common.h"
 #include "gruneisen.h"
+#include <boost/sort/block_indirect_sort/block_indirect_sort.hpp>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
 #include "constants.h"
 #include "dynamical.h"
+#include "elastic_tensor.h"
 #include "error.h"
 #include "fcs_phonon.h"
+#include "ifc_derivative.h"
 #include "kpoint.h"
 #include "mathfunctions.h"
 #include "memory.h"
-#include "parsephon.h"
-#include "phonon_dos.h"
-#include "pointers.h"
+#include "mpi_common.h"
 #include "system.h"
-#include "anharmonic_core.h"
-#include "version.h"
-#include <iostream>
-#include <iomanip>
-#include <boost/lexical_cast.hpp>
-#include <boost/property_tree/xml_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/version.hpp>
-#include <cmath>
-
-namespace PHON_NS {
-bool less_FcsAlignedForGruneisen2(const FcsAlignedForGruneisen &obj1, const FcsAlignedForGruneisen &obj2)
-{
-    std::vector<unsigned int> array_a, array_b;
-    array_a.clear();
-    array_b.clear();
-    int len = obj1.pairs.size();
-    for (int i = 0; i < len - 2; ++i) {
-        array_a.push_back(obj1.pairs[i].index);
-        array_a.push_back(obj1.pairs[i].tran);
-        array_b.push_back(obj2.pairs[i].index);
-        array_b.push_back(obj2.pairs[i].tran);
-    }
-    for (int i = 0; i < len - 2; ++i) {
-        array_a.push_back(obj1.pairs[i].cell_s);
-        array_b.push_back(obj2.pairs[i].cell_s);
-    }
-
-    array_a.push_back(obj1.pairs[len - 2].index);
-    array_a.push_back(obj1.pairs[len - 2].tran);
-    array_b.push_back(obj2.pairs[len - 2].index);
-    array_b.push_back(obj2.pairs[len - 2].tran);
-
-    array_a.push_back(obj1.pairs[len - 1].index);
-    array_a.push_back(obj1.pairs[len - 1].tran);
-    array_b.push_back(obj2.pairs[len - 1].index);
-    array_b.push_back(obj2.pairs[len - 1].tran);
-    return std::lexicographical_compare(array_a.begin(), array_a.end(),
-                                        array_b.begin(), array_b.end());
-}
-}
+#include "write_phonons.h"
 
 using namespace PHON_NS;
 
-Gruneisen::Gruneisen(PHON *phon) : Pointers(phon)
+Gruneisen::Gruneisen(const RunInfo &run_in, const System *system_in) : run(run_in), system(system_in)
 {
     set_default_variables();
 };
@@ -78,848 +41,391 @@ Gruneisen::~Gruneisen()
 void Gruneisen::set_default_variables()
 {
     delta_a = 0.01;
-    print_gruneisen = false;
+    gruneisen_mode = 0;
     print_newfcs = false;
-    gruneisen_bs = nullptr;
-    gruneisen_dos = nullptr;
-    xshift_s = nullptr;
+    strain_newfcs_given = false;
+    strain_newfcs.setZero();
+    sublattice_relax = 0;
 }
 
 void Gruneisen::deallocate_variables()
 {
-    if (gruneisen_bs) {
-        deallocate(gruneisen_bs);
-    }
-    if (gruneisen_dos) {
-        deallocate(gruneisen_dos);
-    }
-    if (xshift_s) {
-        deallocate(xshift_s);
-    }
+    gruneisen_bs.clear();
+    gruneisen_dos.clear();
+    gruneisen_tensor_bs.clear();
+    gruneisen_tensor_dos.clear();
+    gruneisen_general.clear();
+    gruneisen_tensor_general.clear();
     delta_fc2.clear();
-    delta_fc3.clear();
+    delta_fc2_newfcs.clear();
+    delta_fc3_newfcs.clear();
+    delta_fc2_strain.clear();
 }
 
-void Gruneisen::setup()
+void Gruneisen::setup(const int quartic_mode, const NDArray<std::vector<FcsArrayWithCell>, 1> &ifcs)
 {
     MPI_Bcast(&delta_a, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&print_newfcs, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&strain_newfcs_given, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+    MPI_Bcast(strain_newfcs.data(), 9, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&sublattice_relax, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    allocate(xshift_s, 27, 3);
+    if (sublattice_relax && (gruneisen_mode > 0 || print_newfcs)) {
+        const ElasticTensor elastic_tensor(*system);
+        elastic_tensor.calc_sublattice_response(ifcs[0], sublattice_response);
+    }
 
-    for (int i = 0; i < 3; ++i) xshift_s[0][i] = 0.0;
+    if (gruneisen_mode == 1) {
+        prepare_delta_fcs(ifcs[1], delta_fc2, Eigen::Matrix3d::Identity());
+    }
+    if (gruneisen_mode >= 2) {
+        prepare_delta_fcs_strain(ifcs[1], delta_fc2_strain);
+    }
 
-    int icell = 0;
+    if (print_newfcs) {
+        const Eigen::Matrix3d strain_dir = strain_newfcs_given ? strain_newfcs : Eigen::Matrix3d::Identity();
 
-    for (int ix = -1; ix <= 1; ++ix) {
-        for (int iy = -1; iy <= 1; ++iy) {
-            for (int iz = -1; iz <= 1; ++iz) {
-                if (ix == 0 && iy == 0 && iz == 0) continue;
-
-                ++icell;
-
-                xshift_s[icell][0] = static_cast<double>(ix);
-                xshift_s[icell][1] = static_cast<double>(iy);
-                xshift_s[icell][2] = static_cast<double>(iz);
-            }
+        prepare_delta_fcs(ifcs[1], delta_fc2_newfcs, strain_dir);
+        if (quartic_mode > 0) {
+            prepare_delta_fcs(ifcs[2], delta_fc3_newfcs, strain_dir);
         }
     }
 
-    if (print_gruneisen || print_newfcs) {
-        prepare_delta_fcs(fcs_phonon->force_constant_with_cell[1], delta_fc2, 1);
-
-        // impose_ASR_on_harmonic_IFC(delta_fc2, 0);
-    }
-
-    if (print_newfcs && anharmonic_core->quartic_mode > 0) {
-        prepare_delta_fcs(fcs_phonon->force_constant_with_cell[2], delta_fc3, 1);
-    }
-    if (print_gruneisen) {
-        if (kpoint->kpoint_bs) {
-            allocate(gruneisen_bs, kpoint->kpoint_bs->nk, dynamical->neval);
-        }
-        if (dos->kmesh_dos) {
-            allocate(gruneisen_dos, dos->kmesh_dos->nk, dynamical->neval);
-        }
-    }
-
-    if (mympi->my_rank == 0) {
+    if (run.my_rank == 0 && run.verbosity > 0) {
         if (print_newfcs) {
-            std::cout << std::endl;
-            if (anharmonic_core->quartic_mode > 0) {
-                std::cout << " NEWFCS = 1 : Harmonic and cubic force constants of " << std::endl;
+            std::cout << '\n';
+            if (quartic_mode > 0) {
+                std::cout << " NEWFCS = 1 : Harmonic and cubic force constants of \n";
             } else {
-                std::cout << " NEWFCS = 1 : Harmonic force constants of " << std::endl;
+                std::cout << " NEWFCS = 1 : Harmonic force constants of \n";
             }
-            std::cout << "              expanded/compressed systems will be estimated" << std::endl;
-            std::cout << "              with DELTA_A = " << std::setw(5) << delta_a << std::endl;
+            if (strain_newfcs_given) {
+                std::cout << "              strained systems will be estimated\n";
+                std::cout << "              with the strain tensor given in the &strain field:\n";
+                for (auto i = 0; i < 3; ++i) {
+                    std::cout << "              ";
+                    for (auto j = 0; j < 3; ++j) {
+                        std::cout << std::setw(12) << std::defaultfloat << strain_newfcs(i, j);
+                    }
+                    std::cout << '\n';
+                }
+            } else {
+                std::cout << "              expanded/compressed systems will be estimated\n";
+                std::cout << "              with the isotropic strain +/- " << std::defaultfloat << delta_a << ".\n";
+                std::cout << "              An anisotropic strain tensor can be given in the &strain field.\n";
+            }
+            if (sublattice_relax) {
+                std::cout << "              SUBLATTICE_RELAX = 1 : the strain-induced internal displacements\n";
+                std::cout << "              are relaxed (relaxed-ion path).\n";
+            }
         }
     }
-    //   print_stress_energy();
 }
 
-void Gruneisen::calc_gruneisen()
+void Gruneisen::calc_gruneisen(const KpointBandStructure *kpoint_bs, const DymatEigenValue *dymat_band,
+                               const KpointMeshUniform *kmesh_dos, const DymatEigenValue *dymat_dos,
+                               const KpointGeneral *kpoint_general, const DymatEigenValue *dymat_general)
 {
-    const auto ns = dynamical->neval;
-    std::complex<double> **dfc2_reciprocal;
+    if (!dymat_general) kpoint_general = nullptr;
 
-    allocate(dfc2_reciprocal, ns, ns);
-
-    if (mympi->my_rank == 0) {
-        std::cout << std::endl;
-        std::cout << " GRUNEISEN = 1 : Calculating Gruneisen parameters ... ";
+    if (run.my_rank == 0 && run.verbosity > 0) {
+        std::cout << '\n';
+        const std::string ion_path = sublattice_relax ? "relaxed-ion " : "";
+        if (gruneisen_mode == 1) {
+            std::cout << " GRUNEISEN = 1 : Calculating " << ion_path << "volumetric Gruneisen parameters ... ";
+        } else {
+            std::cout << " GRUNEISEN = " << gruneisen_mode << " : Calculating " << ion_path
+                      << "generalized Gruneisen parameters ... ";
+        }
     }
 
-    if (kpoint->kpoint_bs) {
-        const auto nk = kpoint->kpoint_bs->nk;
-        const auto xk = kpoint->kpoint_bs->xk;
-        const auto eval = dynamical->dymat_band->get_eigenvalues();
-        const auto evec = dynamical->dymat_band->get_eigenvectors();
+    if (gruneisen_mode == 1) {
+        if (kpoint_bs) {
+            gruneisen_bs.resize(kpoint_bs->nk, system->get_num_modes());
+        }
+        if (kmesh_dos) {
+            gruneisen_dos.resize(kmesh_dos->nk, system->get_num_modes());
+        }
+        if (kpoint_general) {
+            gruneisen_general.resize(kpoint_general->nk, system->get_num_modes());
+        }
+    } else if (gruneisen_mode >= 2) {
+        const auto ncomp = number_of_strain_components();
+        if (kpoint_bs) {
+            gruneisen_tensor_bs.resize(kpoint_bs->nk, system->get_num_modes(), ncomp);
+        }
+        if (kmesh_dos) {
+            gruneisen_tensor_dos.resize(kmesh_dos->nk, system->get_num_modes(), ncomp);
+        }
+        if (kpoint_general) {
+            gruneisen_tensor_general.resize(kpoint_general->nk, system->get_num_modes(), ncomp);
+        }
+    }
 
-        for (auto ik = 0; ik < nk; ++ik) {
+    if (kpoint_bs) {
+        calc_gruneisen_at_kpoints(kpoint_bs->nk,
+                                  kpoint_bs->xk,
+                                  dymat_band->get_eigenvalues(),
+                                  dymat_band->get_eigenvectors(),
+                                  gruneisen_bs,
+                                  gruneisen_tensor_bs);
+    }
 
-            calc_dfc2_reciprocal(dfc2_reciprocal, xk[ik]);
+    if (kmesh_dos) {
+        calc_gruneisen_at_kpoints(kmesh_dos->nk,
+                                  kmesh_dos->xk,
+                                  dymat_dos->get_eigenvalues(),
+                                  dymat_dos->get_eigenvectors(),
+                                  gruneisen_dos,
+                                  gruneisen_tensor_dos);
+    }
 
-            for (auto is = 0; is < ns; ++is) {
+    if (kpoint_general) {
+        calc_gruneisen_at_kpoints(kpoint_general->nk,
+                                  kpoint_general->xk,
+                                  dymat_general->get_eigenvalues(),
+                                  dymat_general->get_eigenvectors(),
+                                  gruneisen_general,
+                                  gruneisen_tensor_general);
+    }
 
-                gruneisen_bs[ik][is] = std::complex<double>(0.0, 0.0);
+    if (run.my_rank == 0 && run.verbosity > 0) {
+        std::cout << "done!" << '\n';
+    }
+}
 
-                for (unsigned int i = 0; i < ns; ++i) {
-                    for (unsigned int j = 0; j < ns; ++j) {
-                        gruneisen_bs[ik][is] += std::conj(evec[ik][is][i])
-                                                * dfc2_reciprocal[i][j]
-                                                * evec[ik][is][j];
-                    }
-                }
+void Gruneisen::calc_gruneisen_at_kpoints(const unsigned int nk, const NDArray<double, 2> &xk,
+                                          const double *const *eval, const std::complex<double> *const *const *evec,
+                                          NDArray<std::complex<double>, 2> &gamma_iso,
+                                          NDArray<std::complex<double>, 3> &gamma_tensor) const
+{
+    // Mode-resolved strain derivative of the dynamical matrix projected onto the
+    // harmonic eigenvectors. gruneisen_mode == 1: isotropic parameters
+    // gamma = -<e|dD/deps_iso|e> / (6 omega^2) into gamma_iso. gruneisen_mode >= 2:
+    // generalized parameters gamma_{mu nu} = -<e|dD/deps_{mu nu}|e> / (2 omega^2)
+    // per strain component into gamma_tensor.
+    const auto ns = system->get_num_modes();
 
-                const auto gamma_imag = gruneisen_bs[ik][is].imag();
-                if (std::abs(gamma_imag) > eps10) {
-                    warn("calc_gruneisen", "Gruneisen parameter is not real");
-                }
+    NDArray<std::complex<double>, 2> dfc2_reciprocal(ns, ns);
 
+    auto project = [&](const unsigned int ik, const unsigned int is) {
+        auto gamma = std::complex<double>(0.0, 0.0);
+        for (unsigned int i = 0; i < ns; ++i) {
+            for (unsigned int j = 0; j < ns; ++j) {
+                gamma += std::conj(evec[ik][is][i]) * dfc2_reciprocal[i][j] * evec[ik][is][j];
+            }
+        }
+        if (std::abs(gamma.imag()) > eps10) {
+            warn("calc_gruneisen", "Gruneisen parameter is not real");
+        }
+        return gamma;
+    };
+
+    if (gruneisen_mode == 1) {
+        for (unsigned int ik = 0; ik < nk; ++ik) {
+            Dynamical::calc_analytic_k(*system, xk[ik], delta_fc2, dfc2_reciprocal);
+
+            for (unsigned int is = 0; is < ns; ++is) {
+                const auto gamma = project(ik, is);
                 if (std::abs(eval[ik][is]) < eps8) {
-                    gruneisen_bs[ik][is] = 0.0;
+                    gamma_iso[ik][is] = 0.0;
                 } else {
-                    gruneisen_bs[ik][is] /= -6.0 * std::pow(eval[ik][is], 2);
+                    gamma_iso[ik][is] = gamma / (-6.0 * pow2(eval[ik][is]));
                 }
             }
         }
-    }
-
-    if (dos->kmesh_dos) {
-        const auto nk = dos->kmesh_dos->nk;
-        const auto xk = dos->kmesh_dos->xk;
-        const auto eval = dos->dymat_dos->get_eigenvalues();
-        const auto evec = dos->dymat_dos->get_eigenvectors();
-
-        for (auto ik = 0; ik < nk; ++ik) {
-
-            calc_dfc2_reciprocal(dfc2_reciprocal, xk[ik]);
-
-            for (auto is = 0; is < ns; ++is) {
-
-                gruneisen_dos[ik][is] = std::complex<double>(0.0, 0.0);
-
-                for (unsigned int i = 0; i < ns; ++i) {
-                    for (unsigned int j = 0; j < ns; ++j) {
-                        gruneisen_dos[ik][is] += std::conj(evec[ik][is][i])
-                                                 * dfc2_reciprocal[i][j]
-                                                 * evec[ik][is][j];
-                    }
-                }
-
-                const auto gamma_imag = gruneisen_dos[ik][is].imag();
-                if (std::abs(gamma_imag) > eps10) {
-                    warn("calc_gruneisen", "Gruneisen parameter is not real");
-                }
-
-                if (std::abs(eval[ik][is]) < eps8) {
-                    gruneisen_dos[ik][is] = 0.0;
-                } else {
-                    gruneisen_dos[ik][is] /= -6.0 * std::pow(eval[ik][is], 2);
-                }
-            }
-        }
-    }
-
-    deallocate(dfc2_reciprocal);
-
-    if (mympi->my_rank == 0) {
-        std::cout << "done!" << std::endl;
-    }
-}
-
-void Gruneisen::calc_dfc2_reciprocal(std::complex<double> **dphi2,
-                                     const double *xk_in)
-{
-    unsigned int i;
-    const auto ns = dynamical->neval;
-
-    double vec[3];
-
-    const std::complex<double> im(0.0, 1.0);
-
-    for (i = 0; i < ns; ++i) {
-        for (unsigned int j = 0; j < ns; ++j) {
-            dphi2[i][j] = std::complex<double>(0.0, 0.0);
-        }
-    }
-
-    for (const auto &it: delta_fc2) {
-
-        const auto atm1 = it.pairs[0].index / 3;
-        const auto xyz1 = it.pairs[0].index % 3;
-        const auto atm2 = it.pairs[1].index / 3;
-        const auto xyz2 = it.pairs[1].index % 3;
-
-        const auto tran = it.pairs[1].tran;
-        const auto cell_s = it.pairs[1].cell_s;
-
-        const auto atm1_s = system->map_p2s_anharm[atm1][0];
-        const auto atm2_s = system->map_p2s_anharm[atm2][tran];
-
-        for (i = 0; i < 3; ++i) {
-            vec[i] = system->xr_s_anharm[atm2_s][i] + xshift_s[cell_s][i]
-                     - system->xr_s_anharm[system->map_p2s_anharm[atm2][0]][i];
-        }
-
-        rotvec(vec, vec, system->lavec_s_anharm);
-        rotvec(vec, vec, system->rlavec_p);
-
-        double phase = vec[0] * xk_in[0] + vec[1] * xk_in[1] + vec[2] * xk_in[2];
-
-        dphi2[3 * atm1 + xyz1][3 * atm2 + xyz2]
-                += it.fcs_val * std::exp(im * phase)
-                   / std::sqrt(system->mass_anharm[atm1_s] * system->mass_anharm[atm2_s]);
-
-    }
-}
-
-void Gruneisen::prepare_delta_fcs(const std::vector<FcsArrayWithCell> &fcs_in,
-                                  std::vector<FcsArrayWithCell> &delta_fcs,
-                                  const int periodic_image_mode) const
-{
-    unsigned int i, j;
-    double vec[3], vec_origin[3];
-    double fcs_tmp = 0.0;
-
-    std::vector<FcsAlignedForGruneisen> fcs_aligned;
-    std::vector<AtomCellSuper> pairs_vec;
-    std::vector<int> index_old, index_now;
-    std::vector<int> index_with_cell, index_with_cell_old;
-    std::set<std::vector<int>> set_index_uniq;
-    AtomCellSuper pairs_tmp;
-
-    const auto norder = fcs_in[0].pairs.size();
-    unsigned int nmulti;
-
-    delta_fcs.clear();
-    fcs_aligned.clear();
-
-    for (const auto &it: fcs_in) {
-        fcs_aligned.emplace_back(it.fcs_val, it.pairs);
-    }
-    std::sort(fcs_aligned.begin(), fcs_aligned.end());
-
-    if (periodic_image_mode == 0) {
-        // original implementation
-        // calculate IFC renormalization for the same atomic combination in the supercell
-        // but with different periodic images at once and assign the average value for each
-        // periodic images.
-        index_old.clear();
-        const auto nelems = 2 * (norder - 2) + 1;
-        for (i = 0; i < nelems; ++i) index_old.push_back(-1);
-
-        index_with_cell.clear();
-        set_index_uniq.clear();
-
-        for (const auto &it: fcs_aligned) {
-
-            index_now.clear();
-            index_with_cell.clear();
-
-            index_now.push_back(it.pairs[0].index);
-            index_with_cell.push_back(it.pairs[0].index);
-
-            for (i = 1; i < norder - 1; ++i) {
-                index_now.push_back(it.pairs[i].index);
-                index_now.push_back(it.pairs[i].tran);
-
-                index_with_cell.push_back(it.pairs[i].index);
-                index_with_cell.push_back(it.pairs[i].tran);
-                index_with_cell.push_back(it.pairs[i].cell_s);
-            }
-
-            if (index_now != index_old) {
-
-                if (index_old[0] != -1) {
-
-                    nmulti = set_index_uniq.size();
-                    fcs_tmp /= static_cast<double>(nmulti);
-
-                    if (std::abs(fcs_tmp) > eps15) {
-                        for (const auto &it2: set_index_uniq) {
-
-                            pairs_vec.clear();
-
-                            pairs_tmp.index = it2[0];
-                            pairs_tmp.tran = 0;
-                            pairs_tmp.cell_s = 0;
-                            pairs_vec.push_back(pairs_tmp);
-                            for (i = 1; i < norder - 1; ++i) {
-                                pairs_tmp.index = it2[3 * i - 2];
-                                pairs_tmp.tran = it2[3 * i - 1];
-                                pairs_tmp.cell_s = it2[3 * i];
-                                pairs_vec.push_back(pairs_tmp);
-                            }
-                            delta_fcs.emplace_back(fcs_tmp, pairs_vec);
-                        }
-                    }
-                    set_index_uniq.clear();
-                }
-
-                fcs_tmp = 0.0;
-                index_old.clear();
-                index_old.reserve(index_now.size());
-                std::copy(index_now.begin(), index_now.end(), std::back_inserter(index_old));
-            }
-
-            set_index_uniq.insert(index_with_cell);
-
-            for (i = 0; i < 3; i++) {
-                vec_origin[i] = system->xr_s_anharm[system->map_p2s_anharm[it.pairs[0].index / 3][0]][i];
-                for (j = 1; j < norder - 1; j++) {
-                    vec_origin[i] +=
-                            system->xr_s_anharm[system->map_p2s_anharm[it.pairs[j].index / 3][it.pairs[j].tran]][i]
-                            + xshift_s[it.pairs[j].cell_s][i];
-                }
-                vec_origin[i] /= static_cast<double>(norder - 1);
-            }
-
-            for (i = 0; i < 3; ++i) {
-                vec[i] = system->xr_s_anharm[system->map_p2s_anharm[it.pairs[norder - 1].index / 3][it.pairs[norder -
-                                                                                                             1].tran]][i]
-                         // - system->xr_s_anharm[system->map_p2s_anharm[it.pairs[0].index / 3][0]][i]
-                         - vec_origin[i]
-                         + xshift_s[it.pairs[norder - 1].cell_s][i];
-            }
-
-            rotvec(vec, vec, system->lavec_s_anharm);
-
-            fcs_tmp += it.fcs_val * vec[it.pairs[norder - 1].index % 3];
-        }
-
-        nmulti = set_index_uniq.size();
-        fcs_tmp /= static_cast<double>(nmulti);
-
-        if (std::abs(fcs_tmp) > eps15) {
-            for (const auto &it2: set_index_uniq) {
-
-                pairs_vec.clear();
-
-                pairs_tmp.index = it2[0];
-                pairs_tmp.tran = 0;
-                pairs_tmp.cell_s = 0;
-                pairs_vec.push_back(pairs_tmp);
-                for (i = 1; i < norder - 1; ++i) {
-                    pairs_tmp.index = it2[3 * i - 2];
-                    pairs_tmp.tran = it2[3 * i - 1];
-                    pairs_tmp.cell_s = it2[3 * i];
-                    pairs_vec.push_back(pairs_tmp);
-                }
-                delta_fcs.emplace_back(fcs_tmp, pairs_vec);
-            }
-        }
-    } else { // if(periodic_image_mode != 0)
-        // new implementation
-        // calculate IFC renormalization separately for each periodic image combinations.
-        index_with_cell_old.clear();
-        const auto nelems = 3 * (norder - 2) + 1;
-        for (i = 0; i < nelems; ++i) index_with_cell_old.push_back(-1);
-
-        index_with_cell.clear();
-
-        for (const auto &it: fcs_aligned) {
-
-            index_with_cell.clear();
-
-            index_with_cell.push_back(it.pairs[0].index);
-
-            for (i = 1; i < norder - 1; ++i) {
-                index_with_cell.push_back(it.pairs[i].index);
-                index_with_cell.push_back(it.pairs[i].tran);
-                index_with_cell.push_back(it.pairs[i].cell_s);
-            }
-
-            if (index_with_cell != index_with_cell_old) {
-
-                if (index_with_cell_old[0] != -1) {
-
-                    if (std::abs(fcs_tmp) > eps15) {
-
-                        pairs_vec.clear();
-
-                        pairs_tmp.index = index_with_cell_old[0];
-                        pairs_tmp.tran = 0;
-                        pairs_tmp.cell_s = 0;
-                        pairs_vec.push_back(pairs_tmp);
-                        for (i = 1; i < norder - 1; ++i) {
-                            pairs_tmp.index = index_with_cell_old[3 * i - 2];
-                            pairs_tmp.tran = index_with_cell_old[3 * i - 1];
-                            pairs_tmp.cell_s = index_with_cell_old[3 * i];
-                            pairs_vec.push_back(pairs_tmp);
-                        }
-                        delta_fcs.emplace_back(fcs_tmp, pairs_vec);
-                    }
-                }
-
-                fcs_tmp = 0.0;
-                index_with_cell_old.clear();
-                index_with_cell_old.reserve(index_with_cell.size());
-                std::copy(index_with_cell.begin(), index_with_cell.end(), std::back_inserter(index_with_cell_old));
-            }
-
-            for (i = 0; i < 3; i++) {
-                vec_origin[i] = system->xr_s_anharm[system->map_p2s_anharm[it.pairs[0].index / 3][0]][i];
-                for (j = 1; j < norder - 1; j++) {
-                    vec_origin[i] +=
-                            system->xr_s_anharm[system->map_p2s_anharm[it.pairs[j].index / 3][it.pairs[j].tran]][i]
-                            + xshift_s[it.pairs[j].cell_s][i];
-                }
-                vec_origin[i] /= static_cast<double>(norder - 1);
-            }
-
-            for (i = 0; i < 3; ++i) {
-                vec[i] = system->xr_s_anharm[system->map_p2s_anharm[it.pairs[norder - 1].index / 3][it.pairs[norder -
-                                                                                                             1].tran]][i]
-                         // - system->xr_s_anharm[system->map_p2s_anharm[it.pairs[0].index / 3][0]][i]
-                         - vec_origin[i]
-                         + xshift_s[it.pairs[norder - 1].cell_s][i];
-            }
-
-            rotvec(vec, vec, system->lavec_s_anharm);
-
-            fcs_tmp += it.fcs_val * vec[it.pairs[norder - 1].index % 3];
-        }
-
-        if (std::abs(fcs_tmp) > eps15) {
-
-            pairs_vec.clear();
-
-            pairs_tmp.index = index_with_cell[0];
-            pairs_tmp.tran = 0;
-            pairs_tmp.cell_s = 0;
-            pairs_vec.push_back(pairs_tmp);
-            for (i = 1; i < norder - 1; ++i) {
-                pairs_tmp.index = index_with_cell[3 * i - 2];
-                pairs_tmp.tran = index_with_cell[3 * i - 1];
-                pairs_tmp.cell_s = index_with_cell[3 * i];
-                pairs_vec.push_back(pairs_tmp);
-            }
-            delta_fcs.emplace_back(fcs_tmp, pairs_vec);
-        }
-    }
-
-    fcs_aligned.clear();
-    set_index_uniq.clear();
-}
-
-// only mode == 0 is implemented
-// This process breaks the permutation symmetry of the IFC.
-// void Gruneisen::impose_ASR_on_harmonic_IFC(std::vector<FcsArrayWithCell> &delta_fcs,
-//                            int mode)
-// {
-//     // should check if delta_fcs consists of harmonic IFCs?
-// 
-//     // change self-interaction
-//     if(mode == 0){
-// 
-//         int nat = system->nat;
-// 
-//         int i_ind1, i_tran1, i_ind2, i_tran2, iat1, xyz1, xyz2;
-//         double **phi;
-//         allocate(phi, nat, 9);
-// 
-//         // calculate correction
-//         for(auto &it: delta_fcs){
-//             i_ind1 = it.pairs[0].index;
-//             i_tran1 = it.pairs[0].tran;
-//             i_ind2 = it.pairs[1].index;
-//             iat1 = system->map_p2s_anharm[i_ind1/3][i_tran1];
-//             xyz1 = i_ind1%3;
-//             xyz2 = i_ind2%3;
-// 
-//             phi[iat1][xyz1*3 + xyz2] += it.fcs_val;
-//         }
-// 
-//         // apply correction
-//         for(auto &it: delta_fcs){
-//             // if self-interaction
-//             if((it.pairs[0].index/3 == it.pairs[1].index/3) && 
-//                (it.pairs[0].tran == it.pairs[1].tran))
-//             {
-//                 i_ind1 = it.pairs[0].index;
-//                 i_tran1 = it.pairs[0].tran;
-//                 iat1 = system->map_p2s_anharm[i_ind1/3][i_tran1];
-//                 xyz1 = i_ind1%3;
-//                 xyz2 = i_ind2%3;
-//                 it.fcs_val -= phi[iat1][xyz1*3 + xyz2];
-//             }
-//         }
-// 
-//     }
-// 
-//     return;
-// }
-
-
-void Gruneisen::write_new_fcsxml_all()
-{
-    std::cout << std::endl;
-
-    if (fcs_phonon->update_fc2) {
-        warn("write_new_fcsxml_all",
-             "NEWFCS = 1 cannot be combined with the FC2XML.");
     } else {
-        std::cout << " NEWFCS = 1 : Following XML files are created. " << std::endl;
+        const auto ncomp = delta_fc2_strain.size();
 
-        auto file_xml = input->job_title + "_+.xml";
-        write_new_fcsxml(file_xml, delta_a);
+        for (std::size_t icomp = 0; icomp < ncomp; ++icomp) {
+            for (unsigned int ik = 0; ik < nk; ++ik) {
+                Dynamical::calc_analytic_k(*system, xk[ik], delta_fc2_strain[icomp], dfc2_reciprocal);
 
-        std::cout << "  " << std::setw(input->job_title.length() + 12) << std::left << file_xml;
-        std::cout << " : Force constants of the system expanded by "
-                  << std::fixed << std::setprecision(3) << delta_a * 100 << " %" << std::endl;
-
-        file_xml = input->job_title + "_-.xml";
-        write_new_fcsxml(file_xml, -delta_a);
-
-        std::cout << "  " << std::setw(input->job_title.length() + 12) << std::left << file_xml;
-        std::cout << " : Force constants of the system compressed by "
-                  << std::fixed << std::setprecision(3) << delta_a * 100 << " %" << std::endl;
+                for (unsigned int is = 0; is < ns; ++is) {
+                    const auto gamma = project(ik, is);
+                    if (std::abs(eval[ik][is]) < eps8) {
+                        gamma_tensor[ik][is][icomp] = 0.0;
+                    } else {
+                        gamma_tensor[ik][is][icomp] = gamma / (-2.0 * pow2(eval[ik][is]));
+                    }
+                }
+            }
+        }
     }
 }
 
-void Gruneisen::write_new_fcsxml(const std::string &filename_xml,
-                                 const double change_ratio_of_a)
+void Gruneisen::prepare_delta_fcs(const std::vector<FcsArrayWithCell> &fcs_in, std::vector<FcsArrayWithCell> &delta_fcs,
+                                  const Eigen::Matrix3d &strain_dir) const
 {
-    int i, j;
-    double lattice_vector[3][3];
+    // Directional derivative of the order-n IFCs along the strain tensor
+    // strain_dir: the identity gives the isotropic (volumetric) derivative.
+    delta_fcs.clear();
 
-    for (i = 0; i < 3; ++i) {
-        for (j = 0; j < 3; ++j) {
-            lattice_vector[i][j] = (1.0 + change_ratio_of_a) * system->lavec_s[i][j];
+    if (fcs_in.empty()) return;
+
+    auto fcs_aligned = fcs_in;
+    sort_by_heading_indices const operator1(1);
+    boost::sort::block_indirect_sort(fcs_aligned.begin(), fcs_aligned.end(), operator1);
+
+    DerivativeIFC::compute_dV_dstrain_real_space(fcs_aligned,
+                                                 delta_fcs,
+                                                 {strain_dir},
+                                                 system->get_primcell().lattice_vector,
+                                                 eps15);
+
+    // With SUBLATTICE_RELAX = 1, append the internal-strain leg (contraction
+    // of the tail with the strain-induced sublattice displacement), giving
+    // the relaxed-ion derivative.
+    if (sublattice_relax) {
+        std::vector<FcsArrayWithCell> delta_sub;
+        DerivativeIFC::compute_dV_dsublattice_real_space(fcs_aligned,
+                                                         delta_sub,
+                                                         build_sublattice_field(strain_dir),
+                                                         eps15);
+        delta_fcs.insert(delta_fcs.end(), delta_sub.begin(), delta_sub.end());
+    }
+}
+
+Eigen::VectorXd Gruneisen::build_sublattice_field(const Eigen::Matrix3d &strain_dir) const
+{
+    // S_I = sum_{mu nu} X(I, mu nu) eta_{mu nu}
+    Eigen::VectorXd S_field = Eigen::VectorXd::Zero(sublattice_response.rows());
+    for (auto mu = 0; mu < 3; ++mu) {
+        for (auto nu = 0; nu < 3; ++nu) {
+            S_field += sublattice_response.col(mu * 3 + nu) * strain_dir(mu, nu);
         }
     }
+    return S_field;
+}
 
-    using boost::property_tree::ptree;
+void Gruneisen::prepare_delta_fcs_strain(const std::vector<FcsArrayWithCell> &fcs_in,
+                                         std::vector<std::vector<FcsArrayWithCell>> &delta_fcs_strain) const
+{
+    // Strain-derivative IFCs per component for the generalized Gruneisen
+    // parameters: diagonal components for gruneisen_mode = 2, the 6 Voigt
+    // components (off-diagonals symmetrized over (mu,nu)) for gruneisen_mode = 3.
+    // Component indices refer to the base-9 flattening mu*3+nu of
+    // compute_dV_dumn_all_real_space.
+    delta_fcs_strain.clear();
 
-    ptree pt;
-    std::string str_pos[3];
+    if (fcs_in.empty()) return;
 
-    pt.put("Data.ANPHON_version", ALAMODE_VERSION);
-    pt.put("Data.Description.OriginalXML", fcs_phonon->file_fcs);
-    pt.put("Data.Description.Delta_A", double2string(change_ratio_of_a));
+    auto fcs_aligned = fcs_in;
+    sort_by_heading_indices const operator1(1);
+    boost::sort::block_indirect_sort(fcs_aligned.begin(), fcs_aligned.end(), operator1);
 
-    pt.put("Data.Structure.NumberOfAtoms", system->nat);
-    pt.put("Data.Structure.NumberOfElements", system->nkd);
+    std::vector<DeltaFcsStrainComponents> strain_groups;
+    DerivativeIFC::compute_dV_dumn_all_real_space(fcs_aligned, strain_groups, 1, system->get_primcell().lattice_vector);
 
-    for (i = 0; i < system->nkd; ++i) {
-        ptree &child = pt.add("Data.Structure.AtomicElements.element",
-                              system->symbol_kd[i]);
-        child.put("<xmlattr>.number", i + 1);
+    std::vector<std::vector<std::pair<std::size_t, double>>> components = {{{0, 1.0}}, {{4, 1.0}}, {{8, 1.0}}};
+    if (gruneisen_mode == 3) {
+        components.push_back({{5, 0.5}, {7, 0.5}}); // yz
+        components.push_back({{2, 0.5}, {6, 0.5}}); // xz
+        components.push_back({{1, 0.5}, {3, 0.5}}); // xy
     }
 
-    for (i = 0; i < 3; ++i) {
-        str_pos[i].clear();
-        for (j = 0; j < 3; ++j) {
-            str_pos[i] += " " + double2string(lattice_vector[j][i]);
+    delta_fcs_strain.resize(components.size());
+    for (std::size_t icomp = 0; icomp < components.size(); ++icomp) {
+        DerivativeIFC::extract_strain_combination(strain_groups, components[icomp], 1, eps15, delta_fcs_strain[icomp]);
+    }
+
+    // With SUBLATTICE_RELAX = 1, append the internal-strain leg per component.
+    if (sublattice_relax) {
+        for (std::size_t icomp = 0; icomp < components.size(); ++icomp) {
+            Eigen::Matrix3d eta = Eigen::Matrix3d::Zero();
+            for (const auto &term: components[icomp]) {
+                eta(term.first / 3, term.first % 3) += term.second;
+            }
+
+            std::vector<FcsArrayWithCell> delta_sub;
+            DerivativeIFC::compute_dV_dsublattice_real_space(fcs_aligned,
+                                                             delta_sub,
+                                                             build_sublattice_field(eta),
+                                                             eps15);
+            delta_fcs_strain[icomp].insert(delta_fcs_strain[icomp].end(), delta_sub.begin(), delta_sub.end());
         }
     }
-    pt.put("Data.Structure.LatticeVector", "");
-    pt.put("Data.Structure.LatticeVector.a1", str_pos[0]);
-    pt.put("Data.Structure.LatticeVector.a2", str_pos[1]);
-    pt.put("Data.Structure.LatticeVector.a3", str_pos[2]);
+}
 
-    pt.put("Data.Structure.Position", "");
-    std::string str_tmp;
 
-    for (i = 0; i < system->nat; ++i) {
-        str_tmp.clear();
-        for (j = 0; j < 3; ++j) str_tmp += " " + double2string(system->xr_s[i][j]);
-        auto &child = pt.add("Data.Structure.Position.pos", str_tmp);
-        child.put("<xmlattr>.index", i + 1);
-        child.put("<xmlattr>.element", system->symbol_kd[system->kd[i]]);
-    }
+void Gruneisen::write_new_fcsxml_all(const Writes &writes, const bool update_fc2, const bool has_fc3_file) const
+{
+    if (run.verbosity > 0) std::cout << '\n';
 
-    pt.put("Data.Symmetry.NumberOfTranslations", system->ntran);
-    for (i = 0; i < system->ntran; ++i) {
-        for (j = 0; j < system->natmin; ++j) {
-            auto &child = pt.add("Data.Symmetry.Translations.map",
-                                 system->map_p2s[j][i] + 1);
-            child.put("<xmlattr>.tran", i + 1);
-            child.put("<xmlattr>.atom", j + 1);
-        }
-    }
-
-    pt.put("Data.ForceConstants", "");
-    str_tmp.clear();
-
-    for (const auto &it: fcs_phonon->force_constant_with_cell[0]) {
-
-        auto &child = pt.add("Data.ForceConstants.HARMONIC.FC2", double2string(it.fcs_val));
-
-        child.put("<xmlattr>.pair1",
-                  std::to_string(it.pairs[0].index / 3 + 1)
-                  + " " + std::to_string(it.pairs[0].index % 3 + 1));
-        child.put("<xmlattr>.pair2",
-                  std::to_string(system->map_p2s[it.pairs[1].index / 3][it.pairs[1].tran] + 1)
-                  + " " + std::to_string(it.pairs[1].index % 3 + 1)
-                  + " " + std::to_string(it.pairs[1].cell_s + 1));
-    }
-
-    for (const auto &it: delta_fc2) {
-
-        if (std::abs(it.fcs_val) < eps12) continue;
-
-        auto &child = pt.add("Data.ForceConstants.HARMONIC.FC2",
-                             double2string(change_ratio_of_a * it.fcs_val));
-
-        child.put("<xmlattr>.pair1",
-                  std::to_string(it.pairs[0].index / 3 + 1)
-                  + " " + std::to_string(it.pairs[0].index % 3 + 1));
-        child.put("<xmlattr>.pair2",
-                  std::to_string(system->map_p2s[it.pairs[1].index / 3][it.pairs[1].tran] + 1)
-                  + " " + std::to_string(it.pairs[1].index % 3 + 1)
-                  + " " + std::to_string(it.pairs[1].cell_s + 1));
-    }
-
-    if (anharmonic_core->quartic_mode) {
-        for (const auto &it: fcs_phonon->force_constant_with_cell[1]) {
-
-            if (it.pairs[1].index > it.pairs[2].index) continue;
-
-            auto &child = pt.add("Data.ForceConstants.ANHARM3.FC3",
-                                 double2string(it.fcs_val));
-
-            child.put("<xmlattr>.pair1",
-                      std::to_string(it.pairs[0].index / 3 + 1)
-                      + " " + std::to_string(it.pairs[0].index % 3 + 1));
-            child.put("<xmlattr>.pair2",
-                      std::to_string(system->map_p2s[it.pairs[1].index / 3][it.pairs[1].tran] + 1)
-                      + " " + std::to_string(it.pairs[1].index % 3 + 1)
-                      + " " + std::to_string(it.pairs[1].cell_s + 1));
-            child.put("<xmlattr>.pair3",
-                      std::to_string(system->map_p2s[it.pairs[2].index / 3][it.pairs[2].tran] + 1)
-                      + " " + std::to_string(it.pairs[2].index % 3 + 1)
-                      + " " + std::to_string(it.pairs[2].cell_s + 1));
-        }
-
-        for (const auto &it: delta_fc3) {
-
-            if (std::abs(it.fcs_val) < eps12) continue;
-
-            if (it.pairs[1].index > it.pairs[2].index) continue;
-
-            auto &child = pt.add("Data.ForceConstants.ANHARM3.FC3",
-                                 double2string(change_ratio_of_a * it.fcs_val));
-
-            child.put("<xmlattr>.pair1",
-                      std::to_string(it.pairs[0].index / 3 + 1)
-                      + " " + std::to_string(it.pairs[0].index % 3 + 1));
-            child.put("<xmlattr>.pair2",
-                      std::to_string(system->map_p2s[it.pairs[1].index / 3][it.pairs[1].tran] + 1)
-                      + " " + std::to_string(it.pairs[1].index % 3 + 1)
-                      + " " + std::to_string(it.pairs[1].cell_s + 1));
-            child.put("<xmlattr>.pair3",
-                      std::to_string(system->map_p2s[it.pairs[2].index / 3][it.pairs[2].tran] + 1)
-                      + " " + std::to_string(it.pairs[2].index % 3 + 1)
-                      + " " + std::to_string(it.pairs[2].cell_s + 1));
-        }
-    }
-
-    using namespace boost::property_tree::xml_parser;
-    const auto indent = 2;
-
-#if BOOST_VERSION >= 105600
-    write_xml(filename_xml, pt, std::locale(),
-              xml_writer_make_settings<ptree::key_type>(' ', indent, widen<std::string>("utf-8")));
+    if (update_fc2 || has_fc3_file) {
+        // The new force-constant files carry a single supercell structure, so
+        // the harmonic and cubic terms must come from the same FCSFILE.
+        warn("write_new_fcsxml_all", "NEWFCS = 1 cannot be combined with FC2FILE or FC3FILE.");
+    } else {
+        // FILE_FORMAT rule: h5 (default) writes the schema-stamped HDF5 pair,
+        // text the legacy XML pair. Builds without HDF5 always fall back to XML.
+#ifdef _HDF5
+        const bool write_h5 = run.use_hdf5_io;
 #else
-    write_xml(filename_xml, pt, std::locale(),
-        xml_writer_make_settings(' ', indent, widen<char>("utf-8")));
+        const bool write_h5 = false;
 #endif
+
+        if (run.verbosity > 0) {
+            if (write_h5) {
+                std::cout << " NEWFCS = 1 : Following HDF5 files are created. \n";
+            } else {
+                std::cout << " NEWFCS = 1 : Following XML files are created. \n";
+            }
+        }
+
+        // Without the &strain field: isotropic strain of +-delta_a (default 0.001).
+        // With &strain: the user strain tensor is applied as +u and -u.
+        const Eigen::Matrix3d strain_dir = strain_newfcs_given ? strain_newfcs : Eigen::Matrix3d::Identity();
+        const auto scale = strain_newfcs_given ? 1.0 : delta_a;
+        const std::string extension = write_h5 ? ".h5" : ".xml";
+
+        // Relaxed-ion path: internal displacement per primitive atom under a
+        // unit application of strain_dir (Cartesian bohr); zero when clamped.
+        const auto natmin = system->get_primcell().number_of_atoms;
+        Eigen::MatrixXd sub_disp = Eigen::MatrixXd::Zero(natmin, 3);
+        if (sublattice_relax) {
+            const Eigen::VectorXd S_field = build_sublattice_field(strain_dir);
+            for (std::size_t kappa = 0; kappa < natmin; ++kappa) {
+                for (auto i = 0; i < 3; ++i) {
+                    sub_disp(kappa, i) = S_field(3 * kappa + i);
+                }
+            }
+        }
+
+        auto write_one = [&](const std::string &filename, const double scale_signed) {
+#ifdef _HDF5
+            if (write_h5) {
+                writes.writeNewFcsH5(filename, delta_fc2_newfcs, delta_fc3_newfcs, strain_dir, scale_signed, sub_disp);
+                return;
+            }
+#endif
+            writes.writeNewFcsXml(filename, delta_fc2_newfcs, delta_fc3_newfcs, strain_dir, scale_signed, sub_disp);
+        };
+
+        auto file_out = run.job_title + "_+" + extension;
+        write_one(file_out, scale);
+
+        if (run.verbosity > 0) {
+            std::cout << "  " << std::setw(run.job_title.length() + 12) << std::left << file_out;
+            if (strain_newfcs_given) {
+                std::cout << " : Force constants of the system with the strain +u applied\n";
+            } else {
+                std::cout << " : Force constants of the system expanded by " << std::fixed << std::setprecision(3)
+                          << delta_a * 100 << " %\n";
+            }
+        }
+
+        file_out = run.job_title + "_-" + extension;
+        write_one(file_out, -scale);
+
+        if (run.verbosity > 0) {
+            std::cout << "  " << std::setw(run.job_title.length() + 12) << std::left << file_out;
+            if (strain_newfcs_given) {
+                std::cout << " : Force constants of the system with the strain -u applied\n";
+            } else {
+                std::cout << " : Force constants of the system compressed by " << std::fixed << std::setprecision(3)
+                          << delta_a * 100 << " %\n";
+            }
+        }
+    }
 }
-
-std::string Gruneisen::double2string(const double d) const
-{
-    std::string rt;
-    std::stringstream ss;
-
-    ss << std::scientific << std::setprecision(15) << d;
-    ss >> rt;
-    return rt;
-}
-
-
-// double Gruneisen::calc_stress_energy2(const std::vector<FcsArrayWithCell> fcs_in)
-// {
-//     unsigned int i, j;
-//     double ret = 0.0;
-//     double **vec, **pos;
-//     double tmp, tmp2;
-//     double xshift[3];
-//     unsigned int itran;
-//     unsigned int norder = fcs_in[0].pairs.size();
-// 
-//     allocate(vec, norder, 3);
-//     allocate(pos, norder, 3);
-// 
-//     for (std::vector<FcsArrayWithCell>::const_iterator it = fcs_in.begin(); it != fcs_in.end(); ++it) {
-// 
-//         for (i = 0; i < norder; ++i) {
-//             for (j = 0; j < 3; ++j) {
-//                 vec[i][j] = system->xr_s[system->map_p2s[(*it).pairs[i].index / 3][(*it).pairs[i].tran]][j]
-//                 + xshift_s[(*it).pairs[i].cell_s][j];
-// 
-//                 pos[i][j] = system->xr_s[system->map_p2s[(*it).pairs[i].index / 3][0]][j];
-//             //    vec[i][j] = system->xr_s[system->map_p2s[0][(*it).pairs[i].tran]][j] + xshift_s[(*it).pairs[i].cell_s][j];
-//             }
-//             rotvec(vec[i], vec[i], system->lavec_s);
-//             rotvec(pos[i], pos[i], system->lavec_s);
-//         } 
-// 
-//         
-//         ret += (*it).fcs_val 
-//             * (vec[1][(*it).pairs[0].index % 3] - pos[0][(*it).pairs[0].index % 3])
-//             * (vec[1][(*it).pairs[1].index % 3] - pos[0][(*it).pairs[1].index % 3]);
-//     }
-// 
-//     deallocate(vec);
-//     deallocate(pos);
-//     return ret;
-// }
-// 
-// void Gruneisen::calc_stress_energy3(const std::vector<FcsArrayWithCell> fcs_in, double ****ret)
-// {
-//     unsigned int i, j, k, l;
-//     double **vec, **pos;
-//     double tmp, tmp2;
-//     double xshift[3];
-//     unsigned int itran;
-//     unsigned int norder = fcs_in[0].pairs.size();
-//     unsigned int crd[4];
-// 
-//     allocate(vec, norder, 3);
-//     allocate(pos, norder, 3);
-// 
-//     for (i = 0; i < 3; ++i) {
-//         for (j = 0; j < 3; ++j) {
-//             for (k = 0; k < 3; ++k) {
-//                 for (l = 0; l < 3; ++l) {
-//                     ret[i][j][k][l] = 0.0;
-//                 }
-//             }
-//         }
-//     }
-// 
-//     for (std::vector<FcsArrayWithCell>::const_iterator it = fcs_in.begin(); it != fcs_in.end(); ++it) {
-// 
-//         for (i = 0; i < norder; ++i) {
-//             for (j = 0; j < 3; ++j) {
-//                 vec[i][j] = system->xr_s[system->map_p2s[(*it).pairs[i].index / 3][(*it).pairs[i].tran]][j]
-//                 + xshift_s[(*it).pairs[i].cell_s][j];
-// 
-//                 pos[i][j] = system->xr_s[system->map_p2s[(*it).pairs[i].index / 3][0]][j];
-//             }
-//             rotvec(vec[i], vec[i], system->lavec_s);
-//             rotvec(pos[i], pos[i], system->lavec_s);
-//         }
-// 
-//         crd[0] = (*it).pairs[0].index % 3;
-//         crd[1] = (*it).pairs[1].index % 3;
-// 
-//         for (k = 0; k < 3; ++k) {
-//             
-//             crd[2] = k;
-// 
-//             for (l = 0; l < 3; ++l) {
-// 
-//                 crd[3] = l;
-// 
-//                 ret[crd[0]][crd[1]][k][l] += (*it).fcs_val * (vec[1][k] - pos[0][k]) * (vec[1][l] - pos[0][l]);
-//             }
-//         }
-//     }
-// 
-//     deallocate(vec);
-//     deallocate(pos);
-// 
-//     for (i = 0; i < 3; ++i) {
-//         for (j = 0; j < 3; ++j) {
-//             for (k = 0; k < 3; ++k) {
-//                 for (l = 0; l < 3; ++l) {
-//                     ret[i][j][k][l] *= -0.5;
-//                 }
-//             }
-//         }
-//     }
-// }
-// 
-// 
-// void Gruneisen::print_stress_energy()
-// {
-// 
-//     double volume = system->volume_p * std::pow(Bohr_in_Angstrom, 3) * 1.0e-30;
-// 
-// 
-//     double ****A, ****C;
-// 
-//     allocate(A, 3, 3, 3, 3);
-//     allocate(C, 3, 3, 3, 3);
-// 
-//     calc_stress_energy3(fcs_phonon->force_constant_with_cell[0], A);
-// 
-//     unsigned int i, j, k, l;
-// 
-//     std::cout << "# A [Ryd]" << std::endl;
-// 
-//     for (i = 0; i < 3; ++i) {
-//         for (j = 0; j < 3; ++j) {
-//             for (k = 0; k < 3; ++k) {
-//                 for (l = 0; l < 3; ++l) {
-//                     std::cout << std::setw(3) << i + 1;
-//                     std::cout << std::setw(3) << j + 1;
-//                     std::cout << std::setw(3) << k + 1;
-//                     std::cout << std::setw(3) << l + 1;
-//                     std::cout << std::setw(15) << std::fixed << A[i][j][k][l];
-//                     std::cout << std::endl;
-//                 }
-//             }
-//         }
-//     }
-// 
-//     std::cout << std::endl;
-//     std::cout << "# C [GPa]" << std::endl;
-// 
-//     for (i = 0; i < 3; ++i) {
-//         for (j = 0; j < 3; ++j) {
-//             for (k = 0; k < 3; ++k) {
-//                 for (l = 0; l < 3; ++l) {
-//                     C[i][j][k][l] = A[i][k][j][l] + A[j][k][i][l] - A[i][j][k][l];
-//                     C[i][j][k][l] *= 1.0e-9 * Ryd / volume;
-//                     std::cout << std::setw(3) << i + 1;
-//                     std::cout << std::setw(3) << j + 1;
-//                     std::cout << std::setw(3) << k + 1;
-//                     std::cout << std::setw(3) << l + 1;
-//                     std::cout << std::setw(15) << std::fixed << C[i][j][k][l];
-//                     std::cout << std::endl;
-// 
-//                 }
-//             }
-//         }
-//     }
-// 
-//     std::cout << "Bulk Modulus [GPa] = " << (C[0][0][0][0] + 2.0 * C[0][0][1][1]) / 3.0 << std::endl;
-// 
-//     deallocate(A);
-//     deallocate(C);
-// }

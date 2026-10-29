@@ -18,22 +18,22 @@
 
 #endif
 
+#include <Eigen/Core>
 #include <string>
-#include "pointers.h"
+#include "system.h"
 
-namespace PHON_NS {
-class MyMPI : protected Pointers {
-public:
-    MyMPI(class PHON *,
-          MPI_Comm);
+namespace PHON_NS
+{
+// Broadcast helpers for non-trivial types; all ranks of comm must call them.
+void MPI_Bcast_string(std::string &, int, MPI_Comm);
 
-    ~MyMPI();
+void MPI_Bcast_CellClass(Cell &cell, int root, MPI_Comm comm);
 
-    void MPI_Bcast_string(std::string &,
-                          int,
-                          MPI_Comm) const;
+void MPI_Bcast_SpinClass(Spin &spin, int root, MPI_Comm comm);
 
-    int my_rank;
-    int nprocs;
-};
-}
+void MPI_Bcast_MappingTable(MappingTable &mapping, int root, MPI_Comm comm);
+
+void mpiBcastEigen(Eigen::MatrixXd &mat, int root, MPI_Comm comm);
+
+void mpiBcastEigen(Eigen::MatrixXcd &mat, int root, MPI_Comm comm);
+} // namespace PHON_NS

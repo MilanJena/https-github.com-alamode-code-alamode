@@ -10,213 +10,262 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
-#include "system.h"
+#include <utility>
 #include "cluster.h"
-#include "fcs.h"
-#include "symmetry.h"
-#include "optimize.h"
 #include "constraint.h"
+#include "fcs.h"
 #include "files.h"
+#include "optimize.h"
 #include "patterndisp.h"
+#include "symmetry.h"
+#include "system.h"
 #include "timer.h"
 #include "writer.h"
 
-namespace ALM_NS {
-class ALM {
+namespace ALM_NS
+{
+class ALM
+{
 public:
     ALM();
 
     ~ALM();
 
-    class Cluster *cluster{};
+    std::unique_ptr<Cluster> cluster;
 
-    class Fcs *fcs{};
+    std::unique_ptr<Fcs> fcs;
 
-    class System *system{};
+    std::unique_ptr<System> system;
 
-    class Symmetry *symmetry{};
+    std::unique_ptr<Symmetry> symmetry;
 
-    class Optimize *optimize{};
+    std::unique_ptr<Optimize> optimize;
 
-    class Constraint *constraint{};
+    std::unique_ptr<Constraint> constraint;
 
-    class Files *files{};
+    std::unique_ptr<Files> files;
 
-    class Displace *displace{};
+    std::unique_ptr<Displace> displace;
 
-    class Timer *timer{};
+    std::unique_ptr<Timer> timer;
 
-    class Writer *writer{};
+    std::unique_ptr<Writer> writer;
 
-    void set_verbosity(int verbosity_in);
+    auto set_verbosity(int verbosity_in) -> void;
 
-    int get_verbosity() const;
+    [[nodiscard]] auto get_verbosity() const -> int;
 
-    void set_output_filename_prefix(std::string prefix) const;
+    auto set_output_filename_prefix(std::string prefix) const -> void;
 
-    void set_print_symmetry(int printsymmetry) const;
+    auto set_print_symmetry(int printsymmetry) const -> void;
 
-    void set_datfile_train(const DispForceFile &dat_in) const;
+    auto set_datfile_train(const DispForceFile &dat_in) const -> void;
 
-    void set_datfile_validation(const DispForceFile &dat_in) const;
+    auto set_datfile_validation(const DispForceFile &dat_in) const -> void;
 
-    void set_symmetry_tolerance(double tolerance) const;
+    auto set_symmetry_tolerance(double tolerance) const -> void;
+    auto set_symmetrize_structure(bool flag) const -> void;
 
-    void set_displacement_param(bool trim_dispsign_for_evenfunc) const;
+    auto set_displacement_param(bool trim_dispsign_for_evenfunc) const -> void;
 
-    void set_displacement_basis(std::string str_disp_basis) const;
+    auto set_displacement_basis(std::string str_disp_basis) const -> void;
 
-    void set_periodicity(const int is_periodic[3]) const;
+    auto set_periodicity(const int is_periodic[3]) const -> void;
 
-    void set_cell(size_t nat,
-                  const double lavec[3][3],
-                  const double xcoord[][3],
-                  const int kind[],
-                  const std::string kdname[]) const;
+    // Set input units before set_cell, set_u_train, set_f_train,
+    // set_validation_data, or define. Setters convert to bohr and Ry/bohr.
+    auto set_input_units(const std::string &length_unit, const std::string &force_unit) -> void;
 
-    void set_magnetic_params(const size_t nat,
-                             const double (*magmom)[3],
-                             const bool lspin,
-                             const int noncollinear,
-                             const int trev_sym_mag,
-                             const std::string str_magmom) const;
+    // Canonical names of the declared input units: {length, force}.
+    [[nodiscard]] auto get_input_units() const -> std::pair<std::string, std::string>;
 
-    void set_u_train(const std::vector<std::vector<double>> &u) const;
+    // Unit system of the "alamode_h5" force constant output. FCS_UNIT_OUTPUT.
+    auto set_fcs_unit_output(const std::string &unit_system) const -> void;
 
-    void set_f_train(const std::vector<std::vector<double>> &f) const;
+    [[nodiscard]] auto get_fcs_unit_output() const -> std::string;
 
-    void set_validation_data(const std::vector<std::vector<double>> &u,
-                             const std::vector<std::vector<double>> &f) const;
+    auto set_cell(const size_t nat, const double lavec[3][3], const double xcoord[][3], const int kind[]) const -> void;
 
-    void set_optimizer_control(const OptimizerControl &optcontrol_in) const;
+    auto set_element_names(const std::vector<std::string> &kdname_in) const -> void;
 
-    void set_constraint_mode(const int constraint_flag) const;
+    auto set_transformation_matrices(const double transmat_to_super[3][3], const double transmat_to_prim[3][3],
+                                     const int autoset_primcell_in) const -> void;
 
-    void set_algebraic_constraint(const int use_algebraic_flag) const;
+    auto set_magnetic_params(const size_t nat, const double (*magmom)[3], const bool lspin, const int noncollinear,
+                             const int trev_sym_mag, const std::string &str_magmom) const -> void;
 
-    void set_tolerance_constraint(const double tolerance_constraint) const;
+    auto set_u_train(const std::vector<std::vector<double>> &u) const -> void;
 
-    void set_rotation_axis(const std::string rotation_axis) const;
+    auto set_f_train(const std::vector<std::vector<double>> &f) const -> void;
 
-    void set_fc_file(const int order, const std::string fc_file) const;
+    auto set_e_train(const std::vector<double> &e) const -> void;
 
-    void set_fc_fix(const int order, const bool fc_fix) const;
+    auto set_e_validation(const std::vector<double> &e) const -> void;
 
-    bool ready_all_constraints() const;
+    auto set_validation_data(const std::vector<std::vector<double>> &u,
+                             const std::vector<std::vector<double>> &f) const -> void;
 
-    void set_forceconstants_to_fix(const std::vector<std::vector<int>> &intpair_fix,
-                                   const std::vector<double> &values_fix) const;
+    auto set_optimizer_control(const OptimizerControl &optcontrol_in) const -> void;
 
-    void set_sparse_mode(const int sparse_mode) const;
+    auto set_constraint_mode(const int constraint_flag) const -> void;
 
-    void set_forceconstant_basis(const std::string preferred_basis) const;
+    auto set_algebraic_constraint(const int use_algebraic_flag) const -> void;
 
-    std::string get_forceconstant_basis() const;
+    auto set_tolerance_constraint(const double tolerance_constraint) const -> void;
 
-    void set_nmaxsave(const int nmaxsave) const; // NMAXSAVE
+    auto set_rotation_axis(const std::string rotation_axis) const -> void;
 
-    int get_nmaxsave() const;
+    auto set_fc_file(const int order, const std::string fc_file) const -> void;
+
+    auto set_fc_fix(const int order, const bool fc_fix) const -> void;
+
+    auto set_reduction_algo(const int ialgo_reduce) const -> void;
+
+    // STRESS: Cauchy stress of the reference structure (GPa, tension positive, 9 values row-major);
+    // an empty vector clears it.
+    auto set_stress(const std::vector<double> &stress_in) const -> void;
+
+    [[nodiscard]] auto ready_all_constraints() const -> bool;
+    [[nodiscard]] auto constraints_initialized() const -> bool
+    {
+        return initialized_constraint_class;
+    }
+
+    auto set_forceconstants_to_fix(const std::vector<std::vector<int>> &intpair_fix,
+                                   const std::vector<double> &values_fix) const -> void;
+
+    auto set_sparse_mode(const int sparse_mode) const -> void;
+
+    auto set_forceconstant_basis(const std::string preferred_basis) const -> void;
+
+    [[nodiscard]] auto get_forceconstant_basis() const -> std::string;
+
+    auto set_nmaxsave(const int nmaxsave) const -> void; // NMAXSAVE
+
+    [[nodiscard]] auto get_nmaxsave() const -> int;
+
+    auto set_compression_level(const int level) const -> void; // COMPRESSION
+
+    [[nodiscard]] auto get_compression_level() const -> int;
 
     //void set_fitting_filenames(std::string dfile,
     //                           std::string ffile) const;
-    void define(const int maxorder,
-                const size_t nkd,
-                const int *nbody_include,
-                const double *cutoff_radii) const;
+    auto define(const int maxorder, const size_t nkd, const int *nbody_include,
+                const double *cutoff_radii) const -> void;
 
     //int get_ndata_used() const;
-    OptimizerControl get_optimizer_control() const;
+    [[nodiscard]] auto get_optimizer_control() const -> OptimizerControl;
 
-    std::vector<std::vector<double>> get_u_train() const;
+    [[nodiscard]] auto get_u_train() const -> std::vector<std::vector<double>>;
 
-    std::vector<std::vector<double>> get_f_train() const;
+    [[nodiscard]] auto get_f_train() const -> std::vector<std::vector<double>>;
 
-    size_t get_number_of_data() const;
+    [[nodiscard]] auto get_number_of_data() const -> size_t;
 
-    size_t get_nrows_sensing_matrix() const;
+    [[nodiscard]] auto get_nrows_sensing_matrix() const -> size_t;
 
-    double get_cv_l1_alpha() const;
+    // Number of free parameters after algebraic constraints (= ncols of the compact sensing
+    // matrix returned by get_matrix_elements). Sets up the constraints if not done yet.
+    auto get_number_of_free_parameters() -> size_t;
 
-    Cell get_supercell() const;
+    [[nodiscard]] auto get_cv_l1_alpha() const -> double;
 
-    std::string *get_kdname() const;
+    [[nodiscard]] auto get_symmetry_tolerance() const -> double;
 
-    Spin get_spin() const;
+    [[nodiscard]] auto get_supercell() const -> Cell;
 
-    void set_str_magmom(std::string);
+    [[nodiscard]] auto get_kdname() const -> std::vector<std::string>;
 
-    std::string get_str_magmom() const;
+    [[nodiscard]] auto get_spin() const -> Spin;
 
-    double ***get_x_image() const;
+    static auto set_str_magmom(std::string) -> void;
 
-    int *get_periodicity() const;
+    [[nodiscard]] auto get_str_magmom() const -> std::string;
 
-    const std::vector<std::vector<int>> &get_atom_mapping_by_pure_translations() const;
+    [[nodiscard]] auto get_x_image() const -> const std::vector<Eigen::MatrixXd> &;
 
-    int get_maxorder() const;
+    [[nodiscard]] auto get_periodicity() const -> int *;
 
-    int *get_nbody_include() const;
+    [[nodiscard]] auto get_atom_mapping_by_pure_translations() const -> const std::vector<std::vector<int>> &;
 
-    size_t get_number_of_displacement_patterns(const int fc_order) const; // harmonic=1, ...
-    void get_number_of_displaced_atoms(int *numbers,
-                                       int fc_order) const; // harmonic=1, ...
-    int get_displacement_patterns(int *atom_indices,
-                                  double *disp_patterns,
-                                  int fc_order) const;          // harmonic=1, ...
-    size_t get_number_of_fc_elements(const int fc_order) const; // harmonic=1, ...
-    size_t get_number_of_irred_fc_elements(const int fc_order); // harmonic=1, ...
+    [[nodiscard]] auto get_maxorder() const -> int;
 
-    size_t get_number_of_fc_origin(const int fc_order, // harmonic = 1
-                                   const int permutation) const;
+    [[nodiscard]] auto get_nbody_include() const -> int *;
 
-    void get_fc_origin(double *fc_values,
+    [[nodiscard]] auto get_number_of_displacement_patterns(const int fc_order) const -> size_t; // harmonic=1, ...
+    auto get_number_of_displaced_atoms(int *numbers,
+                                       int fc_order) const -> void; // harmonic=1, ...
+    auto get_displacement_patterns(int *atom_indices, double *disp_patterns,
+                                   int fc_order) const -> int;                        // harmonic=1, ...
+    [[nodiscard]] auto get_number_of_fc_elements(const int fc_order) const -> size_t; // harmonic=1, ...
+    [[nodiscard]] auto get_number_of_irred_fc_elements(const int fc_order) -> size_t; // harmonic=1, ...
+
+    [[nodiscard]] auto get_number_of_fc_origin(const int fc_order, // harmonic = 1
+                                               const int permutation) const -> size_t;
+
+    auto get_fc_origin(double *fc_values,
                        int *elem_indices, // (len(fc_value), fc_order) is flatten.
-                       int fc_order, // harmonic=1, ...
-                       int permutation = 1) const;
+                       int fc_order,      // harmonic=1, ...
+                       int permutation = 1) const -> void;
 
 
-    void get_fc_irreducible(double *fc_values,
-                            int *elem_indices, // (len(fc_value), fc_order) is flatten.
-                            int fc_order); // harmonic=1, ...
+    auto get_fc_irreducible(double *fc_values,
+                            int *elem_indices,     // (len(fc_value), fc_order) is flatten.
+                            int fc_order) -> void; // harmonic=1, ...
 
 
-    void get_fc_all(double *fc_values,
+    auto get_fc_all(double *fc_values,
                     int *elem_indices, // (len(fc_value), fc_order) is flatten.
-                    int fc_order, // harmonic=1, ...
-                    int permutation = 1) const;
+                    int fc_order,      // harmonic=1, ...
+                    int permutation = 1) const -> void;
 
-    void set_fc(double *fc_in) const;
+    auto set_fc(double *fc_in) const -> void;
 
-    void set_fc_zero_threshold(const double threshold_in);
+    auto set_fc_zero_threshold(const double threshold_in) const -> void;
 
-    double get_fc_zero_threshold() const;
+    [[nodiscard]] auto get_fc_zero_threshold() const -> double;
 
-    void get_matrix_elements(double *amat,
-                             double *bvec);
+    auto get_matrix_elements(double *amat, double *bvec) -> void;
 
-    int run_optimize();
+    auto run_optimize() -> int;
 
-    void run_suggest();
+    auto run_suggest() const -> void;
 
-    void init_fc_table();
+    auto init_fc_table() -> void;
 
-    void save_fc(const std::string filename,
-                 const std::string fc_format,
-                 const int maxorder_to_save) const;
+    auto save_fc(const std::string &filename, const std::string fc_format, const int maxorder_to_save) const -> void;
 
-    void set_fcs_save_flag(const std::string fcs_format, const int val) const;
+    auto set_fcs_save_flag(const std::string &fcs_format, const int val) const -> void;
 
-    int get_fcs_save_flag(const std::string fcs_format) const;
+    auto get_fcs_save_flag(const std::string &fcs_format) const -> int;
+
+    auto set_input_vars(const std::map<std::string, std::string> &input_var_dict) const -> void;
+
+    [[nodiscard]] auto get_input_var(const std::string &key) const -> std::string;
+
+    auto set_pattern_format(const std::string &format_name) const -> void;
+
+    [[nodiscard]] auto get_format_pattern() const -> std::string;
 
 private:
-
     int verbosity;
     bool structure_initialized;
     bool initialized_constraint_class;
     std::ofstream *ofs_alm;
     std::streambuf *coutbuf;
 
-    void init_instances();
+    // Multiply-by factors converting the declared input units into the
+    // internal canonical units (bohr, Ry/bohr). Set by set_input_units.
+    double factor_length_to_bohr_{1.0};
+    double factor_force_to_ry_bohr_{1.0};
+    std::string length_unit_name_{"bohr"};
+    std::string force_unit_name_{"Ry/bohr"};
+    // Guards against changing the units after unit-sensitive data was set.
+    // mutable because the unit-sensitive setters are const member functions.
+    mutable bool unit_sensitive_setter_called_{false};
+
+    auto init_instances() -> void;
 };
-}
+} // namespace ALM_NS

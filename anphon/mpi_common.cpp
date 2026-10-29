@@ -9,30 +9,179 @@
 */
 
 #include "mpi_common.h"
-#include <string>
+#include <Eigen/Core>
 #include <cstring>
+#include <iostream>
+#include <string>
+#include <vector>
 
 using namespace PHON_NS;
 
-MyMPI::MyMPI(PHON *phon,
-             MPI_Comm comm) : Pointers(phon)
+static int rank_of(MPI_Comm comm)
 {
-    MPI_Comm_rank(comm, &my_rank);
-    MPI_Comm_size(comm, &nprocs);
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    return rank;
 }
 
-MyMPI::~MyMPI() {}
-
-void MyMPI::MPI_Bcast_string(std::string &str,
-                             int root,
-                             MPI_Comm comm) const
+void PHON_NS::MPI_Bcast_string(std::string &str, int root, MPI_Comm comm)
 {
-    int len = str.length();
-    MPI_Bcast(&len, 1, MPI_INT, 0, comm);
+    const auto my_rank = rank_of(comm);
+    int len = 0;
+    if (my_rank == root) {
+        len = static_cast<int>(str.length());
+    }
+    MPI_Bcast(&len, 1, MPI_INT, root, comm);
 
-    // limited to 512 characters
-    char ctmp[512];
-    std::strcpy(ctmp, str.c_str());
-    MPI_Bcast(&ctmp, len + 1, MPI_CHAR, 0, comm);
-    str = std::string(ctmp);
+    // Use a heap buffer sized to the actual string length to avoid the
+    // fixed-size stack buffer overflow that the previous 512-byte array had.
+    std::vector<char> ctmp(len + 1);
+    if (my_rank == root) {
+        std::memcpy(ctmp.data(), str.c_str(), len + 1);
+    }
+    MPI_Bcast(ctmp.data(), len + 1, MPI_CHAR, root, comm);
+    str = std::string(ctmp.data());
+}
+
+
+void PHON_NS::MPI_Bcast_CellClass(Cell &cell, int root, MPI_Comm comm)
+{
+    const auto my_rank = rank_of(comm);
+    MPI_Bcast(cell.lattice_vector.data(), 9, MPI_DOUBLE, root, comm);
+
+    int natoms;
+    if (my_rank == root) {
+        natoms = cell.x_fractional.rows();
+    }
+    MPI_Bcast(&natoms, 1, MPI_INT, root, comm);
+
+    if (my_rank != root) {
+        cell.x_fractional.resize(natoms, 3);
+        cell.kind.resize(natoms);
+    }
+    MPI_Bcast(cell.x_fractional.data(), 3 * natoms, MPI_DOUBLE, root, comm);
+    MPI_Bcast(cell.kind.data(), natoms, MPI_INT, root, comm);
+}
+
+void PHON_NS::MPI_Bcast_SpinClass(Spin &spin, int root, MPI_Comm comm)
+{
+    const auto my_rank = rank_of(comm);
+    MPI_Bcast(&spin.lspin, 1, MPI_INT, root, comm);
+    MPI_Bcast(&spin.noncollinear, 1, MPI_INT, root, comm);
+    MPI_Bcast(&spin.time_reversal_symm, 1, MPI_INT, root, comm);
+
+    int natoms;
+    if (my_rank == root) {
+        natoms = spin.magmom.size();
+    }
+    MPI_Bcast(&natoms, 1, MPI_INT, root, comm);
+    if (my_rank != root) {
+        spin.magmom.resize(natoms, std::vector<double>(3));
+    }
+
+    // std::vector<std::vector<double>> is not contiguous in memory, so it cannot
+    // be broadcast directly via magmom.data(). Pack into a flat buffer, broadcast,
+    // then unpack.
+    std::vector<double> magmom_flat(static_cast<size_t>(natoms) * 3);
+    if (my_rank == root) {
+        for (int i = 0; i < natoms; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                magmom_flat[3 * i + j] = spin.magmom[i][j];
+            }
+        }
+    }
+    MPI_Bcast(magmom_flat.data(), 3 * natoms, MPI_DOUBLE, root, comm);
+    if (my_rank != root) {
+        for (int i = 0; i < natoms; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                spin.magmom[i][j] = magmom_flat[3 * i + j];
+            }
+        }
+    }
+}
+
+void PHON_NS::MPI_Bcast_MappingTable(MappingTable &mapping, int root, MPI_Comm comm)
+{
+    const auto my_rank = rank_of(comm);
+    int natmin_tmp, ntran_tmp;
+    if (my_rank == root) {
+        natmin_tmp = mapping.from_true_primitive.size();
+        ntran_tmp = mapping.from_true_primitive[0].size();
+    }
+    MPI_Bcast(&natmin_tmp, 1, MPI_INT, root, comm);
+    MPI_Bcast(&ntran_tmp, 1, MPI_INT, root, comm);
+
+    std::vector<unsigned int> map_1d(natmin_tmp * ntran_tmp);
+
+    if (my_rank == root) {
+        auto k = 0;
+        for (auto i = 0; i < natmin_tmp; ++i) {
+            for (auto j = 0; j < ntran_tmp; ++j) {
+                map_1d[k++] = mapping.from_true_primitive[i][j];
+            }
+        }
+    }
+
+    MPI_Bcast(&map_1d[0], natmin_tmp * ntran_tmp, MPI_UNSIGNED, root, comm);
+
+    if (my_rank != root) {
+        mapping.from_true_primitive.resize(natmin_tmp, std::vector<unsigned int>(ntran_tmp));
+        mapping.to_true_primitive.resize(natmin_tmp * ntran_tmp);
+        auto k = 0;
+        for (auto i = 0; i < natmin_tmp; ++i) {
+            for (auto j = 0; j < ntran_tmp; ++j) {
+                mapping.from_true_primitive[i][j] = map_1d[k];
+                mapping.to_true_primitive[map_1d[k]].atom_num = i;
+                mapping.to_true_primitive[map_1d[k]].tran_num = j;
+                ++k;
+            }
+        }
+    }
+    map_1d.clear();
+}
+
+void PHON_NS::mpiBcastEigen(Eigen::MatrixXd &mat, int root, MPI_Comm comm)
+{
+    const auto my_rank = rank_of(comm);
+    int nrows, ncols;
+
+    if (my_rank == root) {
+        nrows = static_cast<int>(mat.rows());
+        ncols = static_cast<int>(mat.cols());
+    }
+    MPI_Bcast(&nrows, 1, MPI_INT, root, comm);
+    MPI_Bcast(&ncols, 1, MPI_INT, root, comm);
+
+    if (my_rank != root) {
+        mat.resize(nrows, ncols);
+    }
+    MPI_Bcast(mat.data(), nrows * ncols, MPI_DOUBLE, root, comm);
+}
+
+void PHON_NS::mpiBcastEigen(Eigen::MatrixXcd &mat, int root, MPI_Comm comm)
+{
+    const auto my_rank = rank_of(comm);
+    int nrows, ncols;
+
+    if (my_rank == root) {
+        nrows = static_cast<int>(mat.rows());
+        ncols = static_cast<int>(mat.cols());
+    }
+
+    MPI_Bcast(&nrows, 1, MPI_INT, root, comm);
+    MPI_Bcast(&ncols, 1, MPI_INT, root, comm);
+
+    if (my_rank != root) {
+        mat.resize(nrows, ncols);
+    }
+
+#ifdef MPI_CXX_DOUBLE_COMPLEX
+    MPI_Bcast(mat.data(), nrows * ncols, MPI_CXX_DOUBLE_COMPLEX, root, comm);
+#else
+    MPI_Datatype MPI_COMPLEX_DOUBLE;
+    MPI_Type_contiguous(2, MPI_DOUBLE, &MPI_COMPLEX_DOUBLE);
+    MPI_Type_commit(&MPI_COMPLEX_DOUBLE);
+    MPI_Bcast(mat.data(), nrows * ncols, MPI_COMPLEX_DOUBLE, root, comm);
+    MPI_Type_free(&MPI_COMPLEX_DOUBLE);
+#endif
 }

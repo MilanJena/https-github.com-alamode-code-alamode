@@ -1,0 +1,69 @@
+name: Python tools (strainkit, alm/anphon API)
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ${{ github.repository == 'alamode-code/alamode-developer' && fromJSON('["self-hosted","Linux"]') || 'ubuntu-latest' }}
+    name: Python tools tests (Python ${{ matrix.python-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11']
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: alamode
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          conda env update -n alamode -f etc/alamode-environment.yml
+          # mpi4py: tests/test_anphon_api.py runs anphon after "import mpi4py.MPI"
+          # ("mpi=*=openmpi" pins mpi4py's build to the env's openmpi)
+          conda install -y -c conda-forge ase pytest nanobind scikit-build-core lxml numba phonopy=4.7.2 h5py mpi4py "mpi=*=openmpi"
+      - name: Build and install the alm/anphon Python package
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "4"  # bounded: the package compiles alm and anphon
+        run: |
+          pip install ./python --no-build-isolation -v
+          python -c "import alm; print(alm.__version__)"
+          python -c "import anphon; print(anphon.__version__)"
+      - name: Build the alm and anphon CLIs
+        # tests/test_alm_api.py and tests/test_anphon_api.py compare the Python API
+        # with _build/{alm/alm,anphon/anphon} and are skipped (which fails the job
+        # below) when the binaries are missing.
+        run: |
+          mkdir -p _build
+          cd _build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          make alm anphon -j4
+      - name: Run the tests (serial)
+        working-directory: ./tools
+        env:
+          ALM_REQUIRE_PHONOPY: "1"  # test_alm_phonopy_compat.py must run phonopy's run_alm
+        run: |
+          # the suite must actually run: fail if any (ALM/ase dependent) test was skipped
+          python -m pytest tests -v -rs -k "not mpi" 2>&1 | tee pytest.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit 1  # bash -l {0} has no errexit
+          if grep -q "SKIPPED" pytest.log; then echo "some tests were skipped"; exit 1; fi
+      - name: Run the anphon MPI tests (mpirun -np 2)
+        working-directory: ./tools
+        env:
+          # runners may have fewer slots than OpenMPI counts as free cores
+          OMPI_MCA_rmaps_base_oversubscribe: "1"  # OpenMPI 4
+          PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"  # OpenMPI 5
+        run: |
+          which mpirun
+          python -m pytest tests/test_anphon_api.py -v -rs -k mpi 2>&1 | tee pytest_mpi.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit 1  # bash -l {0} has no errexit
+          if grep -q "SKIPPED" pytest_mpi.log; then echo "some tests were skipped"; exit 1; fi

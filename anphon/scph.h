@@ -10,43 +10,37 @@
 
 #pragma once
 
-#include "pointers.h"
-#include "kpoint.h"
-#include "anharmonic_core.h"
-#include "gruneisen.h"
-#include "dynamical.h"
-#include <complex>
 #include <Eigen/Dense>
+#include <complex>
+#include "anharmonic_core.h"
+#include "blas_wrapper.h" // zgemm_ / zgemm_cpx (guarded for EIGEN_USE_BLAS); must follow <Eigen/...>
+#include "dynamical.h"
+#include "gruneisen.h"
+#include "kpoint.h"
+#include "scph_qha_common.h"
 
-namespace PHON_NS {
-class DistList {
+namespace PHON_NS
+{
+class ScphRelaxationModel;
+
+class Scph: protected ScphQhaCommon
+{
 public:
-    unsigned int cell_s;
-    double dist;
-
-    DistList();
-
-    DistList(const unsigned int cell_s_,
-             const double dist_) : cell_s(cell_s_), dist(dist_) {};
-
-    bool operator<(const DistList &obj) const
-    {
-        return dist < obj.dist;
-    }
-};
-
-
-class Scph : protected Pointers {
-public:
-
-    Scph(class PHON *phon);
+    explicit Scph(const ScphQhaCollaborators &c);
 
     ~Scph();
 
     unsigned int kmesh_scph[3];
     unsigned int kmesh_interpolate[3];
-    unsigned int ialgo;
+    unsigned int kmesh_bubble[3]; // q mesh of the bubble self-energy (KMESH_BUBBLE)
     unsigned int bubble;
+    // BUBBLE = 4 (free-energy Hessian): residual tolerance and debug switches
+    double bubble_tol = 1.0e-8;
+    int bubble_ladder = 1;
+    using ScphQhaCommon::v4_real_space; // V4_REAL_SPACE
+    int bubble_fd_check = 0;
+
+    using ScphQhaCommon::use_h5_io;
 
     bool restart_scph;
     bool warmstart_scph;
@@ -60,260 +54,132 @@ public:
     double mixalpha;
     unsigned int maxiter;
     bool print_self_consistent_fc2;
-    bool selfenergy_offdiagonal;
+    double mix_anderson_ratio;
+    unsigned int imix_scph;
 
 
-    void write_anharmonic_correction_fc2(std::complex<double> ****delta_dymat,
-                                         const unsigned int NT,
-                                         const KpointMeshUniform *kmesh_coarse_in,
-                                         MinimumDistList ***mindist_list_in,
-                                         const bool is_qha = false,
-                                         const int type = 0);
-
-    void load_scph_dymat_from_file(std::complex<double> ****dymat_out,
-                                   std::string filename_dymat,
-                                   const KpointMeshUniform *kmesh_dense_in,
-                                   const KpointMeshUniform *kmesh_coarse_in,
-                                   const unsigned int nonanalytic_in,
-                                   const bool selfenergy_offdiagonal_in);
-
-    void store_scph_dymat_to_file(const std::complex<double> *const *const *const *dymat_in,
-                                  std::string filename_dymat,
-                                  const KpointMeshUniform *kmesh_dense_in,
-                                  const KpointMeshUniform *kmesh_coarse_in,
-                                  const unsigned int nonanalytic_in,
-                                  const bool selfenergy_offdiagonal_in);
-
-    void compute_V3_elements_for_given_IFCs(std::complex<double> ***v3_out,
-                                            double **omega2_harmonic_in,
-                                            const int ngroup_v3_in,
-                                            std::vector<double> *fcs_group_v3_in,
-                                            std::vector<RelativeVector> *relvec_v3_in,
-                                            double *invmass_v3_in,
-                                            int **evec_index_v3_in,
-                                            const std::complex<double> *const *const *evec_in,
-                                            const bool self_offdiag,
-                                            const KpointMeshUniform *kmesh_coarse_in,
-                                            const KpointMeshUniform *kmesh_dense_in,
-                                            const PhaseFactorStorage *phase_storage_in);
-
-
-    void compute_V4_elements_mpi_over_kpoint(std::complex<double> ***v4_out,
-                                             double **omega2_harmonic_in,
-                                             std::complex<double> ***evec_in,
-                                             const bool self_offdiag,
-                                             const bool relax,
-                                             const KpointMeshUniform *kmesh_coarse_in,
-                                             const KpointMeshUniform *kmesh_dense_in,
-                                             const std::vector<int> &kmap_coarse_to_dense,
-                                             const PhaseFactorStorage *phase_storage_in,
-                                             std::complex<double> *phi4_reciprocal_inout);
-
-    void compute_V4_elements_mpi_over_band(std::complex<double> ***v4_out,
-                                           double **omega2_harmonic_in,
-                                           std::complex<double> ***evec_in,
-                                           const bool self_offdiag,
-                                           const KpointMeshUniform *kmesh_coarse_in,
-                                           const KpointMeshUniform *kmesh_dense_in,
-                                           const std::vector<int> &kmap_coarse_to_scph,
-                                           const PhaseFactorStorage *phase_storage_in,
-                                           std::complex<double> *phi4_reciprocal_inout);
-
-
-    void compute_V3_elements_mpi_over_kpoint(std::complex<double> ***v3_out,
-                                             double **omega2_harmonic_in,
-                                             const std::complex<double> *const *const *evec_in,
-                                             const bool self_offdiag,
-                                             const KpointMeshUniform *kmesh_coarse_in,
-                                             const KpointMeshUniform *kmesh_dense_in,
-                                             const PhaseFactorStorage *phase_storage_in,
-                                             std::complex<double> *phi3_reciprocal_inout);
-
-    void compute_anharmonic_del_v0_del_umn(std::complex<double> *del_v0_del_umn_SCP,
-                                           std::complex<double> *del_v0_del_umn_renorm,
-                                           std::complex<double> ***del_v2_del_umn,
-                                           std::complex<double> ***del2_v2_del_umn2,
-                                           std::complex<double> ****del_v3_del_umn,
-                                           double **u_tensor,
-                                           double *q0,
-                                           std::complex<double> ***cmat_convert,
-                                           double **omega2_anharm_T,
-                                           const double T_in,
-                                           const KpointMeshUniform *kmesh_dense_in);
-
-    void compute_anharmonic_v1_array(std::complex<double> *v1_SCP,
-                                     std::complex<double> *v1_renorm,
-                                     std::complex<double> ***v3_renorm,
-                                     std::complex<double> ***cmat_convert,
-                                     double **omega2_anharm_T,
-                                     const double T_in,
-                                     const KpointMeshUniform *kmesh_dense_in);
-
-    void calculate_del_v0_del_umn_renorm(std::complex<double> *del_v0_del_umn_renorm,
-                                         double *C1_array,
-                                         double **C2_array,
-                                         double ***C3_array,
-                                         double **eta_tensor,
-                                         double **u_tensor,
-                                         std::complex<double> **del_v1_del_umn,
-                                         std::complex<double> **del2_v1_del_umn2,
-                                         std::complex<double> **del3_v1_del_umn3,
-                                         std::complex<double> ***del_v2_del_umn,
-                                         std::complex<double> ***del2_v2_del_umn2,
-                                         std::complex<double> ****del_v3_del_umn,
-                                         double *q0,
-                                         double pvcell,
-                                         const KpointMeshUniform *kmesh_dense_in);
-
-
-    void postprocess(std::complex<double> ****,
-                     std::complex<double> ****,
-                     std::complex<double> ****,
-                     const KpointMeshUniform *kmesh_coarse_in,
-                     MinimumDistList ***mindist_list_in,
-                     const bool is_qha = false,
-                     const int bubble_in = 0);
+    using ScphQhaCommon::calculate_del_v0_del_umn_renorm;
+    using ScphQhaCommon::compute_anharmonic_del_v0_del_umn;
+    using ScphQhaCommon::compute_anharmonic_v1_array;
+    using ScphQhaCommon::compute_Cv_anharmonic;
+    using ScphQhaCommon::compute_V3_elements_mpi_over_kpoint;
+    using ScphQhaCommon::compute_V4_elements_mpi_over_band;
+    using ScphQhaCommon::compute_V4_elements_mpi_over_kpoint;
+    using ScphQhaCommon::ialgo;
+    using ScphQhaCommon::load_scph_dymat_from_file;
+    using ScphQhaCommon::postprocess;
+    using ScphQhaCommon::selfenergy_offdiagonal;
+    using ScphQhaCommon::store_renormalized_dymat_to_file;
+    using ScphQhaCommon::write_anharmonic_correction_fc2;
 
 private:
-
-    // Information of kmesh for SCPH calculation
-    KpointMeshUniform *kmesh_coarse = nullptr;
-    KpointMeshUniform *kmesh_dense = nullptr;
-    std::vector<int> kmap_interpolate_to_scph;
-
-    // Information for calculating the ph-ph interaction coefficients
-    std::complex<double> *phi3_reciprocal, *phi4_reciprocal;
-
-    // Phase shift
-    PhaseFactorStorage *phase_factor_scph;
-
-    // Information of harmonic dynamical matrix
-    double **omega2_harmonic;
-    std::complex<double> ***evec_harmonic;
-    MinimumDistList ***mindist_list_scph;
-
-    // Local variables for handling symmetry of dynamical matrix
-    std::complex<double> ****mat_transform_sym;
-
-    std::vector<Eigen::MatrixXcd> dymat_harm_short, dymat_harm_long;
-
-    int compute_Cv_anharmonic;
+    friend class ScphRelaxationModel;
 
     void set_default_variables();
 
-    void deallocate_variables();
-
-    void setup_kmesh();
-
-    void setup_eigvecs();
-
-    void setup_pp_interaction();
-
     void exec_scph_main(std::complex<double> ****);
 
-    void exec_scph_relax_cell_coordinate_main(std::complex<double> ****,
-                                              std::complex<double> ****);
+    void exec_scph_relax_cell_coordinate_main(std::complex<double> ****, std::complex<double> ****);
 
+    // One structural step's lattice-dynamics stage: solve the SCP equation at
+    // the current (renormalized) IFCs and derive the SCP forces and stress.
+    void solve_scp_and_compute_forces(StructuralOptWorkspace &ws, unsigned int iT, double temp,
+                                      std::complex<double> ***cmat_convert, bool &converged_prev,
+                                      bool &scp_converged_step, std::complex<double> ****dymat_anharm,
+                                      double ***omega2_anharm, std::complex<double> ***evec_anharm_tmp,
+                                      std::complex<double> *v1_SCP, std::complex<double> *del_v0_del_umn_SCP);
 
-    void zerofill_elements_acoustic_at_gamma(double **omega2,
-                                             std::complex<double> ***v_elems,
-                                             const int fc_order,
-                                             const unsigned int nk_dense_in,
-                                             const unsigned int nk_irred_coarse_in) const;
+    // The SCP solvers read V4 through v4_service (row-distributed, collective
+    // contraction once per iteration).
+    void compute_anharmonic_frequency(double **, std::complex<double> ***, double, bool &, std::complex<double> ***,
+                                      bool, std::complex<double> **, const unsigned int verbosity,
+                                      const bool compact_progress = false);
 
+    void compute_anharmonic_frequency_diis(double **, std::complex<double> ***, double, bool &,
+                                           std::complex<double> ***, bool, std::complex<double> **,
+                                           const unsigned int verbosity, const bool compact_progress = false);
 
-    FcsClassExtent from_FcsArrayWithCell_to_FcsClassExtent(const FcsArrayWithCell &);
+    // Helper methods for compute_anharmonic_frequency
+    void initialize_scph_iteration(const double temp, const bool flag_converged, double **omega2_prev,
+                                   const unsigned int verbosity, Eigen::MatrixXd &omega_now, Eigen::MatrixXd &omega2_HA,
+                                   std::vector<Eigen::MatrixXcd> &evec_initial,
+                                   std::vector<Eigen::MatrixXcd> &evec_initial_adjoint,
+                                   std::complex<double> ***cmat_convert) const;
 
+    void setup_harmonic_dynamical_matrices(const Eigen::MatrixXd &omega2_HA,
+                                           const std::vector<Eigen::MatrixXcd> &evec_initial,
+                                           std::complex<double> **delta_v2_renorm, std::vector<Eigen::MatrixXcd> &Fmat0,
+                                           std::complex<double> ***dymat_q_HA);
 
-    void compute_anharmonic_frequency(std::complex<double> ***,
-                                      double **,
-                                      std::complex<double> ***,
-                                      double,
-                                      bool &,
-                                      std::complex<double> ***,
-                                      bool,
-                                      std::complex<double> **,
-                                      const unsigned int verbosity);
+    void compute_qmat_and_dmat(const Eigen::MatrixXd &omega_now, const double temp,
+                               std::complex<double> ***cmat_convert, std::vector<Eigen::MatrixXcd> &dmat_convert) const;
 
+    // F(k) = Fmat0(k) + the V4 contraction with the D matrices of all dense k, for
+    // every coarse irreducible k at once (collective over the V4 rows): dvec is the
+    // flattened D, fmat_all[ik][a][b] is seeded with Fmat0 and completed on return.
+    void update_fmat_with_v4(const std::vector<Eigen::MatrixXcd> &Fmat0,
+                             const std::vector<Eigen::MatrixXcd> &dmat_convert, const bool offdiag,
+                             std::complex<double> ***fmat_all) const;
 
-    void compute_anharmonic_frequency2(std::complex<double> ***,
-                                       double **,
-                                       std::complex<double> ***,
-                                       double,
-                                       bool &,
-                                       std::complex<double> ***,
-                                       bool,
-                                       const unsigned int verbosity);
+    void diagonalize_and_symmetrize(const Eigen::MatrixXcd &Fmat, const std::vector<Eigen::MatrixXcd> &evec_initial,
+                                    const double *const *v4_diag, const unsigned int ik_irred, const unsigned int knum,
+                                    const unsigned int knum_interpolate, const bool flag_converged, double **omega2_out,
+                                    const unsigned int verbosity, int &icount, Eigen::VectorXd &eval_tmp,
+                                    std::complex<double> ***dymat_q, bool *eval_repaired = nullptr);
 
-    void update_frequency(const double temperature_in,
-                          const Eigen::MatrixXd &omega_in,
-                          const std::vector<Eigen::MatrixXcd> &Fmat0,
-                          const std::vector<Eigen::MatrixXcd> &evec0,
-                          std::complex<double> ***dymat0,
-                          std::complex<double> ***v4_array_all,
-                          std::complex<double> ***cmat_convert,
-                          std::vector<Eigen::MatrixXcd> &dmat,
-                          std::complex<double> ***dymat_out,
-                          std::complex<double> ***evec_out,
-                          const double alpha,
-                          const bool offdiag,
-                          Eigen::MatrixXd &omega_out);
+    void interpolate_to_dense_mesh(std::complex<double> ***dymat_q,
+                                   const std::complex<double> *const *const *dymat_q_HA,
+                                   const std::vector<Eigen::MatrixXcd> &evec_initial, Eigen::MatrixXd &eval_interpolate,
+                                   std::vector<Eigen::MatrixXcd> &evec_new, std::complex<double> ***cmat_convert,
+                                   Eigen::MatrixXd &omega_now);
 
-    void get_permutation_matrix(const int ns,
-                                std::complex<double> **cmat_in,
-                                Eigen::MatrixXd &permutation_matrix) const;
+    bool check_convergence(const Eigen::MatrixXd &omega_now, const Eigen::MatrixXd &omega_old, const double conv_tol,
+                           const unsigned int verbosity, const int iloop, double &diff) const;
 
-    void find_degeneracy(std::vector<int> *degeneracy_out,
-                         unsigned int nk_in,
-                         double **eval_in) const;
+    void compute_free_energy_bubble_SCPH(const unsigned int[3], std::complex<double> ****);
 
-    static void mpi_bcast_complex(std::complex<double> ****data,
-                                  const unsigned int NT,
-                                  const unsigned int nk,
-                                  const unsigned int ns);
+    void bubble_correction(std::complex<double> ****, std::complex<double> ****);
 
-    void get_derivative_central_diff(const double delta_t,
-                                     const unsigned int nk,
-                                     double **omega0,
-                                     double **omega2,
-                                     double **domega_dt);
-
-    void compute_free_energy_bubble_SCPH(const unsigned int [3],
-                                         std::complex<double> ****);
-
-    void bubble_correction(std::complex<double> ****,
-                           std::complex<double> ****);
-
-    std::vector<std::complex<double>> get_bubble_selfenergy(const KpointMeshUniform *kmesh_in,
-                                                            const unsigned int ns_in,
-                                                            const double *const *eval_in,
-                                                            const std::complex<double> *const *const *evec_in,
-                                                            const unsigned int knum,
-                                                            const unsigned int snum,
-                                                            const double temp_in,
-                                                            const std::vector<std::complex<double>> &omegalist);
-
-
-    void zerofill_harmonic_dymat_renormalize(std::complex<double> ****,
-                                             unsigned int);
-
-
+    // BUBBLE = 4 (scph_hessian.cpp): curvature of the SCP free energy with
+    // respect to the Gamma displacements at a converged SCP solution of the
+    // structural optimization. Returns false (and reports why) when the
+    // temperature is not eligible or the result cannot be trusted. With
+    // report = false (BUBBLE_HESS, at every optimizer step) nothing is
+    // written to files and the log gets one line.
+    // With a cell (RELAX_STR = 2, 4), J also has the six strain state
+    // variables of the optimizer after the optical modes. ws is used as
+    // scratch (strain finite differences at fixed occupations) and restored.
+    bool compute_scp_hessian(StructuralOptWorkspace &ws, const RelaxationStructureState &solved_state, unsigned int iT,
+                             double temp, std::complex<double> ***cmat_convert, double **omega2_scp, Eigen::MatrixXd &J,
+                             bool report = true);
+    void export_unstable_directions(const RelaxationStructureState &solved_state, const std::vector<int> &optical,
+                                    const Eigen::MatrixXd &J, double temp);
+    bool hessian_displace_started = false;
+    void write_scp_hessian(double temp, const std::string &skip_reason, const Eigen::MatrixXd &J,
+                           const Eigen::MatrixXd &A, int n_applications, double residual, double asymmetry,
+                           const Eigen::MatrixXd &C_clamped = Eigen::MatrixXd(),
+                           const Eigen::MatrixXd &C_relaxed = Eigen::MatrixXd());
+    void report_scp_hessian_fd_check(const Eigen::MatrixXd &J, const Eigen::MatrixXd &jacobian_fd,
+                                     Eigen::Index nv = 0) const;
+    bool hessian_file_started = false;
+    // Whether the final iteration of the last SCP solve repaired an eigenvalue
+    // (either branch of diagonalize_and_symmetrize); such a fixed point is not
+    // differentiable in the sense BUBBLE = 4 needs.
+    bool last_scp_repaired = false;
+    // relative D-space residual the DIIS solver requires on top of the frequency
+    // criterion; BUBBLE_FD_CHECK tightens it for its displaced solves
+    double scp_resid_rel_tol = 1.0e-6;
+    // BUBBLE = 4: the correction H - A of the dynamical matrix (Cartesian,
+    // mass weighted, like delta_dymat_scph) per temperature and coarse k-point
+    // (J - A at Gamma, the finite-Q curvature elsewhere on a mesh); empty where
+    // the curvature was not obtained. Written to PREFIX.scph_fe.h5 on top of the
+    // SCPH correction, for dispersions interpolated like the SCPH ones.
+    std::vector<std::vector<Eigen::MatrixXcd>> fe_dymat_correction;
+    bool hessian_q_file_started = false;
+    void write_fe_state_h5(const NDArray<std::complex<double>, 4> &delta_dymat_scph,
+                           NDArray<std::complex<double>, 4> &delta_harmonic_dymat_renormalize, unsigned int NT);
 };
 
-extern "C" {
-void zgemm_(const char *transa,
-            const char *transb,
-            int *m,
-            int *n,
-            int *k,
-            std::complex<double> *alpha,
-            std::complex<double> *a,
-            int *lda,
-            std::complex<double> *b,
-            int *ldb,
-            std::complex<double> *beta,
-            std::complex<double> *c,
-            int *ldc);
-}
+// zgemm_ is declared in blas_wrapper.h (call it via zgemm_cpx).
 
-}
+} // namespace PHON_NS

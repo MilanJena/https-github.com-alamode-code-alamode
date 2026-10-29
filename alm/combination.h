@@ -10,24 +10,23 @@
 
 #pragma once
 
-#include<vector>
-#include<set>
+#include <set>
+#include <vector>
 #include "../external/combination.hpp"
 
-namespace ALM_NS {
-template<class TYPE>
-class CombinationWithRepetition {
+namespace ALM_NS
+{
+template <class TYPE>
+class CombinationWithRepetition
+{
     std::vector<TYPE> vec;
     unsigned int ndim;
-
 
 public:
     CombinationWithRepetition() {};
 
-    template<class InputIter>
-    CombinationWithRepetition(InputIter begin,
-                              InputIter end,
-                              const unsigned int n)
+    template <class InputIter>
+    CombinationWithRepetition(InputIter begin, InputIter end, const unsigned int n)
     {
         ndim = n;
 
@@ -44,17 +43,17 @@ public:
         }
     }
 
-    bool next()
+    auto next() -> bool
     {
         return boost::next_combination(vec.begin(), vec.begin() + ndim, vec.end());
     }
 
-    std::vector<TYPE> now() const
+    auto now() const -> std::vector<TYPE>
     {
         return std::vector<TYPE>(vec.begin(), vec.begin() + ndim);
     }
 
-    unsigned int size() const
+    auto size() const -> unsigned int
     {
         const unsigned int n = vec.size() / ndim;
         const auto r = ndim;
@@ -62,12 +61,11 @@ public:
     }
 
 private:
-    unsigned int factorial(const unsigned int max,
-                           const unsigned int min = 1) const
+    static auto factorial(const unsigned int max, const unsigned int min = 1) -> unsigned int
     {
         unsigned int result = 1;
         for (auto i = min + 1; i <= max; ++i) result *= i;
         return result;
     }
 };
-}
+} // namespace ALM_NS

@@ -1,0 +1,49 @@
+name: Nightly expensive tests
+
+# The expensive tests (ZnO, BaTiO3 relax, ASan/UBSan) run once a day on 2.0dev
+# instead of on every push. They are skipped when 2.0dev has not changed since
+# the last successful nightly run, so a failed night is retried the next night.
+# A manual run (workflow_dispatch) always runs them.
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 03:00 JST daily; '0 18 */2 * *' for every other day
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  changed:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh run list -R "$GITHUB_REPOSITORY" -w nightly.yaml -b "$GITHUB_REF_NAME" \
+                 -s success -L 1 --json headSha --jq '.[0].headSha // ""')
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$last" != "$GITHUB_SHA" ]; then
+            echo run=true >> "$GITHUB_OUTPUT"
+          else
+            echo "No change since the last successful run ($last); skipping."
+            echo run=false >> "$GITHUB_OUTPUT"
+          fi
+
+  zno:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    uses: ./.github/workflows/test_zno.yaml
+
+  batio3:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    uses: ./.github/workflows/test_batio3.yaml
+
+  sanitizer:
+    needs: changed
+    if: needs.changed.outputs.run == 'true'
+    uses: ./.github/workflows/sanitizer.yaml

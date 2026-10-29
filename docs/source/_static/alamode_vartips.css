@@ -1,0 +1,21 @@
+/* Input-variable pop-ups (alamode_vartips.js); colors follow the breeze theme. */
+.alamode-vartip {
+  position: absolute;
+  z-index: 1000;
+  max-width: min(40em, calc(100vw - 16px));
+  max-height: 50vh;
+  overflow: auto;
+  padding: 0.5em 0.9em;
+  font-size: 0.9em;
+  color: var(--bz-color-text, CanvasText);
+  background: var(--bz-color-surface, Canvas);
+  border: 1px solid var(--bz-color-outline, GrayText);
+  border-radius: var(--bz-border-radius, 0.4rem);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+.alamode-vartip > :first-child { margin-top: 0; }
+.alamode-vartip > :last-child { margin-bottom: 0; }
+.alamode-vartip blockquote { margin: 0.3em 0 0 0.8em; }
+/* tags and &fields in input code blocks that have a pop-up */
+.alamode-vartip-target { cursor: help; }
+.alamode-vartip-target:hover { text-decoration: underline dotted; text-underline-offset: 0.2em; }

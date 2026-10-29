@@ -1,0 +1,1612 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-23 18:17+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/faq.rst:4
+msgid "Frequently Asked Questions (FAQ)"
+msgstr "よくある質問 (FAQ)"
+
+#: ../../source/faq.rst:6
+msgid ""
+"This page collects questions that come up repeatedly on the `GitHub "
+"Discussions <https://github.com/alamode-code/alamode/discussions>`_ and "
+"`issues <https://github.com/alamode-code/alamode/issues>`_ pages, with "
+"answers for ALAMODE 2.0. Click a question to show the answer. If your "
+"question is not answered here, search the Discussions first, then open a "
+"new thread with the ALAMODE version, the compiler and MPI library, the "
+"input files, and the error message."
+msgstr ""
+"このページは、`GitHub Discussions <https://github.com/alamode-"
+"code/alamode/discussions>`_ と `issues <https://github.com/alamode-"
+"code/alamode/issues>`_ のページで繰り返し寄せられる質問を、ALAMODE 2.0 "
+"に基づく回答とともにまとめたものです。質問をクリックすると回答が表示されます。ここで解決しない場合は、まず Discussions "
+"を検索し、そのうえで ALAMODE のバージョン、コンパイラと MPI "
+"ライブラリ、入力ファイル、エラーメッセージを添えて新しいスレッドを立ててください。"
+
+#: ../../source/faq.rst:16
+msgid ""
+"<svg version=\"1.1\" width=\"1.2em\" height=\"1.2em\" class=\"sd-octicon "
+"sd-octicon-tools\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path "
+"d=\"M5.433 2.304A4.492 4.492 0 0 0 3.5 6c0 1.598.832 3.002 2.09 "
+"3.802.518.328.929.923.902 1.64v.008l-.164 3.337a.75.75 0 1 "
+"1-1.498-.073l.163-3.33c.002-.085-.05-.216-.207-.316A5.996 5.996 0 0 1 2 "
+"6a5.993 5.993 0 0 1 2.567-4.92 1.482 1.482 0 0 1 "
+"1.673-.04c.462.296.76.827.76 1.423v2.82c0 "
+".082.041.16.11.206l.75.51a.25.25 0 0 0 .28 0l.75-.51A.249.249 0 0 0 9 "
+"5.282V2.463c0-.596.298-1.127.76-1.423a1.482 1.482 0 0 1 1.673.04A5.993 "
+"5.993 0 0 1 14 6a5.996 5.996 0 0 1-2.786 "
+"5.068c-.157.1-.209.23-.207.315l.163 3.33a.752.752 0 0 1-1.094.714.75.75 0"
+" 0 1-.404-.64l-.164-3.345c-.027-.717.384-1.312.902-1.64A4.495 4.495 0 0 0"
+" 12.5 6a4.492 4.492 0 0 "
+"0-1.933-3.696c-.024.017-.067.067-.067.16v2.818a1.75 1.75 0 0 1-.767 "
+"1.448l-.75.51a1.75 1.75 0 0 1-1.966 0l-.75-.51A1.75 1.75 0 0 1 5.5 "
+"5.282V2.463c0-.092-.043-.142-.067-.159Z\"></path></svg> General & "
+"installation"
+msgstr ":octicon:`tools;1.2em` 一般とインストール"
+
+#: ../../source/faq.rst:20
+msgid "Building, crashes at startup, units and conventions."
+msgstr "ビルド、起動時のクラッシュ、単位と規約。"
+
+#: ../../source/faq.rst:22
+msgid ""
+"<svg version=\"1.1\" width=\"1.2em\" height=\"1.2em\" class=\"sd-octicon "
+"sd-octicon-graph\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path "
+"d=\"M1.5 1.75V13.5h13.75a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 "
+"1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06"
+" 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 "
+"1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0"
+" 1 1.042.018.751.751 0 0 1 .018 1.042Z\"></path></svg> Force constants "
+"(alm)"
+msgstr ":octicon:`graph;1.2em` 力定数 (alm)"
+
+#: ../../source/faq.rst:26
+msgid "Fitting error, cutoffs, supercells, cross-validation, symmetry."
+msgstr "フィッティング誤差、カットオフ、スーパーセル、交差検証、対称性。"
+
+#: ../../source/faq.rst:28
+msgid ""
+"<svg version=\"1.1\" width=\"1.2em\" height=\"1.2em\" class=\"sd-octicon "
+"sd-octicon-pulse\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path "
+"d=\"M6 2c.306 0 .582.187.696.471L10 10.731l1.304-3.26A.751.751 0 0 1 12 "
+"7h3.25a.75.75 0 0 1 0 1.5h-2.742l-1.812 4.528a.751.751 0 0 1-1.392 0L6 "
+"4.77 4.696 8.03A.75.75 0 0 1 4 8.5H.75a.75.75 0 0 1 "
+"0-1.5h2.742l1.812-4.529A.751.751 0 0 1 6 2Z\"></path></svg> Harmonic "
+"phonons"
+msgstr ":octicon:`pulse;1.2em` 調和フォノン"
+
+#: ../../source/faq.rst:32
+msgid "Imaginary modes, LO-TO splitting, 2D materials, band plots."
+msgstr "虚数モード、LO-TO 分裂、2次元物質、バンドのプロット。"
+
+#: ../../source/faq.rst:34
+msgid ""
+"<svg version=\"1.1\" width=\"1.2em\" height=\"1.2em\" class=\"sd-octicon "
+"sd-octicon-flame\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path "
+"d=\"M9.533.753V.752c.217 2.385 1.463 3.626 2.653 4.81C13.37 6.74 14.498 "
+"7.863 14.498 10c0 3.5-3 6-6.5 6S1.5 13.512 1.5 10c0-1.298.536-2.56 "
+"1.425-3.286.376-.308.862 0 1.035.454C4.46 8.487 5.581 8.419 6 "
+"8c.282-.282.341-.811-.003-1.5C4.34 3.187 7.035.75 "
+"8.77.146c.39-.137.726.194.763.607ZM7.998 14.5c2.832 0 5-1.98 5-4.5 "
+"0-1.463-.68-2.19-1.879-3.383l-.036-.037c-1.013-1.008-2.3-2.29-2.834-4.434-.322.256-.63.579-.864.953-.432.696-.621"
+" 1.58-.046 2.73.473.947.67 2.284-.278 "
+"3.232-.61.61-1.545.84-2.403.633a2.79 2.79 0 0 1-1.436-.874A3.198 3.198 0 "
+"0 0 3 10c0 2.53 2.164 4.5 4.998 4.5Z\"></path></svg> Thermal conductivity"
+msgstr ":octicon:`flame;1.2em` 熱伝導率"
+
+#: ../../source/faq.rst:38
+msgid "Convergence, BTE solvers, four-phonon, lifetimes."
+msgstr "収束、BTE ソルバー、4フォノン散乱、寿命。"
+
+#: ../../source/faq.rst:40
+msgid ""
+"<svg version=\"1.1\" width=\"1.2em\" height=\"1.2em\" class=\"sd-octicon "
+"sd-octicon-sun\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M8 "
+"12a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-1.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 "
+"5Zm5.657-8.157a.75.75 0 0 1 0 1.061l-1.061 1.06a.749.749 0 0 "
+"1-1.275-.326.749.749 0 0 1 .215-.734l1.06-1.06a.75.75 0 0 1 1.06 "
+"0Zm-9.193 9.193a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 1 "
+"1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0ZM8 0a.75.75 0 0 1 "
+".75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0ZM3 8a.75.75 0 0 "
+"1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm13 0a.75.75 0 0 "
+"1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8Zm-8 5a.75.75 0 0 1"
+" .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13Zm3.536-1.464a.75.75"
+" 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1"
+" 0-1.061ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.751.751 0 0 1-.018"
+" 1.042.751.751 0 0 1-1.042.018l-1.06-1.06a.75.75 0 0 1 "
+"0-1.06Z\"></path></svg> Finite temperature"
+msgstr ":octicon:`sun;1.2em` 有限温度"
+
+#: ../../source/faq.rst:44
+msgid "SCPH convergence, imaginary modes, renormalized force constants."
+msgstr "SCPH の収束、虚数モード、繰り込まれた力定数。"
+
+#: ../../source/faq.rst:46
+msgid ""
+"<svg version=\"1.1\" width=\"1.2em\" height=\"1.2em\" class=\"sd-octicon "
+"sd-octicon-arrow-switch\" viewBox=\"0 0 16 16\" aria-"
+"hidden=\"true\"><path d=\"M5.22 14.78a.75.75 0 0 0 1.06-1.06L4.56 "
+"12h8.69a.75.75 0 0 0 0-1.5H4.56l1.72-1.72a.75.75 0 0 0-1.06-1.06l-3 "
+"3a.75.75 0 0 0 0 1.06l3 3Zm5.56-6.5a.75.75 0 1 "
+"1-1.06-1.06l1.72-1.72H2.75a.75.75 0 0 1 0-1.5h8.69L9.72 2.28a.75.75 0 0 1"
+" 1.06-1.06l3 3a.75.75 0 0 1 0 1.06l-3 3Z\"></path></svg> Interfaces & "
+"performance"
+msgstr ":octicon:`arrow-switch;1.2em` インターフェースと性能"
+
+#: ../../source/faq.rst:50
+msgid "Other codes, file conversion, memory, MPI and OpenMP."
+msgstr "他のコード、ファイル変換、メモリ、MPI と OpenMP。"
+
+#: ../../source/faq.rst:56
+msgid "General and installation"
+msgstr "一般とインストール"
+
+#: ../../source/faq.rst
+msgid "The build fails because spglib (or another library) is not found."
+msgstr "spglib (または他のライブラリ) が見つからずビルドに失敗します。"
+
+#: ../../source/faq.rst:61
+msgid ""
+"The easiest route is the conda or pixi environment described in "
+":doc:`install`, which provides all dependencies (compilers, MPI, Boost, "
+"Eigen, spglib, HDF5, ...) in one place; CMake then finds them in "
+"``$CONDA_PREFIX`` automatically. Outside such an environment, or if CMake"
+" still cannot find spglib (e.g. ``cannot find -lsymspg``), give its "
+"location explicitly::"
+msgstr ""
+"最も簡単なのは :doc:`install` で説明している conda または pixi の環境を使う方法です。この環境はすべての依存関係 "
+"(コンパイラ、MPI、Boost、Eigen、spglib、HDF5 など) を一か所に用意し、CMake はそれらを "
+"``$CONDA_PREFIX`` から自動的に見つけます。そのような環境の外でビルドする場合や、それでも CMake が spglib "
+"を見つけられない場合 (例えば ``cannot find -lsymspg``) は、その場所を明示的に指定してください ::"
+
+#: ../../source/faq.rst:68
+msgid ""
+"``SPGLIB_ROOT`` is the directory that contains the ``lib`` and "
+"``include`` directories of spglib. If the binaries cannot find the shared"
+" libraries at run time, add them to the library path::"
+msgstr ""
+"``SPGLIB_ROOT`` は spglib の ``lib`` および ``include`` "
+"ディレクトリを含むディレクトリです。実行時に共有ライブラリが見つからない場合は、ライブラリパスに追加してください ::"
+
+#: ../../source/faq.rst:73
+msgid ""
+"See also `issue #130 <https://github.com/alamode-"
+"code/alamode/issues/130>`_."
+msgstr ""
+"`issue #130 <https://github.com/alamode-code/alamode/issues/130>`_ "
+"も参照してください。"
+
+#: ../../source/faq.rst
+msgid ""
+"The program stops with \"Illegal instruction\" or crashes in the MPI "
+"initialization."
+msgstr "\"Illegal instruction\" で停止する、または MPI の初期化でクラッシュします。"
+
+#: ../../source/faq.rst:78
+msgid ""
+"**Illegal instruction.** A build with ``-xHOST`` (Intel) or "
+"``-march=native`` (GCC) uses the instruction set of the machine where it "
+"was compiled. Running it on an older CPU, e.g. on other nodes of a "
+"cluster, stops with this error. Build on the machine type where the code "
+"runs, or use a more generic option."
+msgstr ""
+"**Illegal instruction.** ``-xHOST`` (Intel) や ``-march=native`` (GCC) "
+"を付けてビルドすると、コンパイルしたマシンの命令セットが使われます。これを古い CPU (例えばクラスタの別のノード) "
+"で実行すると、このエラーで停止します。コードを実行する種類のマシン上でビルドするか、より汎用的なオプションを使ってください。"
+
+#: ../../source/faq.rst:81
+msgid ""
+"**Crash in MPI_Init / MPI_Comm_rank.** This usually means that the "
+"``mpirun`` command and the MPI library linked to the binary come from "
+"different MPI installations (e.g. a system MPI and the conda OpenMPI). "
+"Use the ``mpirun`` of the MPI library used for the build, and check the "
+"linked libraries with ``ldd``."
+msgstr ""
+"**MPI_Init / MPI_Comm_rank でのクラッシュ.** 通常、``mpirun`` コマンドとバイナリにリンクされた MPI "
+"ライブラリが別々の MPI のインストール (例えばシステムの MPI と conda の OpenMPI) "
+"に由来していることを意味します。ビルドに使った MPI ライブラリの ``mpirun`` を使い、リンクされているライブラリを ``ldd`` "
+"で確認してください。"
+
+#: ../../source/faq.rst
+msgid ""
+"anphon spends several seconds at startup before any output when many MPI "
+"processes run on one node. Why?"
+msgstr "1ノードで多数の MPI プロセスを実行すると、anphon が何も出力しないまま起動時に数秒かかります。なぜですか?"
+
+#: ../../source/faq.rst:88
+msgid ""
+"This comes from the OpenMP runtime of the Intel oneAPI 2025 compilers "
+"(``libiomp5``), not from **anphon**. When each MPI process enters its "
+"first OpenMP parallel region, the runtime reads the hardware topology of "
+"the node through the hwloc library. When dozens of processes do this at "
+"the same time, the start of the run is delayed by a few seconds (about 3"
+"--6 seconds with 64 processes on one node), independently of the input. "
+"The OpenMP runtimes of GCC (``libgomp``), LLVM (``libomp``), and Intel "
+"oneAPI 2023 do not show this delay."
+msgstr ""
+"これは **anphon** ではなく、Intel oneAPI 2025 コンパイラの OpenMP ランタイム (``libiomp5``) "
+"に由来します。各 MPI プロセスが最初の OpenMP 並列領域に入るとき、ランタイムは hwloc "
+"ライブラリを通してノードのハードウェアトポロジーを読み込みます。数十のプロセスが同時にこれを行うと、入力によらず実行の開始が数秒遅れます "
+"(1ノード 64 プロセスで約 3--6 秒)。GCC (``libgomp``)、LLVM (``libomp``)、Intel oneAPI "
+"2023 の OpenMP ランタイムではこの遅延は生じません。"
+
+#: ../../source/faq.rst:94
+msgid ""
+"The delay matters only for short runs. If you want to avoid it with the "
+"oneAPI 2025 runtime, let hwloc read the topology from a file generated on"
+" the compute node at the start of the job script::"
+msgstr ""
+"この遅延が問題になるのは短い計算の場合だけです。oneAPI 2025 "
+"のランタイムでこれを避けたい場合は、ジョブスクリプトの冒頭で計算ノード上で生成したファイルから hwloc にトポロジーを読み込ませてください "
+"::"
+
+#: ../../source/faq.rst:101
+msgid ""
+"``lstopo-no-graphics`` is part of hwloc. Generate the file on the node "
+"where **anphon** runs, because a topology file from a different type of "
+"node gives wrong information to the runtime."
+msgstr ""
+"``lstopo-no-graphics`` は hwloc "
+"に含まれています。異なる種類のノードのトポロジーファイルはランタイムに誤った情報を与えるため、ファイルは **anphon** "
+"を実行するノード上で生成してください。"
+
+#: ../../source/faq.rst
+msgid "Which units and coordinate frames are used?"
+msgstr "どのような単位と座標系が使われていますか?"
+
+#: ../../source/faq.rst:107
+msgid ""
+"*alm* works in Rydberg atomic units: lattice vectors and displacements in"
+" bohr, forces in Ry/bohr, and :math:`n`-th order force constants in "
+"Ry/bohr\\ :sup:`n`. Data in other units can be given with "
+":ref:`LENGTH_UNIT <alm_length_unit>` and :ref:`FORCE_UNIT "
+"<alm_force_unit>`, e.g. ``LENGTH_UNIT = angstrom; FORCE_UNIT = "
+"eV/angstrom`` for a ``DFSET`` in VASP units. ``extract.py`` writes "
+"Rydberg atomic units by default."
+msgstr ""
+"*alm* は Rydberg 原子単位系で動作します。格子ベクトルと変位は bohr、力は Ry/bohr、:math:`n` 次の力定数は "
+"Ry/bohr\\ :sup:`n` 単位です。他の単位のデータは :ref:`LENGTH_UNIT <alm_length_unit>` と "
+":ref:`FORCE_UNIT <alm_force_unit>` で与えることができます。例えば VASP の単位の ``DFSET`` には"
+" ``LENGTH_UNIT = angstrom; FORCE_UNIT = eV/angstrom`` とします。``extract.py``"
+" はデフォルトで Rydberg 原子単位系で書き出します。"
+
+#: ../../source/faq.rst:112
+msgid ""
+"Vectors and tensors in the outputs (force constants in ``PREFIX``.h5, "
+"eigenvectors, group velocities, mean square displacements, thermal "
+"conductivity) are given in the Cartesian frame, not along the lattice "
+"vectors."
+msgstr ""
+"出力中のベクトルとテンソル (``PREFIX``.h5 中の力定数、固有ベクトル、群速度、平均二乗変位、熱伝導率) "
+"は、格子ベクトルに沿った成分ではなくデカルト座標系で与えられます。"
+
+#: ../../source/faq.rst:115
+msgid ""
+"Phonon frequencies are given in cm\\ :sup:`-1`. ``plotband.py --unit`` "
+"converts the plotted bands to other units (see ``plotband.py -h``)."
+msgstr ""
+"フォノン振動数は cm\\ :sup:`-1` 単位で与えられます。``plotband.py --unit`` "
+"はプロットするバンドを他の単位に変換します (``plotband.py -h`` を参照してください)。"
+
+#: ../../source/faq.rst:117
+msgid ""
+"Unit conversions use the CODATA 2018 values of the physical constants, in"
+" the C++ codes (``include/constants.h``) and in the Python tools "
+"(``tools/alamode_constants.py``) alike."
+msgstr ""
+"単位変換には、C++ のコード (``include/constants.h``) でも Python のツール "
+"(``tools/alamode_constants.py``) でも、物理定数の CODATA 2018 の値を使っています。"
+
+#: ../../source/faq.rst:124
+msgid "Force constants with alm"
+msgstr "alm による力定数"
+
+#: ../../source/faq.rst
+msgid ""
+"The fitting error is very large (> 90%). Is it problematic? If so, how "
+"can I reduce the error?"
+msgstr "フィッティング誤差が非常に大きい (> 90%) のですが、問題でしょうか？もしそうなら、どうすれば誤差を減らせますか？"
+
+#: ../../source/faq.rst:129
+msgid ""
+"A large fitting error can affect the accuracy of the force constants. The"
+" most likely cause is non-zero residual forces in the original supercell "
+"structure (before the atoms are displaced). Even when the structure of "
+"the primitive cell is optimized with a relatively strict convergence "
+"criterion, the atomic forces in the supercell generated from it may "
+"deviate from zero. To reduce the error associated with the residual "
+"forces, calculate the forces of the undisplaced supercell as well and "
+"subtract them with the ``--offset`` option of ``extract.py``. For VASP, "
+"for example::"
+msgstr ""
+"フィッティング誤差が大きいと、力定数の精度に影響することがあります。最も可能性の高い原因は、(原子を変位させる前の) "
+"元のスーパーセル構造に残留力が存在することです。基本セルの構造を比較的厳しい収束条件で最適化していても、そこから生成したスーパーセルでは原子に働く力がゼロからずれることがあります。残留力に起因する誤差を減らすには、変位させていないスーパーセルの力も計算し、``extract.py``"
+" の ``--offset`` オプションで差し引いてください。例えばVASPの場合は、次のように実行します ::"
+
+#: ../../source/faq.rst:138
+msgid ""
+"Here, ``vasprun0.xml`` is the output of the VASP calculation for the "
+"undisplaced supercell ``SPOSCAR0``."
+msgstr "ここで ``vasprun0.xml`` は、変位させていないスーパーセル ``SPOSCAR0`` に対する VASP 計算の出力です。"
+
+#: ../../source/faq.rst:140
+msgid ""
+"If the fitting error is still large after subtracting the offset "
+"components, please consider the following points:"
+msgstr "オフセット成分を差し引いてもフィッティング誤差が依然として大きい場合は、次の点を検討してください。"
+
+#: ../../source/faq.rst:143
+msgid ""
+"Give the lattice vectors and fractional coordinates with ~15 significant "
+"digits; for example, 1/3 should be 0.333333333333333 rather than 0.33333."
+" Alternatively, let *alm* symmetrize the structure with "
+":ref:`SYMMETRIZE_STRUCTURE = 1 <alm_symmetrize_structure>`."
+msgstr ""
+"格子ベクトルと分数座標は15桁程度の有効数字で与えてください。例えば 1/3 は 0.33333 ではなく 0.333333333333333 "
+"とします。あるいは、:ref:`SYMMETRIZE_STRUCTURE = 1 <alm_symmetrize_structure>` で "
+"*alm* に構造を対称化させてください。"
+
+#: ../../source/faq.rst:146
+msgid ""
+"Check that the order of the atoms in the ``DFSET`` file is the same as in"
+" the supercell of *alm*. This matters when the supercell or the "
+"displacements were made by another program."
+msgstr ""
+"``DFSET`` ファイル中の原子の順序が *alm* "
+"のスーパーセルと同じであることを確認してください。これはスーパーセルや変位を別のプログラムで作成した場合に問題になります。"
+
+#: ../../source/faq.rst:148
+msgid "Check that the DFT calculations are properly converged."
+msgstr "DFT計算が十分に収束していることを確認してください。"
+
+#: ../../source/faq.rst:149
+msgid "Use a smaller displacement magnitude for the harmonic force constants."
+msgstr "調和力定数には、より小さい変位の大きさを使用してください。"
+
+#: ../../source/faq.rst
+msgid "How small should the fitting error be?"
+msgstr "フィッティング誤差はどの程度小さくすべきですか？"
+
+#: ../../source/faq.rst:154
+msgid ""
+"It depends on the Taylor expansion potential and displacement magnitude "
+"you choose."
+msgstr "選択するテイラー展開ポテンシャル (Taylor expansion potential) と変位の大きさに依存します。"
+
+#: ../../source/faq.rst:156
+#, python-format
+msgid ""
+"In a standard harmonic calculation where ``--mag 0.01`` is used in "
+"``displace.py`` and all harmonic interactions are considered (cutoff = "
+"None), the fitting error is usually less than 5% (~1--2% in most cases)."
+msgstr ""
+"``displace.py`` で ``--mag 0.01`` を使い、すべての調和相互作用を考慮する (カットオフ = None) "
+"標準的な調和計算では、フィッティング誤差は通常5%未満 (多くの場合1--2%程度) です。"
+
+#: ../../source/faq.rst:160
+msgid ""
+"In the calculation of third-order force constants with ``--mag 0.04``, "
+"the fitting error should be small as well. Indeed, in many cases, the "
+"fitting errors are much smaller (< 1%) than in the harmonic case."
+msgstr ""
+"``--mag 0.04`` "
+"を用いた3次力定数の計算でも、フィッティング誤差は同様に小さくなるはずです。実際、多くの場合、調和の場合よりはるかに小さい誤差 (1%未満) "
+"が得られます。"
+
+#: ../../source/faq.rst:163
+msgid ""
+"When the force constants are fitted to snapshots of molecular dynamics or"
+" random displacements at finite temperature, the fitting error is larger "
+"(often > 10%). In this case, compare the training and validation errors:"
+msgstr ""
+"分子動力学のスナップショットや有限温度のランダム変位に力定数をフィッティングする場合、フィッティング誤差はより大きくなります (しばしば > "
+"10%)。この場合は、訓練誤差と検証誤差を比較してください。"
+
+#: ../../source/faq.rst:167
+msgid ""
+"Both errors are large: the model is not flexible enough. Increase the "
+"cutoff radii or ``NORDER``."
+msgstr "両方の誤差が大きい: モデルの柔軟性が足りません。カットオフ半径または ``NORDER`` を大きくしてください。"
+
+#: ../../source/faq.rst:168
+msgid ""
+"The training error is small but the validation error is much larger: the "
+"model is overfitted. Add more training data."
+msgstr "訓練誤差は小さいが検証誤差がはるかに大きい: モデルが過学習しています。訓練データを追加してください。"
+
+#: ../../source/faq.rst:171
+msgid ""
+"See `discussion #258 <https://github.com/alamode-"
+"code/alamode/discussions/258>`_ and `discussion #328 <https://github.com"
+"/alamode-code/alamode/discussions/328>`_."
+msgstr ""
+"`discussion #258 <https://github.com/alamode-"
+"code/alamode/discussions/258>`_ と `discussion #328 <https://github.com"
+"/alamode-code/alamode/discussions/328>`_ を参照してください。"
+
+#: ../../source/faq.rst
+msgid "What value should I use for the cutoff radius?"
+msgstr "カットオフ半径 (cutoff radius) にはどのような値を使用すべきですか？"
+
+#: ../../source/faq.rst:177
+msgid ""
+"For the harmonic term, we recommend ``None``, which includes all harmonic"
+" interactions inside the supercell. This choice hardly increases the "
+"computational cost because the number of displacement patterns does not "
+"change. Also, the harmonic dynamical matrix becomes exact at the "
+"commensurate q points only when ``None`` is selected. (Giving a very "
+"large cutoff radius has the same effect as giving ``None``.)"
+msgstr ""
+"調和項には ``None`` "
+"を推奨します。これはスーパーセル内のすべての調和相互作用を含めます。変位パターンの数は変わらないため、計算コストはほとんど増えません。また、調和動力学行列がコメンシュレートなq点で厳密になるのは"
+" ``None`` を選んだ場合のみです。(非常に大きなカットオフ半径を与えることは ``None`` と同じ効果を持ちます。)"
+
+#: ../../source/faq.rst:182
+msgid ""
+"For the anharmonic terms, increase the cutoff radii gradually and check "
+"the convergence of physical quantities, such as thermal conductivity and "
+"free energy, with respect to the cutoff values. In most cases, a cutoff "
+"radius of 10 Bohr is a good starting point, but a larger value may be "
+"necessary for polar materials. The cutoffs are not chosen automatically."
+msgstr ""
+"非調和項については、カットオフ半径を徐々に大きくしながら、熱伝導率や自由エネルギーなどの物理量がカットオフ値に対して収束することを確認してください。多くの場合、カットオフ半径10"
+" Bohrが良い出発点ですが、極性材料ではより大きな値が必要になることがあります。カットオフは自動的には選ばれません。"
+
+#: ../../source/faq.rst:187
+msgid ""
+"If *alm* prints ``WARNING : Rank deficient``, the training data are not "
+"enough to determine all parameters of the model. Reduce the cutoff radii "
+"(or :ref:`NBODY <alm_nbody>`), or add more data, e.g. the structures "
+"suggested by ``MODE = suggest`` for the present cutoffs, the same "
+"patterns with a different ``--mag``, or more random displacements."
+msgstr ""
+"*alm* が ``WARNING : Rank deficient`` "
+"を出力した場合、訓練データがモデルのすべてのパラメータを決めるのに足りていません。カットオフ半径 (または :ref:`NBODY "
+"<alm_nbody>`) を小さくするか、データを追加してください。例えば、現在のカットオフに対して ``MODE = suggest`` "
+"が提案する構造、異なる ``--mag`` での同じパターン、あるいはより多くのランダム変位です。"
+
+#: ../../source/faq.rst
+msgid "How do I choose NORDER and NBODY?"
+msgstr "NORDER と NBODY はどのように選べばよいですか?"
+
+#: ../../source/faq.rst:195
+msgid ""
+":ref:`NORDER <alm_norder>` = :math:`m` includes the terms up to the "
+":math:`(m+1)`-th order: ``NORDER = 2`` (up to cubic) is enough for three-"
+"phonon thermal conductivity, and ``NORDER = 3`` (up to quartic) is needed"
+" for SCPH and four-phonon scattering. A higher ``NORDER`` can be used as "
+"a more flexible model when the fitting error stays large for strongly "
+"anharmonic materials or high-temperature data."
+msgstr ""
+":ref:`NORDER <alm_norder>` = :math:`m` は :math:`(m+1)` "
+"次までの項を含みます。3フォノンの熱伝導率には ``NORDER = 2`` (3次まで) で十分で、SCPH と4フォノン散乱には "
+"``NORDER = 3`` (4次まで) "
+"が必要です。非調和性の強い物質や高温のデータでフィッティング誤差が大きいままの場合は、より柔軟なモデルとしてより高い ``NORDER`` "
+"を使うことができます。"
+
+#: ../../source/faq.rst:201
+msgid ""
+":ref:`NBODY <alm_nbody>` removes many-body clusters, whose number grows "
+"quickly. ``NORDER = 3; NBODY = 2 3 3`` (no four-body quartic terms) is a "
+"common choice. Harmonic force constants always involve two atoms, so the "
+"first entry of ``NBODY`` is always 2."
+msgstr ""
+":ref:`NBODY <alm_nbody>` は、数が急速に増える多体クラスターを除外します。``NORDER = 3; NBODY = 2 "
+"3 3`` (4体の4次項を含まない) がよく使われる選択です。調和力定数は常に2原子を含むので、``NBODY`` の最初の値は常に 2 です。"
+
+#: ../../source/faq.rst
+msgid "How large should the displacements be?"
+msgstr "変位はどのくらいの大きさにすべきですか?"
+
+#: ../../source/faq.rst:208
+msgid ""
+"Harmonic force constants: about 0.01 Å (``displace.py --mag 0.01``). Very"
+" small displacements (e.g. 10\\ :sup:`-5` Å) make the forces dominated by"
+" numerical noise of the DFT calculation."
+msgstr ""
+"調和力定数: 約 0.01 Å (``displace.py --mag 0.01``)。非常に小さい変位 (例えば 10\\ :sup:`-5`"
+" Å) では、力が DFT 計算の数値ノイズに支配されてしまいます。"
+
+#: ../../source/faq.rst:210
+msgid ""
+"Anharmonic force constants from systematic displacements: 0.03--0.05 Å "
+"usually works well, but check how the value affects your results."
+msgstr "系統的な変位による非調和力定数: 通常は 0.03--0.05 Å でうまくいきますが、値が結果にどう影響するかを確認してください。"
+
+#: ../../source/faq.rst:212
+msgid ""
+"Random displacements: use ``displace.py --VASP SPOSCAR0 --prim POSCAR "
+"--random_normalcoord --evec PREFIX.evec.h5 --temp T`` (the primitive cell"
+" given with ``--prim`` is required), which samples the displacements from"
+" the harmonic phonons at temperature ``T`` (see :doc:`quickstart` and "
+":ref:`label_tutorial_silicon_ifc`)."
+msgstr ""
+"ランダム変位: ``displace.py --VASP SPOSCAR0 --prim POSCAR --random_normalcoord "
+"--evec PREFIX.evec.h5 --temp T`` を使ってください (``--prim`` "
+"で与える基本セルが必須です)。これは温度 ``T`` の調和フォノンから変位をサンプリングします (:doc:`quickstart` と "
+":ref:`label_tutorial_silicon_ifc` を参照してください)。"
+
+#: ../../source/faq.rst:216
+msgid ""
+"See `discussion #264 <https://github.com/alamode-"
+"code/alamode/discussions/264>`_."
+msgstr ""
+"`discussion #264 <https://github.com/alamode-"
+"code/alamode/discussions/264>`_ を参照してください。"
+
+#: ../../source/faq.rst
+msgid ""
+"Can I use different supercells for the harmonic and anharmonic force "
+"constants?"
+msgstr "調和力定数と非調和力定数で異なるスーパーセルを使えますか?"
+
+#: ../../source/faq.rst:221
+msgid ""
+"Yes. Anharmonic interactions are usually shorter ranged than harmonic "
+"ones, so the anharmonic force constants are often calculated in a smaller"
+" supercell."
+msgstr "はい。非調和相互作用は通常、調和相互作用より短距離なので、非調和力定数はより小さなスーパーセルで計算されることがよくあります。"
+
+#: ../../source/faq.rst:224
+msgid ""
+"In *anphon*, give the harmonic force constants of the larger supercell "
+"with :ref:`FC2FILE <anphon_fc2file>` and the anharmonic ones with "
+"``FCSFILE`` (or ``FC3FILE``/``FC4FILE``)."
+msgstr ""
+"*anphon* では、大きいスーパーセルの調和力定数を :ref:`FC2FILE <anphon_fc2file>` で、非調和力定数を "
+"``FCSFILE`` (または ``FC3FILE``/``FC4FILE``) で与えてください。"
+
+#: ../../source/faq.rst:226
+msgid ""
+"In *alm*, the file given to :ref:`FC2FIX <alm_fc2fix>` must contain "
+"harmonic force constants of the **same** supercell as the present fit. To"
+" fix the harmonic part while fitting the anharmonic terms in a small "
+"supercell, calculate the harmonic force constants of that small supercell"
+" first."
+msgstr ""
+"*alm* では、:ref:`FC2FIX <alm_fc2fix>` に与えるファイルには、現在のフィッティングと **同じ** "
+"スーパーセルの調和力定数が含まれていなければなりません。小さなスーパーセルで非調和項をフィッティングしながら調和部分を固定するには、まずその小さなスーパーセルの調和力定数を計算してください。"
+
+#: ../../source/faq.rst:230
+msgid ""
+"Check the convergence with respect to the supercell size, in particular "
+"along short lattice directions: a supercell that is too short in one "
+"direction can underestimate the phonon-phonon scattering."
+msgstr "スーパーセルサイズに対する収束、特に短い格子方向に沿った収束を確認してください。ある方向に短すぎるスーパーセルは、フォノン-フォノン散乱を過小評価することがあります。"
+
+#: ../../source/faq.rst
+msgid ""
+"How do I use the elastic net or adaptive LASSO, and how do I choose "
+"L1_ALPHA?"
+msgstr "エラスティックネットや適応 LASSO はどのように使い、L1_ALPHA はどのように選べばよいですか?"
+
+#: ../../source/faq.rst:236
+msgid ""
+"Run cross-validation first: ``LMODEL = enet`` (or ``adaptive-lasso``) "
+"with ``CV = 4`` or so (automatic ``CV``-fold cross-validation), or ``CV ="
+" -1`` with a separate ``DFSET_CV`` (manual)."
+msgstr ""
+"まず交差検証を実行します: ``LMODEL = enet`` (または ``adaptive-lasso``) で ``CV = 4`` 程度 "
+"(自動の ``CV`` 分割交差検証)、または別に用意した ``DFSET_CV`` とともに ``CV = -1`` (手動)。"
+
+#: ../../source/faq.rst:238
+msgid ""
+"Take the ``L1_ALPHA`` that minimizes the validation error in "
+"``PREFIX``.cvscore (or ``PREFIX``.cvset). If the minimum is at the "
+"smallest alpha, rerun with a smaller :ref:`CV_MINALPHA "
+"<alm_cv_minalpha>`."
+msgstr ""
+"``PREFIX``.cvscore (または ``PREFIX``.cvset) で検証誤差が最小となる ``L1_ALPHA`` "
+"を選びます。最小値が最も小さい alpha にある場合は、より小さい :ref:`CV_MINALPHA <alm_cv_minalpha>` "
+"で再実行してください。"
+
+#: ../../source/faq.rst:240
+msgid ""
+"Run the fit with ``CV = 0`` and that ``L1_ALPHA``. The force-constant "
+"files are written only by this run."
+msgstr "``CV = 0`` とその ``L1_ALPHA`` でフィッティングを実行します。力定数のファイルはこの実行でのみ書き出されます。"
+
+#: ../../source/faq.rst:243
+msgid ""
+"The ``RESIDUAL`` printed in the log is the training error. A smaller "
+"alpha always lowers it, so it cannot be used to choose alpha. The optimal"
+" alpha changes with the model (cutoffs, ``NORDER``, ``NBODY``, "
+"``FCSYM_BASIS``), with the amount of training data, and with "
+"``STANDARDIZE``, so repeat the cross-validation when any of them changes."
+" Skipping the cross-validation with a tiny ``L1_ALPHA`` is not "
+"recommended because it overfits when the training data are few. "
+"``DEBIAS_OLS = 1`` refits the non-zero coefficients by least squares."
+msgstr ""
+"ログに出力される ``RESIDUAL`` は訓練誤差です。alpha を小さくすると常に小さくなるため、alpha の選択には使えません。最適な"
+" alpha はモデル "
+"(カットオフ、``NORDER``、``NBODY``、``FCSYM_BASIS``)、訓練データの量、``STANDARDIZE`` "
+"によって変わるので、これらのいずれかを変えたときは交差検証をやり直してください。訓練データが少ないと過学習するため、非常に小さい "
+"``L1_ALPHA`` を使って交差検証を省略することは推奨しません。``DEBIAS_OLS = 1`` "
+"は非ゼロの係数を最小二乗法で再フィッティングします。"
+
+#: ../../source/faq.rst:250
+msgid ""
+"See :ref:`LMODEL <alm_lmodel>`, :ref:`CV <alm_cv>`, "
+":ref:`label_tutorial_bto_ifc`, and `discussion #328 <https://github.com"
+"/alamode-code/alamode/discussions/328>`_."
+msgstr ""
+":ref:`LMODEL <alm_lmodel>`、:ref:`CV "
+"<alm_cv>`、:ref:`label_tutorial_bto_ifc`、`discussion #328 "
+"<https://github.com/alamode-code/alamode/discussions/328>`_ を参照してください。"
+
+#: ../../source/faq.rst
+msgid "alm takes very long (or crashes) while generating the constraints."
+msgstr "alm で制約条件の生成に非常に時間がかかります (またはクラッシュします)。"
+
+#: ../../source/faq.rst:256
+#, python-brace-format
+msgid ""
+"The most common cause is a structure that is symmetric only "
+"approximately, e.g. coordinates given with too few digits (hexagonal "
+"cells with :math:`\\sqrt{3}/2` written as 0.866025). Numerical noise then"
+" produces many spurious constraints. Remedies:"
+msgstr ""
+"最もよくある原因は、近似的にしか対称でない構造です。例えば、桁数が少なすぎる座標 (:math:`\\sqrt{3}/2` を 0.866025 "
+"と書いた六方晶のセル) です。このとき数値ノイズにより多数の偽の制約条件が生じます。対処法:"
+
+#: ../../source/faq.rst:260
+msgid ""
+"Give the lattice vectors and positions with full double precision, or set"
+" :ref:`SYMMETRIZE_STRUCTURE = 1 <alm_symmetrize_structure>`. *alm* warns "
+"when the input deviates from the ideal structure of its space group."
+msgstr ""
+"格子ベクトルと座標を倍精度の全桁で与えるか、:ref:`SYMMETRIZE_STRUCTURE = 1 "
+"<alm_symmetrize_structure>` を設定してください。入力がその空間群の理想構造からずれている場合、*alm* "
+"は警告を出します。"
+
+#: ../../source/faq.rst:263
+msgid ""
+":ref:`FCSYM_BASIS = Lattice <alm_fcsym_basis>` can be more robust for "
+"such structures (it cannot be combined with the rotational invariance "
+"constraints). The optimal ``L1_ALPHA`` depends on this choice."
+msgstr ""
+"そのような構造には :ref:`FCSYM_BASIS = Lattice <alm_fcsym_basis>` の方が頑健な場合があります "
+"(回転不変性の制約とは併用できません)。最適な ``L1_ALPHA`` はこの選択に依存します。"
+
+#: ../../source/faq.rst:266
+msgid ""
+"The constraint generation of large models is also expensive by itself. "
+"Reduce the cutoff radii or the many-body terms (``NBODY``) of the highest"
+" orders when it is too slow. *alm* is parallelized with OpenMP; check "
+"``Number of OpenMP threads`` at the top of the log."
+msgstr ""
+"大きなモデルでは、制約条件の生成自体にもコストがかかります。遅すぎる場合は、カットオフ半径や最高次の多体項 (``NBODY``) "
+"を減らしてください。*alm* は OpenMP で並列化されています。ログの冒頭の ``Number of OpenMP threads`` "
+"を確認してください。"
+
+#: ../../source/faq.rst
+msgid ""
+"Does alm impose the rotational invariance? The ZA branch of my 2D "
+"material is not quadratic."
+msgstr "alm は回転不変性を課しますか? 2次元物質の ZA 分枝が2次になりません。"
+
+#: ../../source/faq.rst:273
+msgid ""
+"The space-group symmetry and, by default, the translational invariance "
+"(acoustic sum rule) are imposed. The rotational invariance is imposed "
+"with :ref:`ICONST = 12 <alm_iconst>` (or 13, 14) and :ref:`ROTAXIS "
+"<alm_rotaxis>`, e.g. ``ICONST = 12; ROTAXIS = xyz``. These constraints "
+"are formulated in the Cartesian frame, need ``FCSYM_BASIS = Cartesian`` "
+"(the default), and need a structure symmetric to nearly machine precision"
+" (see :ref:`SYMMETRIZE_STRUCTURE <alm_symmetrize_structure>`)."
+msgstr ""
+"空間群の対称性と、デフォルトで並進不変性 (音響和則) が課されます。回転不変性は :ref:`ICONST = 12 <alm_iconst>`"
+" (または 13、14) と :ref:`ROTAXIS <alm_rotaxis>` で課します。例えば ``ICONST = 12; "
+"ROTAXIS = xyz`` とします。これらの制約条件はデカルト座標系で定式化されているため、``FCSYM_BASIS = "
+"Cartesian`` (デフォルト) が必要で、ほぼ機械精度で対称な構造が必要です (:ref:`SYMMETRIZE_STRUCTURE "
+"<alm_symmetrize_structure>` を参照してください)。"
+
+#: ../../source/faq.rst:279
+msgid ""
+"For a 2D material, also make the harmonic supercell large enough in the "
+"plane, since the flexural (ZA) mode near :math:`\\Gamma` is sensitive to "
+"the long-range harmonic force constants."
+msgstr ""
+"2次元物質では、:math:`\\Gamma` 近傍の屈曲 (ZA) "
+"モードが長距離の調和力定数に敏感なため、調和計算のスーパーセルを面内方向に十分大きくしてください。"
+
+#: ../../source/faq.rst
+msgid "alm finds fewer symmetry operations than expected."
+msgstr "alm が見つける対称操作が予想より少なくなります。"
+
+#: ../../source/faq.rst:285
+msgid ""
+"Check the structure: the supercell must contain the right number of atoms"
+" of each species, and the coordinates must have enough digits. "
+"``SYMMETRIZE_STRUCTURE = 1`` symmetrizes a slightly distorted input."
+msgstr ""
+"構造を確認してください。スーパーセルが各元素の原子を正しい数だけ含み、座標が十分な桁数を持っている必要があります。``SYMMETRIZE_STRUCTURE"
+" = 1`` はわずかに歪んだ入力を対称化します。"
+
+#: ../../source/faq.rst:287
+msgid ""
+"The tolerance of the symmetry search is :ref:`TOLERANCE <alm_tolerance>` "
+"(default 10\\ :sup:`-3`)."
+msgstr "対称性探索の許容誤差は :ref:`TOLERANCE <alm_tolerance>` です (デフォルト 10\\ :sup:`-3`)。"
+
+#: ../../source/faq.rst:288
+msgid "``PRINTSYM = 1`` writes the symmetry operations to ``SYMM_INFO``."
+msgstr "``PRINTSYM = 1`` は対称操作を ``SYMM_INFO`` に書き出します。"
+
+#: ../../source/faq.rst:289
+msgid ""
+"For magnetic systems, :ref:`MAGMOM <alm_magmom>` lowers the symmetry "
+"according to the magnetic order."
+msgstr "磁性系では、:ref:`MAGMOM <alm_magmom>` によって磁気秩序に応じて対称性が下がります。"
+
+#: ../../source/faq.rst
+msgid "Can I use snapshots of ab initio molecular dynamics?"
+msgstr "第一原理分子動力学のスナップショットを使えますか?"
+
+#: ../../source/faq.rst:294
+msgid ""
+"Yes. The recommended way is to add random displacements to snapshots of "
+"the MD trajectory, which reduces the correlation between successive "
+"snapshots, then calculate their forces with DFT::"
+msgstr ""
+"はい。推奨される方法は、MD の軌跡のスナップショットにランダムな変位を加えて連続するスナップショット間の相関を減らし、それらの力を DFT "
+"で計算することです ::"
+
+#: ../../source/faq.rst:299
+msgid ""
+"The ``-e start:end:interval`` option selects the snapshots. The MD "
+"trajectory itself can also be fitted after converting it with "
+"``extract.py``, but the resulting force constants are biased toward the "
+"MD temperature. See :ref:`label_tutorial_bto_ifc`."
+msgstr ""
+"``-e start:end:interval`` オプションでスナップショットを選択します。MD の軌跡そのものも ``extract.py``"
+" で変換した後にフィッティングできますが、得られる力定数は MD "
+"の温度に偏ったものになります。:ref:`label_tutorial_bto_ifc` を参照してください。"
+
+#: ../../source/faq.rst:303
+msgid ""
+"The ``vasprun.xml`` of a VASP machine-learning MD run has a different "
+"structure and may not be readable by the scripts."
+msgstr "VASP の機械学習 MD の ``vasprun.xml`` は構造が異なるため、スクリプトで読み込めないことがあります。"
+
+#: ../../source/faq.rst:310
+msgid "Harmonic phonons"
+msgstr "調和フォノン"
+
+#: ../../source/faq.rst
+msgid ""
+"The phonon dispersion has imaginary frequencies although the material "
+"should be stable."
+msgstr "安定なはずの物質なのに、フォノン分散に虚数の振動数が現れます。"
+
+#: ../../source/faq.rst:315
+msgid "Check the following points."
+msgstr "次の点を確認してください。"
+
+#: ../../source/faq.rst:317
+msgid ""
+"The structure: relax the primitive cell with the same calculator (DFT "
+"functional or force field) that you use for the forces, and build the "
+"supercell from that relaxed cell. Check that *alm* finds the expected "
+"space group."
+msgstr ""
+"構造: 力の計算に使うのと同じ計算手法 (DFT の汎関数または力場) "
+"で基本セルを構造緩和し、その緩和したセルからスーパーセルを作成してください。*alm* が想定通りの空間群を見つけることを確認してください。"
+
+#: ../../source/faq.rst:320
+msgid ""
+"The residual forces and the fitting error (see the questions above), and "
+"the displacement magnitude."
+msgstr "残留力とフィッティング誤差 (上の質問を参照)、および変位の大きさ。"
+
+#: ../../source/faq.rst:321
+msgid ""
+"The convergence of the DFT forces (cutoff energy, :math:`k` points, SCF "
+"threshold)."
+msgstr "DFT の力の収束 (カットオフエネルギー、:math:`k` 点、SCF の閾値)。"
+
+#: ../../source/faq.rst:322
+msgid ""
+"The supercell size: imaginary modes away from the commensurate :math:`q` "
+"points can be an artifact of a too small supercell."
+msgstr "スーパーセルサイズ: コメンシュレートな :math:`q` 点以外での虚数モードは、小さすぎるスーパーセルによる見かけのものである場合があります。"
+
+#: ../../source/faq.rst:324
+msgid ""
+"Polar materials need the non-analytic correction (``NONANALYTIC`` and "
+"``BORNINFO``)."
+msgstr "極性材料には非解析補正 (``NONANALYTIC`` と ``BORNINFO``) が必要です。"
+
+#: ../../source/faq.rst:326
+msgid ""
+"Imaginary modes make the lifetimes and thermal conductivity unreliable. "
+"They can also be real: the structure may be dynamically unstable at the "
+"level of theory used, as for high-temperature phases that are stabilized "
+"by anharmonicity (see :ref:`faq_finite_t`)."
+msgstr ""
+"虚数モードがあると、寿命や熱伝導率は信頼できなくなります。一方で、虚数モードが本物である場合もあります。非調和性によって安定化される高温相のように、用いた理論のレベルでは構造が動的に不安定なことがあります"
+" (:ref:`faq_finite_t` を参照してください)。"
+
+#: ../../source/faq.rst
+msgid ""
+"Why are the phonon dispersion curves discontinuous, or why do I get too "
+"many branches?"
+msgstr "フォノン分散曲線が不連続になるのはなぜですか？また、分枝が多すぎるのはなぜですか？"
+
+#: ../../source/faq.rst:333
+msgid ""
+"**Too many (folded) branches.** *anphon* calculates the phonons of the "
+"cell in the ``&cell`` field. With an HDF5 force-constant file "
+"(``PREFIX``.h5), the field can be omitted, and the primitive cell stored "
+"in the file is used. If a conventional cell or a supercell is given, "
+"*anphon* runs on that cell: the branches are folded into its smaller "
+"Brillouin zone, the :math:`k`-point coordinates refer to its reciprocal "
+"lattice, and the cost is higher. Note that the lattice vectors in the "
+"``&cell`` field of *alm* are those of the supercell."
+msgstr ""
+"**分枝が多すぎる (折り畳まれている).** *anphon* は ``&cell`` フィールドのセルのフォノンを計算します。HDF5 "
+"形式の力定数ファイル (``PREFIX``.h5) "
+"を使う場合はこのフィールドを省略でき、ファイルに保存されている基本セルが使われます。慣用セルやスーパーセルを与えると、*anphon* "
+"はそのセルで計算を行います。分枝はより小さなブリルアンゾーンに折り畳まれ、:math:`k` "
+"点の座標はその逆格子に対するものとなり、計算コストも高くなります。*alm* の ``&cell`` "
+"フィールドの格子ベクトルはスーパーセルのものであることに注意してください。"
+
+#: ../../source/faq.rst:339
+msgid ""
+"**Jumps at the zone boundaries in polar materials.** With ``NONANALYTIC ="
+" 2`` (mixed-space approach), the dispersion can jump at zone-boundary "
+"points that are not commensurate with the supercell. ``NONANALYTIC = 3`` "
+"(Ewald method) avoids this (see :ref:`label_tutorial_pbte`)."
+msgstr ""
+"**極性材料でのゾーン境界での飛び.** ``NONANALYTIC = 2`` (混合空間法) "
+"では、スーパーセルとコメンシュレートでないゾーン境界の点で分散が飛ぶことがあります。``NONANALYTIC = 3`` (Ewald 法) "
+"ではこれが起こりません (:ref:`label_tutorial_pbte` を参照してください)。"
+
+#: ../../source/faq.rst:342
+msgid ""
+"**Discontinuity at** :math:`\\Gamma`. In non-cubic polar crystals, the "
+"LO-TO splitting depends on the direction from which :math:`q` approaches "
+":math:`\\Gamma`, so the dispersion is discontinuous there. This is "
+"physical."
+msgstr ""
+":math:`\\Gamma` **での不連続.** 立方晶でない極性結晶では、LO-TO 分裂は :math:`q` が "
+":math:`\\Gamma` に近づく方向に依存するため、そこで分散は不連続になります。これは物理的なものです。"
+
+#: ../../source/faq.rst:345
+msgid ""
+"**Branches swapped at crossings.** The bands are sorted by frequency by "
+"default. :ref:`BCONNECT = 1 <anphon_bconnect>` connects them by the "
+"similarity of the eigenvectors."
+msgstr ""
+"**交差点での分枝の入れ替わり.** デフォルトではバンドは振動数の順に並べられます。:ref:`BCONNECT = 1 "
+"<anphon_bconnect>` は固有ベクトルの類似性によってバンドを接続します。"
+
+#: ../../source/faq.rst
+msgid ""
+"Which NONANALYTIC option should I use, and how do I make the BORNINFO "
+"file?"
+msgstr "どの NONANALYTIC オプションを使えばよいですか? また、BORNINFO ファイルはどのように作成しますか?"
+
+#: ../../source/faq.rst:351
+msgid ""
+"``NONANALYTIC = 3`` (Ewald method) is recommended because it separates "
+"the short- and long-range parts properly. The dielectric tensor and the "
+"Born effective charges come from a DFPT calculation, and the file format "
+"is described in :ref:`label_format_BORNINFO`. For VASP and Quantum "
+"ESPRESSO, ``extract.py`` writes the file::"
+msgstr ""
+"``NONANALYTIC = 3`` (Ewald 法) "
+"は短距離部分と長距離部分を適切に分離するため推奨されます。誘電率テンソルとボルン有効電荷は DFPT 計算から得られ、ファイル形式は "
+":ref:`label_format_BORNINFO` で説明しています。VASP と Quantum ESPRESSO では "
+"``extract.py`` がファイルを書き出します ::"
+
+#: ../../source/faq.rst:358
+msgid ""
+"The Born effective charges must be listed in the order of the atoms of "
+"the primitive cell used by *anphon*, so the primitive cell of the DFPT "
+"calculation must be the same. :ref:`BORNSYM = 1 <anphon_bornsym>` "
+"symmetrizes the Born charges. The non-analytic correction acts on the "
+"harmonic force constants only; it is not applied to the cubic and quartic"
+" force constants. See the :ref:`PbTe tutorial <label_tutorial_pbte>` for "
+"a comparison of the options."
+msgstr ""
+"ボルン有効電荷は *anphon* が使う基本セルの原子の順に並べる必要があるため、DFPT "
+"計算の基本セルは同じでなければなりません。:ref:`BORNSYM = 1 <anphon_bornsym>` "
+"はボルン有効電荷を対称化します。非解析補正は調和力定数にのみ作用し、3次および4次の力定数には適用されません。オプションの比較は "
+":ref:`PbTe のチュートリアル <label_tutorial_pbte>` を参照してください。"
+
+#: ../../source/faq.rst
+msgid "How should I treat 2D materials and slabs?"
+msgstr "2次元物質やスラブはどのように扱えばよいですか?"
+
+#: ../../source/faq.rst:367
+msgid ""
+"In *alm*, :ref:`PERIODIC <alm_periodic>` turns off the periodic boundary "
+"condition along the vacuum direction when the interacting atoms are "
+"searched, e.g. ``PERIODIC = 1 1 0``."
+msgstr ""
+"*alm* では、:ref:`PERIODIC <alm_periodic>` "
+"により、相互作用する原子を探索する際に真空方向の周期境界条件を外します。例えば ``PERIODIC = 1 1 0`` とします。"
+
+#: ../../source/faq.rst:369
+msgid ""
+"The rotational invariance (``ICONST = 12``) and a large in-plane harmonic"
+" supercell help to obtain the quadratic ZA branch (see above)."
+msgstr ""
+"回転不変性 (``ICONST = 12``) と面内方向に大きな調和計算のスーパーセルは、2次の ZA 分枝を得るのに役立ちます "
+"(上記を参照してください)。"
+
+#: ../../source/faq.rst:371
+msgid ""
+"The thermal conductivity includes the vacuum in the cell volume; see "
+":ref:`the question in the thermal conductivity section <faq_kappa_2d>`."
+msgstr "熱伝導率はセルの体積に真空を含みます。:ref:`熱伝導率の節の質問 <faq_kappa_2d>` を参照してください。"
+
+#: ../../source/faq.rst
+msgid "How do I get the eigenvectors, animate a mode, or identify the modes at Γ?"
+msgstr "固有ベクトルを得たり、モードをアニメーション表示したり、Γ 点のモードを同定したりするにはどうすればよいですか?"
+
+#: ../../source/faq.rst:377
+msgid ""
+":ref:`PRINTEVEC = 1 <anphon_printevec>` writes the eigenvalues and "
+"eigenvectors (``PREFIX``.evec.h5 by default), in the Cartesian frame."
+msgstr ""
+":ref:`PRINTEVEC = 1 <anphon_printevec>` は固有値と固有ベクトルをデカルト座標系で書き出します "
+"(デフォルトでは ``PREFIX``.evec.h5)。"
+
+#: ../../source/faq.rst:379
+msgid ""
+":ref:`ANIME <anphon_anime>` writes animation files of a mode for "
+"visualization programs."
+msgstr ":ref:`ANIME <anphon_anime>` は可視化プログラム用にモードのアニメーションファイルを書き出します。"
+
+#: ../../source/faq.rst:380
+msgid ""
+":ref:`IRREPS <anphon_irreps>` assigns the irreducible representations of "
+"the modes at :math:`\\Gamma`."
+msgstr ":ref:`IRREPS <anphon_irreps>` は :math:`\\Gamma` 点のモードの既約表現を帰属します。"
+
+#: ../../source/faq.rst:381
+msgid ""
+":ref:`HESSIAN = 1 <alm_hessian>` in *alm* writes the full force-constant "
+"matrix of the supercell (``PREFIX``.hessian). It lists the supercell atom"
+" and component indices with the force constants only; to build the "
+"dynamical matrix at arbitrary :math:`q`, combine it with the supercell "
+"structure and the masses, or simply use *anphon* (or ``anphon.Phonon`` in"
+" the :doc:`python_api`)."
+msgstr ""
+"*alm* の :ref:`HESSIAN = 1 <alm_hessian>` はスーパーセルの力定数行列全体 "
+"(``PREFIX``.hessian) "
+"を書き出します。このファイルにはスーパーセルの原子と成分のインデックスおよび力定数だけが並んでいます。任意の :math:`q` "
+"での動力学行列を組み立てるには、これをスーパーセルの構造と質量と組み合わせるか、単に *anphon* (または "
+":doc:`python_api` の ``anphon.Phonon``) を使ってください。"
+
+#: ../../source/faq.rst:390
+msgid "Thermal conductivity"
+msgstr "熱伝導率"
+
+#: ../../source/faq.rst
+msgid "How do I converge the thermal conductivity?"
+msgstr "熱伝導率を収束させるにはどうすればよいですか?"
+
+#: ../../source/faq.rst:395
+msgid ""
+"**q mesh.** Increase the mesh of the ``&kpoint`` field (``KPMODE = 2``) "
+"until the thermal conductivity converges. The mesh need not be "
+"commensurate with the supercell, but it should not break the lattice "
+"symmetry (e.g. avoid ``10 10 20`` for a cubic cell). Small non-monotonic "
+"changes between neighboring meshes can occur."
+msgstr ""
+"**q メッシュ.** 熱伝導率が収束するまで ``&kpoint`` フィールド (``KPMODE = 2``) "
+"のメッシュを大きくしてください。メッシュはスーパーセルとコメンシュレートである必要はありませんが、格子の対称性を破らないようにしてください "
+"(例えば立方晶のセルで ``10 10 20`` は避けてください)。隣り合うメッシュ間で小さな非単調な変化が生じることがあります。"
+
+#: ../../source/faq.rst:399
+msgid ""
+"**Brillouin-zone integration.** The default is the tetrahedron method "
+"(``ISMEAR = -1``). The adaptive Gaussian smearing (``ISMEAR = 2``) "
+"chooses the widths automatically; with a fixed width (``ISMEAR = 0, 1``),"
+" check the convergence with respect to ``EPSILON`` as well."
+msgstr ""
+"**ブリルアンゾーン積分.** デフォルトは四面体法 (``ISMEAR = -1``) です。適応的ガウシアンスメアリング (``ISMEAR "
+"= 2``) は幅を自動的に選びます。固定幅 (``ISMEAR = 0, 1``) を使う場合は、``EPSILON`` "
+"に対する収束も確認してください。"
+
+#: ../../source/faq.rst:402
+msgid ""
+"**Force constants.** Check the convergence with respect to the cubic "
+"cutoff radii and the supercell size."
+msgstr "**力定数.** 3次のカットオフ半径とスーパーセルサイズに対する収束を確認してください。"
+
+#: ../../source/faq.rst
+msgid ""
+"Which force constants are used, and how do I include four-phonon "
+"scattering?"
+msgstr "どの力定数が使われますか? また、4フォノン散乱を含めるにはどうすればよいですか?"
+
+#: ../../source/faq.rst:407
+msgid ""
+"``MODE = kappa`` (formerly ``MODE = RTA``) needs the harmonic and cubic "
+"force constants; higher orders in the file are not used for the three-"
+"phonon calculation. Four-phonon scattering is added with "
+":ref:`INCLUDE_4PH = 1 <anphon_include_4ph>`, which needs quartic force "
+"constants. Because it is much more expensive, the four-phonon rates can "
+"be evaluated on a coarser mesh (:ref:`KMESH_COARSE "
+"<anphon_kmesh_coarse>`) and interpolated. See the :ref:`BAs tutorial "
+"<label_tutorial_bas_4ph>`."
+msgstr ""
+"``MODE = kappa`` (以前の ``MODE = RTA``) "
+"には調和および3次の力定数が必要です。ファイル中のより高次の力定数は3フォノンの計算には使われません。4フォノン散乱は "
+":ref:`INCLUDE_4PH = 1 <anphon_include_4ph>` "
+"で追加され、4次の力定数が必要です。計算コストがはるかに高いため、4フォノンの散乱率はより粗いメッシュ (:ref:`KMESH_COARSE "
+"<anphon_kmesh_coarse>`) で評価して補間することができます。:ref:`BAs のチュートリアル "
+"<label_tutorial_bas_4ph>` を参照してください。"
+
+#: ../../source/faq.rst
+msgid "Can the BTE be solved beyond the relaxation-time approximation?"
+msgstr "緩和時間近似を超えて BTE を解くことはできますか?"
+
+#: ../../source/faq.rst:416
+msgid ""
+"Yes. :ref:`SOLVER <anphon_solver>` in the ``&kappa`` field selects the "
+"solver: ``RTA`` (default), ``IBTE`` (iterative), ``VBTE`` (variational), "
+"and ``DBTE`` (direct, for small meshes). The results of the iterative "
+"solvers are written to ``PREFIX``.kl_iter. See :ref:`kappa_beyond_rta` "
+"for the theory."
+msgstr ""
+"はい。``&kappa`` フィールドの :ref:`SOLVER <anphon_solver>` でソルバーを選択します: ``RTA`` "
+"(デフォルト)、``IBTE`` (反復法)、``VBTE`` (変分法)、``DBTE`` (直接法、小さなメッシュ向け)。反復ソルバーの結果は"
+" ``PREFIX``.kl_iter に書き出されます。理論については :ref:`kappa_beyond_rta` を参照してください。"
+
+#: ../../source/faq.rst
+msgid "Is isotope or boundary scattering included?"
+msgstr "同位体散乱や境界散乱は含まれますか?"
+
+#: ../../source/faq.rst:423
+msgid ""
+"Isotope scattering is included by default (:ref:`ISOTOPE = 1 "
+"<anphon_isotope>`) with the natural abundances of the elements. Set "
+"``ISOTOPE = 0`` for isotopically pure crystals, or give ``ISOFACT`` for "
+"enriched samples."
+msgstr ""
+"同位体散乱は、元素の天然存在比を用いてデフォルトで含まれます (:ref:`ISOTOPE = 1 "
+"<anphon_isotope>`)。同位体的に純粋な結晶では ``ISOTOPE = 0`` とし、同位体濃縮した試料では "
+"``ISOFACT`` を与えてください。"
+
+#: ../../source/faq.rst:426
+msgid ""
+"Boundary scattering is added with :ref:`LEN_BOUNDARY "
+"<anphon_len_boundary>`, or afterwards with ``analyzer.py --calc kappa "
+"--size L --h5 PREFIX.kappa.h5`` (``L`` in nm)."
+msgstr ""
+"境界散乱は :ref:`LEN_BOUNDARY <anphon_len_boundary>` で追加するか、後から ``analyzer.py "
+"--calc kappa --size L --h5 PREFIX.kappa.h5`` で追加できます (``L`` は nm 単位)。"
+
+#: ../../source/faq.rst
+msgid ""
+"How do I get the phonon lifetimes, mean free paths, or the cumulative "
+"thermal conductivity?"
+msgstr "フォノン寿命、平均自由行程、累積熱伝導率はどのように得られますか?"
+
+#: ../../source/faq.rst:432
+msgid "``analyzer.py`` reads ``PREFIX``.kappa.h5::"
+msgstr "``analyzer.py`` は ``PREFIX``.kappa.h5 を読み込みます ::"
+
+#: ../../source/faq.rst:437
+msgid ""
+"The first command prints the lifetime (ps), group velocity (m/s), and "
+"mean free path (nm) of each mode. The layout of ``PREFIX``.kappa.h5 is "
+"described in :ref:`label_hdf5_kappa`, and ``KAPPA_SPEC = 1`` writes the "
+"spectrum of the thermal conductivity. For the linewidth or self-energy of"
+" selected modes at arbitrary :math:`q` points or along a band path, use "
+"``MODE = selfenergy`` (see the :ref:`&selfenergy field "
+"<anphon_selfenergy_field>`)."
+msgstr ""
+"最初のコマンドは、各モードの寿命 (ps)、群速度 (m/s)、平均自由行程 (nm) を出力します。``PREFIX``.kappa.h5 "
+"の構成は :ref:`label_hdf5_kappa` で説明しています。``KAPPA_SPEC = 1`` "
+"は熱伝導率のスペクトルを書き出します。任意の :math:`q` 点やバンド経路に沿った特定のモードの線幅や自己エネルギーには ``MODE = "
+"selfenergy`` を使ってください (:ref:`&selfenergy フィールド <anphon_selfenergy_field>`"
+" を参照してください)。"
+
+#: ../../source/faq.rst
+msgid ""
+"The thermal conductivity of my 2D material is much smaller than reported "
+"values."
+msgstr "2次元物質の熱伝導率が報告値よりずっと小さくなります。"
+
+#: ../../source/faq.rst:448
+msgid ""
+"The thermal conductivity is divided by the volume of the cell, which "
+"includes the vacuum. Multiply it by :math:`c/d`, where :math:`c` is the "
+"length of the cell perpendicular to the sheet and :math:`d` the thickness"
+" of the sheet, and use the same :math:`d` when comparing with other "
+"works. The thickness :math:`d` is a convention that must be stated "
+"together with the result (e.g., 3.35 Å, the interlayer distance of "
+"graphite, is commonly used for graphene). See `discussion #32 "
+"<https://github.com/alamode-code/alamode/discussions/32>`_."
+msgstr ""
+"熱伝導率はセルの体積で割られており、その体積は真空を含んでいます。熱伝導率に :math:`c/d` を掛けてください。ここで :math:`c`"
+" はシートに垂直な方向のセルの長さ、:math:`d` はシートの厚さです。他の研究と比較する際は同じ :math:`d` を使ってください。厚さ"
+" :math:`d` は規約であり、結果とともに明記する必要があります (例えばグラフェンでは、グラファイトの層間距離である 3.35 Å "
+"がよく使われます)。`discussion #32 <https://github.com/alamode-"
+"code/alamode/discussions/32>`_ を参照してください。"
+
+#: ../../source/faq.rst:459
+msgid "Finite temperature (SCPH and QHA)"
+msgstr "有限温度 (SCPH と QHA)"
+
+#: ../../source/faq.rst
+msgid "The SCPH iteration does not converge."
+msgstr "SCPH の反復計算が収束しません。"
+
+#: ../../source/faq.rst:464
+msgid "Use a smaller :ref:`MIXALPHA <anphon_mixalpha>`."
+msgstr "より小さい :ref:`MIXALPHA <anphon_mixalpha>` を使ってください。"
+
+#: ../../source/faq.rst:465
+msgid ""
+"Use a smaller temperature step ``DT``: with ``WARMSTART = 1`` (default), "
+"each temperature starts from the solution of the previous one, so a "
+"closer starting point helps. ``LOWER_TEMP`` sets the direction of the "
+"temperature sweep."
+msgstr ""
+"より小さい温度刻み ``DT`` を使ってください。``WARMSTART = 1`` (デフォルト) "
+"では各温度の計算は前の温度の解から始まるので、出発点が近いほど収束しやすくなります。``LOWER_TEMP`` は温度掃引の方向を設定します。"
+
+#: ../../source/faq.rst:468
+msgid ""
+"Check the quartic force constants: inaccurate ones (too small cutoff "
+"radii, too few training data) are a common cause. Check how the results "
+"change when you add training data."
+msgstr ""
+"4次の力定数を確認してください。不正確な力定数 (小さすぎるカットオフ半径、少なすぎる訓練データ) "
+"がよくある原因です。訓練データを追加したときに結果がどう変わるかを確認してください。"
+
+#: ../../source/faq.rst
+msgid "Imaginary modes remain (or appear) after the SCPH calculation."
+msgstr "SCPH 計算の後に虚数モードが残ります (または現れます)。"
+
+#: ../../source/faq.rst:474
+msgid ""
+"The SCPH equation is solved on the :math:`q` points of "
+":ref:`KMESH_INTERPOLATE <anphon_kmesh_interpolate>` only; the frequencies"
+" elsewhere are interpolated. Imaginary modes are therefore detected only "
+"on this mesh, and with ``KMESH_INTERPOLATE = 1 1 1`` only at "
+":math:`\\Gamma`. Imaginary pockets can appear at the interpolated points."
+msgstr ""
+"SCPH 方程式は :ref:`KMESH_INTERPOLATE <anphon_kmesh_interpolate>` の :math:`q`"
+" 点でのみ解かれ、それ以外の点の振動数は補間されます。そのため虚数モードはこのメッシュ上でのみ検出され、``KMESH_INTERPOLATE ="
+" 1 1 1`` では :math:`\\Gamma` でのみ検出されます。補間された点では虚数のポケットが現れることがあります。"
+
+#: ../../source/faq.rst:478
+msgid ""
+"Small imaginary pockets near :math:`\\Gamma` often indicate that the "
+"quartic force constants are not accurate enough. Increase the quartic "
+"cutoff radius and the number of training data."
+msgstr ""
+":math:`\\Gamma` "
+"近傍の小さな虚数のポケットは、多くの場合4次の力定数の精度が不十分であることを示しています。4次のカットオフ半径と訓練データの数を増やしてください。"
+
+#: ../../source/faq.rst:480
+msgid "Use the same ``NONANALYTIC`` option in the harmonic and SCPH calculations."
+msgstr "調和計算と SCPH 計算で同じ ``NONANALYTIC`` オプションを使ってください。"
+
+#: ../../source/faq.rst:481
+msgid ""
+"The phonons can be genuinely unstable at low temperatures, e.g. below a "
+"phase transition."
+msgstr "例えば相転移温度以下のように、低温でフォノンが本当に不安定な場合もあります。"
+
+#: ../../source/faq.rst
+msgid "How do I choose KMESH_INTERPOLATE and KMESH_SCPH?"
+msgstr "KMESH_INTERPOLATE と KMESH_SCPH はどのように選べばよいですか?"
+
+#: ../../source/faq.rst:486
+msgid ""
+"The :math:`q` points of ``KMESH_INTERPOLATE`` should be commensurate with"
+" the supercell of the harmonic force constants: for a 2x2x2 supercell, "
+"use ``KMESH_INTERPOLATE = 2 2 2`` (or ``1 1 1``, which is less accurate)."
+" anphon can evaluate the harmonic phonons on any mesh, but the anharmonic"
+" renormalization is interpolated from the ``KMESH_INTERPOLATE`` points, "
+"so converge this mesh and the supercell size (the range of the force "
+"constants) separately. ``KMESH_SCPH`` can be denser, but each of its "
+"values must be a multiple of the corresponding value of "
+"``KMESH_INTERPOLATE``. See the :ref:`SrTiO3 tutorial "
+"<label_tutorial_sto_scph>`."
+msgstr ""
+"``KMESH_INTERPOLATE`` の :math:`q` 点は調和力定数のスーパーセルとコメンシュレートであるべきです。2x2x2 "
+"のスーパーセルでは ``KMESH_INTERPOLATE = 2 2 2`` (または精度は劣りますが ``1 1 1``) "
+"を使ってください。anphon は任意のメッシュで調和フォノンを評価できますが、非調和繰り込みは ``KMESH_INTERPOLATE`` "
+"の点から補間されるため、このメッシュとスーパーセルサイズ (力定数の範囲) はそれぞれ別に収束させてください。``KMESH_SCPH`` "
+"はより密にできますが、その各値は ``KMESH_INTERPOLATE`` の対応する値の倍数でなければなりません。:ref:`SrTiO3 "
+"のチュートリアル <label_tutorial_sto_scph>` を参照してください。"
+
+#: ../../source/faq.rst
+msgid ""
+"How do I use the SCPH (or QHA) phonons for the thermal conductivity, "
+"PDOS, or eigenvectors?"
+msgstr "SCPH (または QHA) のフォノンを熱伝導率、PDOS、固有ベクトルの計算に使うにはどうすればよいですか?"
+
+#: ../../source/faq.rst:496
+msgid ""
+"The renormalized harmonic force constants at each temperature are stored "
+"in ``PREFIX``.scph.h5 (``PREFIX``.qha.h5). In a later *anphon* run "
+"(``MODE = phonons`` or ``kappa``), keep ``FCSFILE`` pointing to the "
+"original force constants and give"
+msgstr ""
+"各温度における繰り込まれた調和力定数は ``PREFIX``.scph.h5 (``PREFIX``.qha.h5) に保存されます。後の "
+"*anphon* の実行 (``MODE = phonons`` または ``kappa``) では、``FCSFILE`` "
+"は元の力定数を指したままにし、次の設定"
+
+#: ../../source/faq.rst:505
+msgid ""
+"in the ``&general`` field. All harmonic properties (bands, DOS, PDOS, "
+"eigenvectors) are then those of the SCPH phonons at 300 K. For ``MODE = "
+"kappa``, also set ``TMIN = TMAX = FC2_TEMPERATURE`` and repeat the run "
+"for each temperature. The harmonic force constants may come from a larger"
+" supercell than the SCPH run. If the structure was relaxed (``RELAX_STR >"
+" 0``), add ``RELAXED_STRUCTURE = 1``. Use the same ``NONANALYTIC`` (2 and"
+" 3 are interchangeable) and ``BORNINFO`` as in the SCPH run; other "
+"combinations stop with an error or print a warning. The SCPH frequencies "
+"are reproduced exactly at the :math:`q` points of ``KMESH_INTERPOLATE``; "
+"elsewhere they are interpolated. This replaces the former ``dfc2`` "
+"workflow. See :ref:`FC2_TEMPERATURE <anphon_fc2_temperature>` and "
+":ref:`DFC2FILE <anphon_dfc2file>`."
+msgstr ""
+"を ``&general`` フィールドに与えてください。これにより、すべての調和的な物性 (バンド、DOS、PDOS、固有ベクトル) が 300"
+" K における SCPH フォノンのものになります。``MODE = kappa`` では ``TMIN = TMAX = "
+"FC2_TEMPERATURE`` も設定し、温度ごとに実行を繰り返してください。調和力定数は SCPH "
+"の実行より大きなスーパーセルのものでも構いません。構造を緩和した場合 (``RELAX_STR > 0``) は "
+"``RELAXED_STRUCTURE = 1`` を追加してください。SCPH の実行と同じ ``NONANALYTIC`` (2 と 3 "
+"は互換) と ``BORNINFO`` を使ってください。それ以外の組み合わせではエラーで停止するか、警告が出力されます。SCPH の振動数は "
+"``KMESH_INTERPOLATE`` の :math:`q` 点では厳密に再現され、それ以外の点では補間されます。これは以前の "
+"``dfc2`` による手順に代わるものです。:ref:`FC2_TEMPERATURE <anphon_fc2_temperature>` と "
+":ref:`DFC2FILE <anphon_dfc2file>` を参照してください。"
+
+#: ../../source/faq.rst
+msgid "My SCPH run finishes immediately and ignores the new settings."
+msgstr "SCPH の実行がすぐに終了し、新しい設定が無視されます。"
+
+#: ../../source/faq.rst:518
+msgid ""
+"When ``PREFIX``.scph.h5 exists in the working directory, ``RESTART_SCPH``"
+" defaults to 1 and anphon restarts from the stored solution instead of "
+"solving the SCPH equation again. If ``KMESH_INTERPOLATE``, "
+"``KMESH_SCPH``, or ``NONANALYTIC`` differ from the stored run, it stops "
+"with an error instead. Delete (or rename) the file, use a new ``PREFIX``,"
+" or set ``RESTART_SCPH = 0`` to recalculate. (``BUBBLE = 4`` never "
+"restarts automatically.)"
+msgstr ""
+"作業ディレクトリに ``PREFIX``.scph.h5 が存在すると、``RESTART_SCPH`` のデフォルトは 1 となり、anphon"
+" は SCPH "
+"方程式を解き直さずに保存された解からリスタートします。``KMESH_INTERPOLATE``、``KMESH_SCPH``、``NONANALYTIC``"
+" が保存された計算と異なる場合は、代わりにエラーで停止します。再計算するには、ファイルを削除 (または名前を変更) するか、新しい "
+"``PREFIX`` を使うか、``RESTART_SCPH = 0`` を設定してください。(``BUBBLE = 4`` "
+"は自動的にリスタートすることはありません。)"
+
+#: ../../source/faq.rst
+msgid "What do the BUBBLE options do?"
+msgstr "BUBBLE の各オプションは何をしますか?"
+
+#: ../../source/faq.rst:527
+msgid ""
+":ref:`BUBBLE <anphon_bubble>` adds the bubble (three-phonon) self-energy "
+"on top of the SCPH solution. The options 1, 2, and 3 differ in the "
+"frequency at which the self-energy is evaluated (zero, the SCPH "
+"frequency, or self-consistently the corrected frequency). The correction "
+"can lower the frequencies strongly and even make a stable mode imaginary;"
+" it is a frequency correction, not a stability test. ``BUBBLE = 4`` "
+"evaluates the curvature of the free energy at :math:`\\Gamma` of the "
+"chosen cell for the stability question; it runs along a structural "
+"optimization and needs ``RELAX_STR != 0``, ``KMESH_SCPH = "
+"KMESH_INTERPOLATE``, and ``NONANALYTIC = 0``, and it cannot be combined "
+"with ``RESTART_SCPH = 1``. For options 1--3, the :math:`q` mesh of the "
+"bubble sum is set by :ref:`KMESH_BUBBLE <anphon_kmesh_bubble>`."
+msgstr ""
+":ref:`BUBBLE <anphon_bubble>` は SCPH の解にバブル (3フォノン) 自己エネルギーを加えます。オプション "
+"1、2、3 は、自己エネルギーを評価する振動数 (ゼロ、SCPH の振動数、あるいは補正後の振動数を自己無撞着に) "
+"が異なります。この補正は振動数を大きく下げることがあり、安定なモードを虚数にすることさえあります。これは振動数の補正であって、安定性の判定ではありません。``BUBBLE"
+" = 4`` は、安定性の問題に対して、選んだセルの :math:`\\Gamma` "
+"における自由エネルギーの曲率を評価します。これは構造最適化とともに実行され、``RELAX_STR != 0``、``KMESH_SCPH = "
+"KMESH_INTERPOLATE``、``NONANALYTIC = 0`` が必要で、``RESTART_SCPH = 1`` "
+"とは併用できません。オプション 1--3 では、バブルの和の :math:`q` メッシュは :ref:`KMESH_BUBBLE "
+"<anphon_kmesh_bubble>` で設定します。"
+
+#: ../../source/faq.rst
+msgid ""
+"The thermal conductivity calculated with the SCPH phonons increases with "
+"temperature. Is it wrong?"
+msgstr "SCPH フォノンで計算した熱伝導率が温度とともに増加します。間違っていますか?"
+
+#: ../../source/faq.rst:539
+msgid ""
+"Not necessarily. When the phonons harden with temperature, the larger "
+"frequencies and group velocities can outweigh the increase of the "
+"scattering rates. If the SCPH frequencies are lower than the harmonic "
+"ones, the opposite happens. See `discussion #319 <https://github.com"
+"/alamode-code/alamode/discussions/319>`_."
+msgstr ""
+"必ずしもそうではありません。温度とともにフォノンが硬化する場合、振動数と群速度の増大が散乱率の増加を上回ることがあります。SCPH "
+"の振動数が調和振動数より低い場合は、逆のことが起こります。`discussion #319 <https://github.com"
+"/alamode-code/alamode/discussions/319>`_ を参照してください。"
+
+#: ../../source/faq.rst
+msgid "How do I optimize the crystal structure at finite temperatures?"
+msgstr "有限温度で結晶構造を最適化するにはどうすればよいですか?"
+
+#: ../../source/faq.rst:547
+msgid ""
+":ref:`RELAX_STR <anphon_relax_str>` (SCPH) and the corresponding tag of "
+"the ``&qha`` field relax the atomic positions, or the positions and the "
+"cell, at each temperature. Relaxing the cell needs the coupling between "
+"strain and force constants (see :ref:`label_strain_tools` and "
+":ref:`STRAIN_COUPLING <anphon_strain_coupling>`). The relaxed structures "
+"are stored in ``PREFIX``.scph.h5 / ``PREFIX``.qha.h5. See the tutorials "
+":ref:`label_tutorial_bto_scph_relax` and "
+":ref:`label_tutorial_zno_qha_relax`."
+msgstr ""
+":ref:`RELAX_STR <anphon_relax_str>` (SCPH) と ``&qha`` "
+"フィールドの対応するタグは、各温度で原子位置、または原子位置とセルを緩和します。セルの緩和には歪みと力定数の結合が必要です "
+"(:ref:`label_strain_tools` と :ref:`STRAIN_COUPLING "
+"<anphon_strain_coupling>` を参照してください)。緩和した構造は ``PREFIX``.scph.h5 / "
+"``PREFIX``.qha.h5 に保存されます。チュートリアル :ref:`label_tutorial_bto_scph_relax` と "
+":ref:`label_tutorial_zno_qha_relax` を参照してください。"
+
+#: ../../source/faq.rst:558
+msgid "Interfaces, file conversion, and performance"
+msgstr "インターフェース、ファイル変換、性能"
+
+#: ../../source/faq.rst
+msgid "Can I use a DFT code that displace.py and extract.py do not support?"
+msgstr "displace.py と extract.py が対応していない DFT コードを使えますか?"
+
+#: ../../source/faq.rst:563
+msgid ""
+"Yes. ``displace.py`` and ``extract.py`` support VASP, Quantum ESPRESSO, "
+"OpenMX, xTAPP, and LAMMPS, but *alm* only needs a ``DFSET`` file with the"
+" displacements and forces of each structure. :doc:`other_codes` shows how"
+" to make it with ASE calculators and what to look out for with codes such"
+" as WIEN2k and CRYSTAL."
+msgstr ""
+"はい。``displace.py`` と ``extract.py`` は VASP、Quantum "
+"ESPRESSO、OpenMX、xTAPP、LAMMPS に対応していますが、*alm* が必要とするのは各構造の変位と力を含む "
+"``DFSET`` ファイルだけです。:doc:`other_codes` では、ASE の計算機 (calculator) "
+"を使ってこれを作成する方法と、WIEN2k や CRYSTAL などのコードで注意すべき点を説明しています。"
+
+#: ../../source/faq.rst
+msgid ""
+"How do I convert force constants to or from phonopy, phono3py, or "
+"ShengBTE?"
+msgstr "phonopy、phono3py、ShengBTE との間で力定数を変換するには?"
+
+#: ../../source/faq.rst:570
+msgid ""
+"Use ``tools/fcconvert.py``, which converts harmonic and cubic force "
+"constants between ALAMODE, phonopy/phono3py, and ShengBTE, and quartic "
+"force constants between ALAMODE and FourPhonon, in both directions; see "
+":ref:`label_fc_conversion`. *alm* can also write the cubic and quartic "
+"force constants for ShengBTE and FourPhonon directly with "
+":ref:`FC3_SHENGBTE <alm_fc3_shengbte>` and :ref:`FC4_SHENGBTE "
+"<alm_fc4_shengbte>`."
+msgstr ""
+"``tools/fcconvert.py`` を使ってください。調和および3次の力定数を "
+"ALAMODE、phonopy/phono3py、ShengBTE の間で、4次の力定数を ALAMODE と FourPhonon "
+"の間で、双方向に変換します。:ref:`label_fc_conversion` を参照してください。*alm* "
+"も、:ref:`FC3_SHENGBTE <alm_fc3_shengbte>` と :ref:`FC4_SHENGBTE "
+"<alm_fc4_shengbte>` で ShengBTE と FourPhonon 用の3次および4次の力定数を直接書き出せます。"
+
+#: ../../source/faq.rst:575
+msgid ""
+"When you combine data of different codes, the atoms of the supercells "
+"must correspond one to one: atom :math:`i` of one code must be atom "
+":math:`i` of the other. A mismatch gives imaginary frequencies or a wrong"
+" thermal conductivity. See `discussion #301 <https://github.com/alamode-"
+"code/alamode/discussions/301>`_."
+msgstr ""
+"異なるコードのデータを組み合わせる場合、スーパーセルの原子は1対1に対応していなければなりません。一方のコードの原子 :math:`i` "
+"は、もう一方のコードの原子 :math:`i` "
+"である必要があります。対応がずれていると、虚数の振動数や誤った熱伝導率が得られます。`discussion #301 "
+"<https://github.com/alamode-code/alamode/discussions/301>`_ を参照してください。"
+
+#: ../../source/faq.rst
+msgid "Can I use harmonic force constants from DFPT (Quantum ESPRESSO)?"
+msgstr "DFPT (Quantum ESPRESSO) による調和力定数を使えますか?"
+
+#: ../../source/faq.rst:583
+msgid ""
+"Yes. ``qe2alm`` converts a Quantum ESPRESSO force-constant file (output "
+"of ``q2r.x``) to the ALAMODE XML format, which *anphon* reads. It asks "
+"for the input and output file names interactively. Conversely, "
+"``scph_to_qefc.py`` writes the SCPH-renormalized harmonic force constants"
+" in the Quantum ESPRESSO format. A DFPT calculation on an :math:`N\\times"
+" N\\times N` :math:`q` mesh and a finite-displacement calculation in the "
+":math:`N\\times N\\times N` supercell give almost the same harmonic force"
+" constants when the same code and parameters are used and all harmonic "
+"interactions are included (cutoff ``None``)."
+msgstr ""
+"はい。``qe2alm`` は Quantum ESPRESSO の力定数ファイル (``q2r.x`` の出力) を、*anphon* "
+"が読み込む ALAMODE の XML "
+"形式に変換します。入力ファイルと出力ファイルの名前は対話的に尋ねられます。逆に、``scph_to_qefc.py`` は SCPH "
+"で繰り込まれた調和力定数を Quantum ESPRESSO の形式で書き出します。同じコードとパラメータを使い、すべての調和相互作用を含める "
+"(カットオフ ``None``) 場合、:math:`N\\times N\\times N` の :math:`q` メッシュでの DFPT "
+"計算と :math:`N\\times N\\times N` のスーパーセルでの有限変位計算は、ほぼ同じ調和力定数を与えます。"
+
+#: ../../source/faq.rst
+msgid "How do I read the force constants in my own scripts?"
+msgstr "自作のスクリプトで力定数を読み込むにはどうすればよいですか?"
+
+#: ../../source/faq.rst:593
+msgid ""
+"``PREFIX``.h5 is an HDF5 file; its layout is described in "
+":ref:`label_hdf5_fcs`. ``fcsinfo.py`` prints a summary of its contents. "
+"The Python package ``alm`` (:ref:`label_python_api`) returns the force "
+"constants as NumPy arrays."
+msgstr ""
+"``PREFIX``.h5 は HDF5 ファイルで、その構成は :ref:`label_hdf5_fcs` "
+"で説明しています。``fcsinfo.py`` はその内容の概要を出力します。Python パッケージ ``alm`` "
+"(:ref:`label_python_api`) は力定数を NumPy 配列として返します。"
+
+#: ../../source/faq.rst
+msgid "alm stops with std::bad_alloc."
+msgstr "alm が std::bad_alloc で停止します。"
+
+#: ../../source/faq.rst:600
+msgid ""
+"The default dense solver stores the sensing matrix, whose size is about "
+"(number of structures) :math:`\\times` (3 :math:`\\times` number of "
+"atoms) :math:`\\times` (number of parameters) :math:`\\times` 8 bytes. "
+"Options:"
+msgstr ""
+"デフォルトの密行列ソルバーはセンシング行列を保持し、そのサイズは約 (構造の数) :math:`\\times` (3 "
+":math:`\\times` 原子数) :math:`\\times` (パラメータ数) :math:`\\times` 8 "
+"バイトです。対処法:"
+
+#: ../../source/faq.rst:604
+#, python-brace-format
+msgid ""
+"``LMODEL = ols``: :ref:`SPARSE = 1 <alm_sparse>` for data in which only a"
+" few atoms are displaced (the zero displacements must be exactly zero in "
+"``DFSET``), or :ref:`USE_CHOLESKY = 1 <alm_use_cholesky>`, which builds "
+":math:`A^{\\mathsf T}A` in chunks (:ref:`CHUNKSIZE <alm_chunksize>`). "
+"``SPARSE = 1`` has no effect for the elastic net and adaptive LASSO."
+msgstr ""
+"``LMODEL = ols``: 少数の原子だけが変位しているデータには :ref:`SPARSE = 1 <alm_sparse>` "
+"(``DFSET`` 中のゼロの変位は厳密にゼロである必要があります)、または :math:`A^{\\mathsf T}A` "
+"をチャンクごとに構築する :ref:`USE_CHOLESKY = 1 <alm_use_cholesky>` (:ref:`CHUNKSIZE "
+"<alm_chunksize>`) を使ってください。``SPARSE = 1`` はエラスティックネットと適応 LASSO "
+"には効果がありません。"
+
+#: ../../source/faq.rst:608
+msgid ""
+"``LMODEL = enet`` or ``adaptive-lasso``: :ref:`L1_SOLVER = fista "
+"<alm_l1_solver>` avoids the dense Gram matrix."
+msgstr ""
+"``LMODEL = enet`` または ``adaptive-lasso``: :ref:`L1_SOLVER = fista "
+"<alm_l1_solver>` は密なグラム行列を回避します。"
+
+#: ../../source/faq.rst:610
+msgid ""
+"Reduce the model: smaller cutoff radii, fewer many-body terms "
+"(``NBODY``), or fewer structures."
+msgstr "モデルを小さくする: カットオフ半径を小さくする、多体項 (``NBODY``) を減らす、または構造の数を減らす。"
+
+#: ../../source/faq.rst
+msgid "How are alm and anphon parallelized?"
+msgstr "alm と anphon はどのように並列化されていますか?"
+
+#: ../../source/faq.rst:615
+msgid ""
+"*alm* uses OpenMP only (``OMP_NUM_THREADS``); it has no MPI "
+"parallelization."
+msgstr "*alm* は OpenMP のみを使います (``OMP_NUM_THREADS``)。MPI による並列化はありません。"
+
+#: ../../source/faq.rst:616
+msgid ""
+"*anphon* uses MPI and OpenMP, which can be combined. For SCPH with many "
+"atoms in the primitive cell and few :math:`k` points, :ref:`IALGO = 1 "
+"<anphon_ialgo>` distributes the phonon branches instead of the :math:`k` "
+"points. :ref:`V4_REAL_SPACE = 1 <anphon_v4_real_space>` avoids storing "
+"the quartic coupling tensor, whose memory grows as the fourth power of "
+"the number of modes; it runs on one MPI process with many OpenMP threads."
+msgstr ""
+"*anphon* は MPI と OpenMP を使い、両者を組み合わせることができます。基本セル中の原子数が多く :math:`k` 点が少ない"
+" SCPH 計算では、:ref:`IALGO = 1 <anphon_ialgo>` により :math:`k` "
+"点の代わりにフォノン分枝を分配します。:ref:`V4_REAL_SPACE = 1 <anphon_v4_real_space>` "
+"は、メモリがモード数の4乗で増える4次の結合テンソルを保持しないようにします。これは1つの MPI プロセスと多数の OpenMP "
+"スレッドで実行されます。"
+
+#~ msgid ""
+#~ "In the temperature-dependent effective "
+#~ "potential method, the harmonic potential "
+#~ "is fitted to displacement-force datasets"
+#~ " sampled by ab initio molecular "
+#~ "dynamics at finite temperature, so the"
+#~ " fitting error tends to be much "
+#~ "larger (> 10%)."
+#~ msgstr ""
+#~ "温度依存有効ポテンシャル法では、有限温度の第一原理分子動力学でサンプリングした変位-力データセットに調和ポテンシャルをフィットするため、フィッティング誤差はかなり大きく"
+#~ " (10%超) なる傾向があります。"
+
+#~ msgid ""
+#~ "This usually happens when the supercell"
+#~ " lattice vectors are mistakenly given "
+#~ "in the ``&cell`` field of the "
+#~ "**anphon** code. In that case, :red:`use"
+#~ " the primitive lattice vectors` for "
+#~ "**anphon**."
+#~ msgstr ""
+#~ "これは多くの場合、**anphon** の ``&cell`` "
+#~ "フィールドに誤ってスーパーセルの格子ベクトルを与えたときに起こります。その場合は、**anphon** には "
+#~ ":red:`基本セルの格子ベクトルを使用してください`。"
+
+#~ msgid ""
+#~ "For the ``&cell`` field of **alm**, "
+#~ "you need to give the supercell "
+#~ "lattice vectors."
+#~ msgstr "**alm** の ``&cell`` フィールドには、スーパーセルの格子ベクトルを与える必要があります。"
+
+#~ msgid ""
+#~ "The easiest route is the conda or"
+#~ " pixi environment described in "
+#~ ":doc:`install`, which provides all "
+#~ "dependencies (compilers, MPI, Boost, Eigen,"
+#~ " spglib, HDF5, ...) in one place. "
+#~ "If CMake cannot find spglib (e.g. "
+#~ "``cannot find -lsymspg``), give its "
+#~ "location explicitly::"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "The thermal conductivity is divided by"
+#~ " the volume of the cell, which "
+#~ "includes the vacuum. Multiply it by "
+#~ ":math:`c/d`, where :math:`c` is the "
+#~ "length of the cell perpendicular to "
+#~ "the sheet and :math:`d` the thickness"
+#~ " of the sheet, and use the same"
+#~ " :math:`d` when comparing with other "
+#~ "works. See `discussion #32 <https://github.com"
+#~ "/alamode-code/alamode/discussions/32>`_."
+#~ msgstr ""
+
+#~ msgid ""
+#~ ":ref:`BUBBLE <anphon_bubble>` adds the bubble"
+#~ " (three-phonon) self-energy on top"
+#~ " of the SCPH solution. The options"
+#~ " 1, 2, and 3 differ in the "
+#~ "frequency at which the self-energy "
+#~ "is evaluated (zero, the SCPH frequency,"
+#~ " or self-consistently the corrected "
+#~ "frequency). The correction can lower the"
+#~ " frequencies strongly and even make a"
+#~ " stable mode imaginary; it is a "
+#~ "frequency correction, not a stability "
+#~ "test. ``BUBBLE = 4`` evaluates the "
+#~ "curvature of the free energy at "
+#~ ":math:`\\Gamma` of the chosen cell for"
+#~ " the stability question; it runs "
+#~ "along a structural optimization and "
+#~ "needs ``RELAX_STR != 0`` and "
+#~ "``KMESH_SCPH = KMESH_INTERPOLATE``. For "
+#~ "options 1--3, the :math:`q` mesh "
+#~ "of the bubble sum is set by "
+#~ ":ref:`KMESH_BUBBLE <anphon_kmesh_bubble>`."
+#~ msgstr ""
+

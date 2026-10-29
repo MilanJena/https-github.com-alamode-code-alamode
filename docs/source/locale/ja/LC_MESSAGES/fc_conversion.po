@@ -1,0 +1,429 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-23 18:17+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/fc_conversion.rst:4
+msgid "Converting force constants (phonopy, phono3py, ShengBTE)"
+msgstr "力定数の変換 (phonopy, phono3py, ShengBTE)"
+
+#: ../../source/fc_conversion.rst:8
+msgid ""
+"``tools/fcconvert.py`` converts harmonic (FC2) and cubic (FC3) force "
+"constants between ALAMODE, phonopy/phono3py, and ShengBTE, in any "
+"direction, and quartic (FC4) force constants between ALAMODE and "
+"FourPhonon, the four-phonon extension of ShengBTE. Typical uses are "
+"calculating the thermal conductivity of ALAMODE force constants with "
+"phono3py or ShengBTE, or using force constants of phonopy or phono3py in "
+"*anphon* (``FCSFILE``, ``FC2FILE``, ``FC3FILE``)."
+msgstr ""
+"``tools/fcconvert.py`` は、調和 (FC2) および3次 (FC3) の力定数を "
+"ALAMODE、phonopy/phono3py、ShengBTE の間で任意の方向に変換し、4次 (FC4) の力定数を ALAMODE "
+"と、ShengBTE の4フォノン拡張である FourPhonon の間で変換します。典型的な用途は、ALAMODE の力定数を使って "
+"phono3py や ShengBTE で熱伝導率を計算することや、phonopy や phono3py の力定数を *anphon* "
+"(``FCSFILE``, ``FC2FILE``, ``FC3FILE``) で使うことです。"
+
+#: ../../source/fc_conversion.rst:14
+msgid ""
+"The script needs Python 3 with numpy, h5py, ASE, spglib, and lxml (the "
+"last two through ``tools/fcsio``), and PyYAML to read the phonopy and "
+"phono3py yaml files. Run it as ``tools/fcconvert.py`` (or put ``tools/`` "
+"on your ``PATH``) so that the ``fcsio`` package next to it is found. "
+"``fcconvert.py --help`` prints the full description."
+msgstr ""
+"このスクリプトには、numpy、h5py、ASE、spglib、lxml (後の2つは ``tools/fcsio`` が使用)、および "
+"phonopy と phono3py の yaml ファイルを読み込むための PyYAML を備えた Python 3 が必要です。隣にある "
+"``fcsio`` パッケージが見つかるように、``tools/fcconvert.py`` として実行してください (または "
+"``tools/`` を ``PATH`` に加えてください)。``fcconvert.py --help`` で詳しい説明が表示されます。"
+
+#: ../../source/fc_conversion.rst:21
+msgid "Supported files"
+msgstr "対応するファイル"
+
+#: ../../source/fc_conversion.rst:23
+msgid ""
+"``--from`` and ``--to`` take ``alamode``, ``phonopy``, ``phono3py``, or "
+"``shengbte``; ``phono3py`` is an alias of ``phonopy``. The force "
+"constants are given with ``--fc2``, ``--fc3``, and/or ``--fc4`` "
+"(``alamode`` and ``shengbte`` only), and the output directory with ``-o``"
+" (default: the current directory)."
+msgstr ""
+"``--from`` と ``--to`` には "
+"``alamode``、``phonopy``、``phono3py``、``shengbte`` "
+"のいずれかを指定します。``phono3py`` は ``phonopy`` の別名です。力定数は "
+"``--fc2``、``--fc3``、``--fc4`` (``alamode`` と ``shengbte`` のみ) で、出力ディレクトリは"
+" ``-o`` (既定値: カレントディレクトリ) で指定します。"
+
+#: ../../source/fc_conversion.rst:30
+msgid "Format"
+msgstr "形式"
+
+#: ../../source/fc_conversion.rst:31
+msgid "Read"
+msgstr "読み込み"
+
+#: ../../source/fc_conversion.rst:32
+msgid "Written"
+msgstr "書き出し"
+
+#: ../../source/fc_conversion.rst:33
+msgid "``alamode``"
+msgstr "``alamode``"
+
+#: ../../source/fc_conversion.rst:34
+msgid ""
+"``PREFIX.h5`` or legacy ``PREFIX.xml`` of *alm*, *anphon*, or this "
+"script. No ``--structure`` needed."
+msgstr ""
+"*alm*、*anphon*、またはこのスクリプトの ``PREFIX.h5``、もしくは旧形式の "
+"``PREFIX.xml``。``--structure`` は不要です。"
+
+#: ../../source/fc_conversion.rst:36
+msgid ""
+"``PREFIX.h5`` (``--prefix``, default ``fcconvert``), readable by *anphon*"
+" as ``FCSFILE``/``FC2FILE``/``FC3FILE``. If the orders have different "
+"supercells, one file per order (``PREFIX_fc2.h5``, ``PREFIX_fc3.h5``, "
+"``PREFIX_fc4.h5``)."
+msgstr ""
+"``PREFIX.h5`` (``--prefix``、既定値 ``fcconvert``)。*anphon* の "
+"``FCSFILE``/``FC2FILE``/``FC3FILE`` "
+"として読み込めます。次数ごとにスーパーセルが異なる場合は、次数ごとに1つのファイル "
+"(``PREFIX_fc2.h5``、``PREFIX_fc3.h5``、``PREFIX_fc4.h5``) になります。"
+
+#: ../../source/fc_conversion.rst:38
+msgid "``phonopy`` / ``phono3py``"
+msgstr "``phonopy`` / ``phono3py``"
+
+#: ../../source/fc_conversion.rst:39
+msgid ""
+"FC2: ``FORCE_CONSTANTS``, ``force_constants.hdf5``, or ``fc2.hdf5``; FC3:"
+" ``fc3.hdf5``; full or compact. ``--structure``: ``phonopy.yaml``, "
+"``phonopy_disp.yaml``, ``phono3py.yaml``, ``phono3py_disp.yaml``, or a "
+"POSCAR-type supercell (``SPOSCAR``) together with ``--supercell``."
+msgstr ""
+"FC2: ``FORCE_CONSTANTS``、``force_constants.hdf5``、または ``fc2.hdf5``。FC3: "
+"``fc3.hdf5``。full 形式と compact 形式のどちらも可。``--structure``: "
+"``phonopy.yaml``、``phonopy_disp.yaml``、``phono3py.yaml``、``phono3py_disp.yaml``、または"
+" POSCAR 形式のスーパーセル (``SPOSCAR``) と ``--supercell`` の組み合わせ。"
+
+#: ../../source/fc_conversion.rst:42
+msgid ""
+"With ``--fc2``: ``FORCE_CONSTANTS`` (``force_constants.hdf5`` with "
+"``--hdf5``) and ``phonopy.yaml``. With ``--fc3``: in addition "
+"``fc2.hdf5`` (if FC2 is given), ``fc3.hdf5``, and ``phono3py.yaml``. Full"
+" arrays by default, compact ones with ``--compact``."
+msgstr ""
+"``--fc2`` の場合: ``FORCE_CONSTANTS`` (``--hdf5`` では "
+"``force_constants.hdf5``) と ``phonopy.yaml``。``--fc3`` の場合: さらに "
+"``fc2.hdf5`` (FC2 を与えた場合)、``fc3.hdf5``、``phono3py.yaml``。既定では full "
+"形式の配列、``--compact`` では compact 形式の配列を書き出します。"
+
+#: ../../source/fc_conversion.rst:45
+msgid "``shengbte``"
+msgstr "``shengbte``"
+
+#: ../../source/fc_conversion.rst:46
+msgid ""
+"``FORCE_CONSTANTS_2ND``, ``FORCE_CONSTANTS_3RD``, ``FORCE_CONSTANTS_4TH``"
+" (FourPhonon); ``--structure``: ``CONTROL``."
+msgstr ""
+"``FORCE_CONSTANTS_2ND``、``FORCE_CONSTANTS_3RD``、``FORCE_CONSTANTS_4TH`` "
+"(FourPhonon)。``--structure``: ``CONTROL``。"
+
+#: ../../source/fc_conversion.rst:47
+msgid ""
+"``FORCE_CONSTANTS_2ND`` (with ``--fc2``), ``FORCE_CONSTANTS_3RD`` (with "
+"``--fc3``), ``FORCE_CONSTANTS_4TH`` (with ``--fc4``), and a minimal "
+"``CONTROL``."
+msgstr ""
+"``FORCE_CONSTANTS_2ND`` (``--fc2`` の場合)、``FORCE_CONSTANTS_3RD`` "
+"(``--fc3`` の場合)、``FORCE_CONSTANTS_4TH`` (``--fc4`` の場合)、および最小限の "
+"``CONTROL``。"
+
+#: ../../source/fc_conversion.rst:50
+msgid ""
+"``--supercell`` takes 3 (diagonal) or 9 integers in the convention of "
+"phonopy's ``DIM``. It is required when reading a POSCAR-type supercell, "
+"and when writing ``FORCE_CONSTANTS_2ND`` from a supercell that is not "
+"diagonal in the primitive cell (see the first example). With ``--fc3`` "
+"alone, ``scell`` in the written ``CONTROL`` is taken from ``--supercell``"
+" and is ``1 1 1`` without it, so set it to the supercell of your harmonic"
+" force constants."
+msgstr ""
+"``--supercell`` には、phonopy の ``DIM`` の規約に従って3個 (対角) または9個の整数を与えます。POSCAR "
+"形式のスーパーセルを読み込む場合と、基本セルに対して対角でないスーパーセルから ``FORCE_CONSTANTS_2ND`` を書き出す場合 "
+"(最初の例を参照) に必要です。``--fc3`` だけを与えた場合、書き出される ``CONTROL`` の ``scell`` は "
+"``--supercell`` から取られ、指定がなければ ``1 1 1`` になるので、調和力定数のスーパーセルに合わせて設定してください。"
+
+#: ../../source/fc_conversion.rst:57
+msgid "Examples"
+msgstr "例"
+
+#: ../../source/fc_conversion.rst:59
+msgid ""
+"The examples use the harmonic and cubic force constants of Si in the 2\\ "
+"|times|\\ 2\\ |times|\\ 2 conventional supercell (64 atoms) of the "
+":ref:`silicon tutorial <label_tutorial_01>`, ``si222.h5`` and "
+"``si222_cubic.h5``."
+msgstr ""
+"以下の例では、:ref:`シリコンのチュートリアル <label_tutorial_01>` の 2\\ |times|\\ 2\\ "
+"|times|\\ 2 慣用スーパーセル (64原子) における Si の調和および3次の力定数 ``si222.h5`` と "
+"``si222_cubic.h5`` を使います。"
+
+#: ../../source/fc_conversion.rst:64
+msgid "**ALAMODE to ShengBTE** ::"
+msgstr "**ALAMODE から ShengBTE へ** ::"
+
+#: ../../source/fc_conversion.rst:68
+msgid ""
+"ShengBTE needs a supercell of :math:`n_1\\times n_2\\times n_3` primitive"
+" cells, which the conventional supercell is not. ``--supercell 4 4 4`` "
+"refolds the harmonic force constants onto a 4\\ |times|\\ 4\\ |times|\\ 4"
+" primitive supercell (128 atoms). Choose a supercell that is at least as "
+"large as the range of the force constants. The written ``CONTROL`` holds "
+"only the crystal structure, ``scell``, and placeholder values (``ngrid = "
+"10 10 10``, ``T = 300``, ``nonanalytic = .FALSE.``): edit it before "
+"running ShengBTE, and add the dielectric tensor and the Born effective "
+"charges for a polar material. For FourPhonon, add ``--fc4`` with the file"
+" of the quartic force constants (the same file as ``--fc3`` if it holds "
+"both) and set ``four_phonon = .TRUE.`` in ``CONTROL``."
+msgstr ""
+"ShengBTE には :math:`n_1\\times n_2\\times n_3` "
+"個の基本セルからなるスーパーセルが必要ですが、慣用スーパーセルはこれに当たりません。``--supercell 4 4 4`` は調和力定数を "
+"4\\ |times|\\ 4\\ |times|\\ 4 の基本セルのスーパーセル (128原子) "
+"に折り返します。力定数の到達範囲以上の大きさのスーパーセルを選んでください。書き出される ``CONTROL`` "
+"には結晶構造、``scell``、および仮の値 (``ngrid = 10 10 10``、``T = 300``、``nonanalytic ="
+" .FALSE.``) だけが含まれます。ShengBTE "
+"を実行する前に編集し、極性物質では誘電率テンソルとボルン有効電荷を加えてください。FourPhonon では、4次の力定数のファイルを "
+"``--fc4`` で加え (両方を含むファイルなら ``--fc3`` と同じファイル)、``CONTROL`` で ``four_phonon"
+" = .TRUE.`` と設定してください。"
+
+#: ../../source/fc_conversion.rst:77
+msgid "**ALAMODE to phono3py** ::"
+msgstr "**ALAMODE から phono3py へ** ::"
+
+#: ../../source/fc_conversion.rst:81
+msgid ""
+"This writes ``fc2.hdf5``, ``fc3.hdf5``, and ``phono3py.yaml`` (and "
+"``FORCE_CONSTANTS`` and ``phonopy.yaml`` for phonopy). The yaml files "
+"take the primitive cell as the unit cell (``primitive_matrix`` is the "
+"identity), and the supercell matrix is that of the ALAMODE supercell. "
+"With ``--to phonopy --fc2 si222.h5`` only the harmonic files are written."
+msgstr ""
+"``fc2.hdf5``、``fc3.hdf5``、``phono3py.yaml`` (および phonopy 用の "
+"``FORCE_CONSTANTS`` と ``phonopy.yaml``) が書き出されます。yaml ファイルでは基本セルを単位胞とし "
+"(``primitive_matrix`` は単位行列)、スーパーセル行列は ALAMODE のスーパーセルのものになります。``--to "
+"phonopy --fc2 si222.h5`` では調和のファイルだけが書き出されます。"
+
+#: ../../source/fc_conversion.rst:86
+msgid "**phonopy or phono3py to ALAMODE** ::"
+msgstr "**phonopy または phono3py から ALAMODE へ** ::"
+
+#: ../../source/fc_conversion.rst:91
+msgid ""
+"The first command writes ``si_phonopy.h5``, which *anphon* reads with "
+"``FCSFILE = si_phonopy.h5`` (or ``FC2FILE``). The primitive cell is taken"
+" from the yaml file (``primitive_cell`` or ``primitive_matrix``). For "
+"phono3py, the harmonic force constants belong to ``phonon_supercell`` "
+"when the yaml file defines one. If it differs from the FC3 supercell, FC2"
+" and FC3 go into separate files ``si_phono3py_fc2.h5`` and "
+"``si_phono3py_fc3.h5``, to be given to *anphon* as ``FC2FILE`` and "
+"``FCSFILE``. Only yaml files in |Angstrom| and eV/|Angstrom|\\ :sup:`2` "
+"(VASP-like units) are accepted. With a supercell POSCAR instead of a yaml"
+" file, give the ``DIM`` with which phonopy made it::"
+msgstr ""
+"最初のコマンドは ``si_phonopy.h5`` を書き出し、*anphon* は ``FCSFILE = si_phonopy.h5`` "
+"(または ``FC2FILE``) でこれを読み込みます。基本セルは yaml ファイル (``primitive_cell`` または "
+"``primitive_matrix``) から取られます。phono3py では、yaml ファイルに ``phonon_supercell``"
+" が定義されていれば、調和力定数はそのスーパーセルに属します。それが FC3 のスーパーセルと異なる場合、FC2 と FC3 は別々のファイル "
+"``si_phono3py_fc2.h5`` と ``si_phono3py_fc3.h5`` に書き出され、*anphon* にはそれぞれ "
+"``FC2FILE`` と ``FCSFILE`` として与えます。受け付けるのは |Angstrom| と eV/|Angstrom|\\ "
+":sup:`2` (VASP と同様の単位) の yaml ファイルだけです。yaml ファイルの代わりにスーパーセルの POSCAR "
+"を使う場合は、phonopy がそれを作ったときの ``DIM`` を与えてください::"
+
+#: ../../source/fc_conversion.rst:101
+msgid ""
+"The unit cell of the phonopy calculation is then used as the primitive "
+"cell. If that is a conventional cell, prefer the yaml file, which also "
+"gives the primitive cell."
+msgstr ""
+"このとき、phonopy 計算の単位胞が基本セルとして使われます。それが慣用セルである場合は、基本セルも与える yaml "
+"ファイルを使うことを勧めます。"
+
+#: ../../source/fc_conversion.rst:104
+msgid "**ShengBTE to ALAMODE** ::"
+msgstr "**ShengBTE から ALAMODE へ** ::"
+
+#: ../../source/fc_conversion.rst:108
+msgid ""
+"``FORCE_CONSTANTS_3RD`` carries no supercell; it is assigned the "
+"``scell`` of ``CONTROL`` (or ``--supercell``). Add ``--fc4 "
+"FORCE_CONSTANTS_4TH`` to include the quartic force constants of "
+"FourPhonon."
+msgstr ""
+"``FORCE_CONSTANTS_3RD`` はスーパーセルの情報を持たないため、``CONTROL`` の ``scell`` (または "
+"``--supercell``) が割り当てられます。FourPhonon の4次の力定数も含めるには ``--fc4 "
+"FORCE_CONSTANTS_4TH`` を加えてください。"
+
+#: ../../source/fc_conversion.rst:113
+msgid "Conventions"
+msgstr "規約"
+
+#: ../../source/fc_conversion.rst:115
+msgid ""
+"**Units.** ALAMODE ``.xml`` files are in Ry/bohr\\ :sup:`n`; ``.h5`` "
+"files are read according to their unit attributes. Written ``.h5`` files "
+"are in eV/|Angstrom|\\ :sup:`n` with unit attributes, which *anphon* "
+"converts. phonopy, phono3py, and ShengBTE use eV/|Angstrom|\\ :sup:`n`; "
+"the lattice vectors in ``FORCE_CONSTANTS_3RD`` and "
+"``FORCE_CONSTANTS_4TH`` are in |Angstrom|, and ``CONTROL`` holds the same"
+" |Angstrom| values with ``lfactor = 0.1`` (ShengBTE multiplies them by "
+"``lfactor`` to get nm), so keep ``lfactor`` if you edit the vectors."
+msgstr ""
+"**単位。** ALAMODE の ``.xml`` ファイルは Ry/bohr\\ :sup:`n` 単位で、``.h5`` "
+"ファイルはその単位属性に従って読み込まれます。書き出される ``.h5`` ファイルは単位属性付きの eV/|Angstrom|\\ "
+":sup:`n` 単位で、*anphon* が変換します。phonopy、phono3py、ShengBTE は eV/|Angstrom|\\ "
+":sup:`n` を使います。``FORCE_CONSTANTS_3RD`` と ``FORCE_CONSTANTS_4TH`` の格子ベクトルは"
+" |Angstrom| 単位で、``CONTROL`` は同じ |Angstrom| の値を ``lfactor = 0.1`` "
+"とともに保持します (ShengBTE はこれに ``lfactor`` を掛けて nm に換算します)。ベクトルを編集する場合も "
+"``lfactor`` はそのままにしてください。"
+
+#: ../../source/fc_conversion.rst:120
+msgid ""
+"**Atom order.** Written supercells follow phonopy's default atom order: "
+"atom-major, with the lattice points running fastest along :math:`x`. This"
+" is also the order ShengBTE expects for ``FORCE_CONSTANTS_2ND``, but it "
+"generally differs from the order of the ALAMODE supercell. Use the "
+"written files together with the ``phonopy.yaml``, ``phono3py.yaml``, or "
+"``CONTROL`` written next to them, not with the ``SPOSCAR`` or the *alm* "
+"input of the ALAMODE calculation. When you read phonopy files, the "
+"``--structure`` file must be the one that belongs to the force constants."
+msgstr ""
+"**原子の順序。** 書き出されるスーパーセルは phonopy の既定の原子順序 (原子ごとにまとめ、格子点は :math:`x` "
+"方向が最も速く変わる) に従います。これは ShengBTE が ``FORCE_CONSTANTS_2ND`` "
+"に要求する順序でもありますが、一般に ALAMODE のスーパーセルの順序とは異なります。書き出したファイルは、隣に書き出される "
+"``phonopy.yaml``、``phono3py.yaml``、または ``CONTROL`` と組み合わせて使い、ALAMODE 計算の "
+"``SPOSCAR`` や *alm* の入力とは組み合わせないでください。phonopy "
+"のファイルを読み込む場合、``--structure`` のファイルはその力定数に対応するものでなければなりません。"
+
+#: ../../source/fc_conversion.rst:125
+msgid ""
+"**Primitive cell.** Force constants given together must use the same "
+"primitive cell with the same atom order; otherwise the script stops."
+msgstr "**基本セル。** 同時に与える力定数は、同じ原子順序の同じ基本セルを使っている必要があります。そうでない場合、スクリプトは停止します。"
+
+#: ../../source/fc_conversion.rst:130
+msgid "Periodic images"
+msgstr "周期像"
+
+#: ../../source/fc_conversion.rst:132
+msgid ""
+"A supercell tensor (phonopy, phono3py, ``FORCE_CONSTANTS_2ND``) assigns "
+"one value to each pair or triplet of supercell atoms; it does not say "
+"which periodic image of an atom interacts. ALAMODE, "
+"``FORCE_CONSTANTS_3RD``, and ``FORCE_CONSTANTS_4TH`` list the periodic "
+"images explicitly. When ``fcconvert.py`` reads a supercell tensor, it "
+"assigns each pair all the minimum-distance images (within 10\\ :sup:`-4` "
+"|Angstrom|) with the value split equally; for FC3 the images of the "
+"second and third atoms are chosen independently. This reproduces the "
+"supercell tensor, and hence the dynamical matrix and the anharmonic "
+"couplings at every :math:`q` point commensurate with the supercell, "
+"exactly. Beyond that:"
+msgstr ""
+"スーパーセルテンソル (phonopy、phono3py、``FORCE_CONSTANTS_2ND``) "
+"はスーパーセル内の原子の各ペアまたは各3つ組に1つの値を割り当てるもので、原子のどの周期像と相互作用するかは表しません。ALAMODE、``FORCE_CONSTANTS_3RD``、``FORCE_CONSTANTS_4TH``"
+" は周期像を明示的に列挙します。``fcconvert.py`` がスーパーセルテンソルを読み込むときは、各ペアに最短距離の周期像 (10\\ "
+":sup:`-4` |Angstrom| 以内) をすべて割り当て、値を等分します。FC3 "
+"では2番目と3番目の原子の周期像を独立に選びます。これにより、スーパーセルテンソル、したがってスーパーセルと整合するすべての :math:`q` "
+"点での動力学行列と非調和結合が厳密に再現されます。それ以外については次のとおりです:"
+
+#: ../../source/fc_conversion.rst:140
+msgid ""
+"ALAMODE to ShengBTE keeps the images of FC3 and FC4 exactly, and ALAMODE "
+"to ALAMODE reproduces the original images."
+msgstr ""
+"ALAMODE から ShengBTE への変換では FC3 と FC4 の周期像がそのまま保たれ、ALAMODE から ALAMODE "
+"への変換では元の周期像が再現されます。"
+
+#: ../../source/fc_conversion.rst:141
+msgid ""
+"Harmonic force constants are unaffected in practice, because ALAMODE also"
+" splits FC2 over the minimum-distance images. For the Si example, an "
+"ALAMODE |rarr| phonopy |rarr| ALAMODE round trip of FC2 gives the same "
+"*anphon* frequencies, also at non-commensurate :math:`q`."
+msgstr ""
+"ALAMODE も FC2 を最短距離の周期像に分配するため、調和力定数は実用上影響を受けません。Si の例では、FC2 を ALAMODE "
+"|rarr| phonopy |rarr| ALAMODE と往復させても、スーパーセルと整合しない :math:`q` を含めて "
+"*anphon* の振動数は変わりません。"
+
+#: ../../source/fc_conversion.rst:144
+msgid ""
+"ALAMODE assigns the images of a cubic cluster jointly, which a supercell "
+"tensor cannot represent. ALAMODE to phonopy/phono3py is therefore exact "
+"only at :math:`q` points commensurate with the supercell when FC3 reaches"
+" the supercell boundary (long or no cutoff). The thermal conductivity on "
+"non-commensurate meshes then changes by about 1% at 300 K and 3-5% at 100"
+" K (Si 2\\ |times|\\ 2\\ |times|\\ 2 conventional cell, no FC3 cutoff), "
+"and phono3py's default ``r0`` averaging adds another 1-1.5% (its ``--v2``"
+" option reproduces the convention described above). FC3 with a cutoff "
+"shorter than half the supercell is unaffected."
+msgstr ""
+"ALAMODE は3次のクラスターの周期像をまとめて割り当てますが、これはスーパーセルテンソルでは表現できません。そのため、FC3 "
+"がスーパーセルの境界に達する場合 (長いカットオフまたはカットオフなし)、ALAMODE から phonopy/phono3py "
+"への変換が厳密になるのはスーパーセルと整合する :math:`q` 点だけです。このとき整合しないメッシュでの熱伝導率は 300 K "
+"で約1%、100 K で3-5% 変化し (Si 2\\ |times|\\ 2\\ |times|\\ 2 慣用セル、FC3 "
+"カットオフなし)、phono3py の既定の ``r0`` 平均化によってさらに 1-1.5% 変化します (phono3py の "
+"``--v2`` オプションで上記の規約が再現されます)。カットオフがスーパーセルの半分より短い FC3 は影響を受けません。"
+
+#: ../../source/fc_conversion.rst:150
+msgid ""
+"Force constants of phonopy, phono3py, or ShengBTE read into ALAMODE "
+"follow the image convention of the source code, not that of ALAMODE."
+msgstr ""
+"ALAMODE に読み込んだ phonopy、phono3py、ShengBTE の力定数は、ALAMODE "
+"ではなく元のコードの周期像の規約に従います。"
+
+#: ../../source/fc_conversion.rst:158
+msgid "Writing ShengBTE files directly from *alm*"
+msgstr "*alm* から ShengBTE のファイルを直接書き出す"
+
+#: ../../source/fc_conversion.rst:160
+msgid ""
+"*alm* can write the anharmonic force constants of a fit in the ShengBTE "
+"format itself: :ref:`FC3_SHENGBTE = 1 <alm_fc3_shengbte>` writes "
+"``PREFIX.FORCE_CONSTANTS_3RD`` (``NORDER >= 2``), and :ref:`FC4_SHENGBTE "
+"= 1 <alm_fc4_shengbte>` writes ``PREFIX.FORCE_CONSTANTS_4TH`` (``NORDER "
+">= 3``) for FourPhonon, the four-phonon extension of ShengBTE. Remove the"
+" ``PREFIX.`` part of the names (or link the files) before running "
+"ShengBTE or FourPhonon. These files have the same image convention as "
+"``fcconvert.py --to shengbte``, but *alm* writes neither "
+"``FORCE_CONSTANTS_2ND`` nor ``CONTROL``; use ``fcconvert.py`` for those, "
+"or to convert force constants you already have (``--fc4`` for "
+"``FORCE_CONSTANTS_4TH``)."
+msgstr ""
+"*alm* は、フィッティングで得た非調和力定数を自身で ShengBTE 形式に書き出せます。:ref:`FC3_SHENGBTE = 1 "
+"<alm_fc3_shengbte>` は ``PREFIX.FORCE_CONSTANTS_3RD`` (``NORDER >= 2``) "
+"を、:ref:`FC4_SHENGBTE = 1 <alm_fc4_shengbte>` は ShengBTE の4フォノン拡張である "
+"FourPhonon 用の ``PREFIX.FORCE_CONSTANTS_4TH`` (``NORDER >= 3``) "
+"を書き出します。ShengBTE や FourPhonon を実行する前に、ファイル名から ``PREFIX.`` の部分を取り除いてください "
+"(またはファイルへのリンクを作成してください)。これらのファイルの周期像の規約は ``fcconvert.py --to shengbte`` "
+"と同じですが、*alm* は ``FORCE_CONSTANTS_2ND`` も ``CONTROL`` "
+"も書き出しません。それらには、あるいは手元の力定数を変換するには、``fcconvert.py`` を使ってください "
+"(``FORCE_CONSTANTS_4TH`` には ``--fc4``)。"
+

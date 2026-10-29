@@ -1,0 +1,14 @@
+&general
+ PREFIX = pbte444
+ MODE = suggest
+ STRUCTURE_FILE = POSCAR
+ SUPERCELL = 4
+/
+
+&interaction
+ NORDER = 1
+/
+
+&cutoff
+ *-* None
+/

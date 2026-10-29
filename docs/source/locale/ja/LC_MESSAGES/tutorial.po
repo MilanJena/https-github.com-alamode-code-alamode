@@ -1,0 +1,283 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-23 10:13+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tutorial.rst:2
+msgid "Tutorial"
+msgstr "チュートリアル"
+
+#: ../../source/tutorial.rst:12
+msgid "Lattice thermal conductivity of Si"
+msgstr "Si の格子熱伝導率"
+
+#: ../../source/tutorial.rst:12
+msgid "Silicon"
+msgstr "シリコン"
+
+#: ../../source/tutorial.rst:18
+msgid ""
+"Phonon dispersion, DOS, and lattice thermal conductivity of Si from DFT "
+"forces."
+msgstr "DFT で計算した力から Si のフォノン分散、状態密度、格子熱伝導率を求めます。"
+
+#: ../../source/tutorial.rst:21
+msgid ":bdg-primary:`Si` :bdg-secondary:`harmonic + kappa`"
+msgstr ":bdg-primary:`Si` :bdg-secondary:`調和 + 熱伝導率`"
+
+#: ../../source/tutorial.rst:23
+msgid "Phonon dispersion of Si"
+msgstr "Si のフォノン分散"
+
+#: ../../source/tutorial.rst:23
+msgid "Silicon with LAMMPS"
+msgstr "LAMMPS を用いたシリコン"
+
+#: ../../source/tutorial.rst:29
+msgid ""
+"Use LAMMPS with an empirical potential instead of DFT to compute the "
+"forces."
+msgstr "DFT の代わりに、経験的ポテンシャルを用いた LAMMPS で力を計算します。"
+
+#: ../../source/tutorial.rst:32
+msgid ":bdg-primary:`Si` :bdg-secondary:`LAMMPS forces`"
+msgstr ":bdg-primary:`Si` :bdg-secondary:`LAMMPS による力`"
+
+#: ../../source/tutorial.rst:34
+msgid "Phonon dispersion and DOS of Si plotted from Python"
+msgstr "Python でプロットした Si のフォノン分散と状態密度"
+
+#: ../../source/tutorial.rst:34
+msgid "Silicon with Python"
+msgstr "Python を用いたシリコン"
+
+#: ../../source/tutorial.rst:40
+msgid ""
+"Run the Si phonon and thermal-conductivity calculations from a Python "
+"script with the anphon Python API."
+msgstr "anphon の Python API を用いて、Si のフォノンと熱伝導率の計算を Python スクリプトから実行します。"
+
+#: ../../source/tutorial.rst:43
+msgid ":bdg-primary:`Si` :bdg-secondary:`Python API`"
+msgstr ":bdg-primary:`Si` :bdg-secondary:`Python API`"
+
+#: ../../source/tutorial.rst:45
+msgid "Phonon dispersion of PbTe with different NONANALYTIC options"
+msgstr "NONANALYTIC オプションごとの PbTe のフォノン分散"
+
+#: ../../source/tutorial.rst:45
+msgid "PbTe (non-analytic correction)"
+msgstr "PbTe (非解析補正)"
+
+#: ../../source/tutorial.rst:51
+msgid ""
+"LO-TO splitting in polar materials from Born effective charges and the "
+"NONANALYTIC options."
+msgstr "ボルン有効電荷と NONANALYTIC オプションによる極性物質の LO-TO 分裂を扱います。"
+
+#: ../../source/tutorial.rst:54
+msgid ":bdg-primary:`PbTe` :bdg-secondary:`harmonic + NONANALYTIC`"
+msgstr ":bdg-primary:`PbTe` :bdg-secondary:`調和 + NONANALYTIC`"
+
+#: ../../source/tutorial.rst:56
+msgid ""
+"Lattice thermal conductivity of BAs with and without four-phonon "
+"scattering"
+msgstr "4 フォノン散乱の有無による BAs の格子熱伝導率"
+
+#: ../../source/tutorial.rst:56
+msgid "BAs: four-phonon scattering"
+msgstr "BAs: 4 フォノン散乱"
+
+#: ../../source/tutorial.rst:62
+msgid ""
+"Add four-phonon scattering to the thermal conductivity of BAs and go "
+"beyond the RTA."
+msgstr "BAs の熱伝導率に 4 フォノン散乱を加え、RTA を超えた計算を行います。"
+
+#: ../../source/tutorial.rst:65
+msgid ":bdg-primary:`BAs` :bdg-secondary:`kappa + 4ph`"
+msgstr ":bdg-primary:`BAs` :bdg-secondary:`熱伝導率 + 4ph`"
+
+#: ../../source/tutorial.rst:67
+msgid "Cross-validation score of BaTiO3"
+msgstr "BaTiO3 の交差検証スコア"
+
+#: ../../source/tutorial.rst:67
+msgid "BaTiO3: anharmonic IFCs"
+msgstr "BaTiO3: 非調和 IFC"
+
+#: ../../source/tutorial.rst:73
+msgid ""
+"Fit anharmonic IFCs from AIMD-sampled configurations, with the "
+"regularization chosen by cross validation."
+msgstr "AIMD でサンプリングした構造から非調和 IFC をフィッティングします。正則化の強さは交差検証で決めます。"
+
+#: ../../source/tutorial.rst:76
+msgid ":bdg-primary:`BaTiO3` :bdg-secondary:`anharmonic IFCs + CV`"
+msgstr ":bdg-primary:`BaTiO3` :bdg-secondary:`非調和 IFC + CV`"
+
+#: ../../source/tutorial.rst:78
+msgid "2x2x2 supercell of Si"
+msgstr "Si の 2x2x2 スーパーセル"
+
+#: ../../source/tutorial.rst:78
+msgid "Si: anharmonic IFCs"
+msgstr "Si: 非調和 IFC"
+
+#: ../../source/tutorial.rst:84
+msgid ""
+"Sample configurations from the harmonic potential energy surface and run "
+"the CV sets as separate jobs."
+msgstr "調和ポテンシャルエネルギー曲面から構造をサンプリングし、CV の各セットを別々のジョブとして実行します。"
+
+#: ../../source/tutorial.rst:87
+msgid ":bdg-primary:`Si` :bdg-secondary:`anharmonic IFCs + CV`"
+msgstr ":bdg-primary:`Si` :bdg-secondary:`非調和 IFC + CV`"
+
+#: ../../source/tutorial.rst:89
+msgid "Self-consistent phonon dispersion of SrTiO3"
+msgstr "SrTiO3 の自己無撞着フォノン分散"
+
+#: ../../source/tutorial.rst:89
+msgid "SrTiO3: self-consistent phonons"
+msgstr "SrTiO3: 自己無撞着フォノン"
+
+#: ../../source/tutorial.rst:95
+msgid ""
+"Stabilize soft modes at finite temperature and compute SCP thermodynamic "
+"functions."
+msgstr "有限温度でソフトモードを安定化し、SCP 熱力学関数を計算します。"
+
+#: ../../source/tutorial.rst:98
+msgid ":bdg-primary:`SrTiO3` :bdg-secondary:`MODE = SCPH`"
+msgstr ":bdg-primary:`SrTiO3` :bdg-secondary:`MODE = SCPH`"
+
+#: ../../source/tutorial.rst:100
+msgid "Temperature dependence of atomic displacements in BaTiO3"
+msgstr "BaTiO3 における原子変位の温度依存性"
+
+#: ../../source/tutorial.rst:100
+msgid "BaTiO3: SCPH structural optimization"
+msgstr "BaTiO3: SCPH 構造最適化"
+
+#: ../../source/tutorial.rst:106
+msgid ""
+"Follow the cubic-tetragonal phase transition through the temperature-"
+"dependent atomic positions."
+msgstr "温度依存する原子位置から立方晶-正方晶相転移を追跡します。"
+
+#: ../../source/tutorial.rst:109
+msgid ":bdg-primary:`BaTiO3` :bdg-secondary:`SCPH + RELAX_STR`"
+msgstr ":bdg-primary:`BaTiO3` :bdg-secondary:`SCPH + RELAX_STR`"
+
+#: ../../source/tutorial.rst:111
+msgid "Thermal strain of ZnO"
+msgstr "ZnO の熱ひずみ"
+
+#: ../../source/tutorial.rst:111
+msgid "ZnO: QHA structural optimization"
+msgstr "ZnO: QHA 構造最適化"
+
+#: ../../source/tutorial.rst:117
+msgid ""
+"Thermal expansion of wurtzite ZnO from the strain couplings within the "
+"QHA."
+msgstr "準調和近似 (QHA) の範囲で、ひずみ結合からウルツ鉱型 ZnO の熱膨張を計算します。"
+
+#: ../../source/tutorial.rst:120
+msgid ":bdg-primary:`ZnO` :bdg-secondary:`QHA + RELAX_STR`"
+msgstr ":bdg-primary:`ZnO` :bdg-secondary:`QHA + RELAX_STR`"
+
+#: ../../source/tutorial.rst:138
+msgid "Notebooks"
+msgstr "ノートブック"
+
+#: ../../source/tutorial.rst:140
+msgid ""
+"The Jupyter notebooks in ``example/notebooks/`` do the analysis in "
+"Python. They are stored with their outputs, so you can download and read "
+"them as they are, or run them online."
+msgstr ""
+"``example/notebooks/`` の Jupyter ノートブックでは、Python "
+"で解析を行います。出力付きで保存されているので、ダウンロードしてそのまま読むことも、オンラインで実行することもできます。"
+
+#: ../../source/tutorial.rst:148
+msgid "Analysing PREFIX.kappa.h5"
+msgstr "PREFIX.kappa.h5 の解析"
+
+#: ../../source/tutorial.rst:150
+msgid ""
+"Rebuild the thermal conductivity of Si from the lifetimes and velocities "
+"in the HDF5 file, and plot the cumulative thermal conductivity. Needs "
+"only NumPy, h5py, and Matplotlib."
+msgstr ""
+"HDF5 ファイルに含まれる寿命と群速度から Si の熱伝導率を再構成し、累積熱伝導率をプロットします。必要なのは "
+"NumPy、h5py、Matplotlib のみです。"
+
+#: ../../source/tutorial.rst:154
+msgid ""
+":download:`Download notebook "
+"<../../example/notebooks/kappa_h5_analysis.ipynb>` :bdg-link-"
+"primary:`Open in Colab <https://colab.research.google.com/github/alamode-"
+"code/alamode/blob/master/example/notebooks/kappa_h5_analysis.ipynb>` "
+":bdg-link-primary:`Launch Binder <https://mybinder.org/v2/gh/alamode-"
+"code/alamode/master?labpath=example%2Fnotebooks%2Fkappa_h5_analysis.ipynb>`"
+msgstr ""
+":download:`ノートブックをダウンロード "
+"<../../example/notebooks/kappa_h5_analysis.ipynb>` :bdg-link-"
+"primary:`Colab で開く <https://colab.research.google.com/github/alamode-"
+"code/alamode/blob/master/example/notebooks/kappa_h5_analysis.ipynb>` "
+":bdg-link-primary:`Binder で起動 <https://mybinder.org/v2/gh/alamode-"
+"code/alamode/master?labpath=example%2Fnotebooks%2Fkappa_h5_analysis.ipynb>`"
+
+#: ../../source/tutorial.rst:158
+msgid "Fitting force constants in Python"
+msgstr "Python による力定数のフィッティング"
+
+#: ../../source/tutorial.rst:160
+msgid ""
+"Fit the harmonic and cubic IFCs of Si with the alm Python module, and try"
+" a scikit-learn regressor. Needs the compiled alm module, which Binder "
+"builds for you."
+msgstr ""
+"alm の Python モジュールで Si の調和および 3 次の IFC をフィッティングし、scikit-learn "
+"の回帰手法も試します。コンパイル済みの alm モジュールが必要ですが、Binder では自動でビルドされます。"
+
+#: ../../source/tutorial.rst:164
+msgid ""
+":download:`Download notebook "
+"<../../example/notebooks/alm_python_fit.ipynb>` :bdg-link-primary:`Launch"
+" Binder <https://mybinder.org/v2/gh/alamode-"
+"code/alamode/master?labpath=example%2Fnotebooks%2Falm_python_fit.ipynb>`"
+msgstr ""
+":download:`ノートブックをダウンロード <../../example/notebooks/alm_python_fit.ipynb>` "
+":bdg-link-primary:`Binder で起動 <https://mybinder.org/v2/gh/alamode-"
+"code/alamode/master?labpath=example%2Fnotebooks%2Falm_python_fit.ipynb>`"
+
+#: ../../source/tutorial.rst:169
+msgid "Analysing PREFIX.kappa.h5: ``example/notebooks/kappa_h5_analysis.ipynb``"
+msgstr "PREFIX.kappa.h5 の解析: ``example/notebooks/kappa_h5_analysis.ipynb``"
+
+#: ../../source/tutorial.rst:170
+msgid ""
+"Fitting force constants in Python: "
+"``example/notebooks/alm_python_fit.ipynb``"
+msgstr "Python による力定数のフィッティング: ``example/notebooks/alm_python_fit.ipynb``"
+

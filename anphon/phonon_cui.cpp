@@ -1,0 +1,81 @@
+/*
+ phonon_cui.cpp
+
+ Copyright (c) 2014, 2015, 2016 Terumasa Tadano
+
+ This file is distributed under the terms of the MIT license.
+ Please see the file 'LICENCE.txt' in the root directory
+ or http://opensource.org/licenses/mit-license.php for information.
+*/
+
+#include "phonon_cui.h"
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include "input_parser.h"
+#include "mpi_common.h"
+#include "phonon.h"
+#include "timer.h"
+#include "version.h"
+#include "write_phonons.h"
+
+#ifdef _OPENMP
+
+#include <omp.h>
+
+#endif
+
+using namespace PHON_NS;
+
+PhononCUI::PhononCUI()
+{}
+
+PhononCUI::~PhononCUI()
+{}
+
+void PhononCUI::run(const int narg, char **arg, MPI_Comm comm, const bool embedded) const
+{
+    auto phon = std::make_unique<PHON>(comm);
+    // Embedded runs (the Python module) parse first and skip the banner and the
+    // start/finish lines at VERBOSITY = 0; the CLI prints the banner before parsing.
+    const auto print_banner = [&phon]() {
+        std::cout << " +-----------------------------------------------------------------+\n";
+        std::cout << " +                         Program ANPHON                          +\n";
+        std::cout << " +                             Ver.";
+        std::cout << std::setw(7) << ALAMODE_VERSION;
+        std::cout << "                         +\n";
+        const std::string commit = std::string("Commit: ") + ALAMODE_GIT_COMMIT;
+        const auto npad = commit.size() < 65 ? 65 - commit.size() : 0;
+        std::cout << " +" << std::string(npad / 2, ' ') << commit << std::string(npad - npad / 2, ' ') << "+\n";
+        std::cout << " +-----------------------------------------------------------------+\n\n";
+        std::cout << " Job started at " << phon->timer->DateAndTime() << '\n';
+        std::cout << " The number of MPI processes: " << phon->run_info.nprocs << '\n';
+#ifdef _OPENMP
+        std::cout << " The number of OpenMP threads: " << omp_get_max_threads() << '\n';
+#endif
+        std::cout << '\n';
+    };
+
+    if (phon->run_info.my_rank == 0) {
+        if (!embedded) print_banner();
+        auto input_parser = std::make_unique<InputParser>();
+        input_parser->run(phon.get(), narg, arg);
+        if (embedded && phon->get_verbosity() > 0) print_banner();
+        phon->writes->writeInputVars();
+    }
+
+    MPI_Bcast_string(phon->run_info.job_title, 0, MPI_COMM_WORLD);
+    MPI_Bcast_string(phon->run_info.mode, 0, MPI_COMM_WORLD);
+
+    // VERBOSITY is parsed on rank 0 only; broadcast it so every rank honors
+    // the user's setting (Part B threads it into all-rank code paths).
+    auto verbosity_tmp = phon->get_verbosity();
+    MPI_Bcast(&verbosity_tmp, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    phon->set_verbosity(verbosity_tmp);
+
+    phon->run();
+
+    if (phon->run_info.my_rank == 0 && (!embedded || phon->get_verbosity() > 0)) {
+        std::cout << "\n Job finished at " << phon->timer->DateAndTime() << '\n';
+    }
+}

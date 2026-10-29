@@ -10,17 +10,20 @@
 
 #pragma once
 
-#include "pointers.h"
+#include <complex>
 #include <string>
 #include <vector>
-#include <complex>
-#include "system.h"
 #include "fcs_phonon.h"
+#include "ndarray.h"
+#include "phonon.h"
+#include "system.h"
 
-namespace PHON_NS {
-class Gvecs {
+namespace PHON_NS
+{
+class Gvecs
+{
 public:
-    double vec[3];
+    Eigen::Vector3d vec;
 
     Gvecs();
 
@@ -30,19 +33,23 @@ public:
             vec[i] = arr[i];
         }
     };
+
+    Gvecs(const Eigen::Vector3d _vec) : vec(_vec) {};
 };
 
-class DistInfo {
+class DistInfo
+{
 public:
     int cell;
     double dist;
 
     DistInfo();
 
-    DistInfo(const int n,
-             const double d) : cell(n), dist(d) {};
+    DistInfo(const int n, const double d) : cell(n), dist(d) {};
 
     DistInfo(const DistInfo &obj) : cell(obj.cell), dist(obj.dist) {};
+
+    DistInfo &operator=(const DistInfo &obj) = default;
 
     bool operator<(const DistInfo &obj) const
     {
@@ -50,9 +57,10 @@ public:
     }
 };
 
-class Ewald : protected Pointers {
+class Ewald
+{
 public:
-    Ewald(class PHON *);
+    Ewald(const RunInfo &run, const System *system);
 
     ~Ewald();
 
@@ -61,84 +69,82 @@ public:
     double prec_ewald;
     double rate_ab;
 
-    int **multiplicity;
+    NDArray<int, 2> multiplicity;
     double epsilon[3][3], epsilon_inv[3][3];
     double det_epsilon;
-    double ***Born_charge;
+    NDArray<double, 3> Born_charge;
 
-    std::vector<FcsClassExtent> fc2_without_dipole;
+    std::vector<FcsArrayWithCell> fc2_without_dipole;
 
-    void init();
+    // fc2[n_dfc2_begin:] are DFC2FILE corrections (on a possibly larger supercell): they
+    // are passed to fc2_without_dipole as they are, the dipole part is removed from the
+    // harmonic entries before them only.
+    void init(const Dielec &dielec, const std::vector<FcsArrayWithCell> &fc2,
+              std::size_t n_dfc2_begin = static_cast<std::size_t>(-1));
 
-    void add_longrange_matrix(const double *,
-                              const double *,
-                              std::complex<double> **);
+    void add_longrange_matrix(const double *, const double *, std::complex<double> **) const;
+
+    // Mass-free Fourier map of the dipole-dipole force constants at the
+    // Cartesian wavevector xk_cart (1/bohr), with the macroscopic (G = 0)
+    // term EXCLUDED:
+    //   phi_out(3*kappa+a, 3*kappa'+b)
+    //     = sum_R Phi^DD_ab(0 kappa; R kappa') e^{i q.(r(R kappa') - r(0 kappa))} - (G=0 term).
+    // Dropping G = 0 separates the macroscopic electric field, so the q^2
+    // coefficient of this object yields the fixed-E (clamped-ion) elastic
+    // response of the dipole lattice (Born & Huang, Sec. 26-27). Used by
+    // ElasticTensor for the long-range-corrected elastic constants.
+    void calc_dipole_fcs_q(const Eigen::Vector3d &xk_cart, Eigen::MatrixXcd &phi_out) const;
 
 private:
+    std::vector<Gvecs> G_vectors_fcs;
+    double lambda_fcs;
+    double Gmax_fcs, Lmax_fcs;
+    Eigen::Vector3i nl_fcs, ng_fcs;
 
-    std::vector<Gvecs> G_vector_sub;
-    double lambda_sub;
-    double Gmax_sub, Lmax_sub;
-    int nl_sub[3], ng_sub[3], num_l_sub, num_g_sub;
-
-    std::vector<Gvecs> G_vector;
-    double lambda;
-    double Gmax, Lmax;
-    int nl[3], ng[3], num_l, num_g;
+    std::vector<Gvecs> G_vectors_dymat;
+    double lambda_dymat;
+    double Gmax_dymat, Lmax_dymat;
+    Eigen::Vector3i nl_dymat, ng_dymat;
     bool force_permutation_sym;
 
-    std::vector<DistInfo> **distall_ewald;
+    Eigen::Matrix3d epsilon_mat, invepsilon_mat;
+
+    NDArray<std::vector<DistInfo>, 2> distall_ewald;
 
     void set_default_variables();
 
     void deallocate_variables();
 
-    void prepare_Ewald(const double [3][3]);
+    void prepare_Ewald(const Eigen::Matrix3d &dielectric);
 
     void prepare_G();
 
-    void compute_ewald_fcs();
+    void compute_ewald_fcs(const std::vector<FcsArrayWithCell> &fc2, std::size_t n_dfc2_begin);
 
-    void compute_ewald_fcs2();
+    void get_pairs_of_minimum_distance(int, const int[3], const Eigen::MatrixXd &);
 
-    void get_pairs_of_minimum_distance(int,
-                                       const int [3],
-                                       double **) const;
+    void calc_real_space_sum_ewald_fcs(int, int, double **);
 
-    void calc_longrange_fcs(int,
-                            int,
-                            int,
-                            int,
-                            int,
-                            double *);
+    void calc_reciprocal_space_sum_ewald_fcs(int, int, double **);
 
-    void calc_short_term_ewald_fcs(int,
-                                   int,
-                                   double **);
+    void calc_short_term_dynamical_matrix(int, int, double *, std::complex<double> **) const;
 
-    void calc_long_term_ewald_fcs(int,
-                                  int,
-                                  double **);
+    void calc_long_term_dynamical_matrix(const int iat, const int jat, const Eigen::Vector3d &xk_in,
+                                         const Eigen::Vector3d &kvec_in, std::complex<double> **mat_out) const;
 
-    void calc_short_term_dynamical_matrix(int,
-                                          int,
-                                          double *,
-                                          std::complex<double> **);
+    void calc_realspace_sum(const int iat, const int jat, const double xdist[3], const double lambda_in,
+                            std::vector<std::vector<double>> &ret) const;
 
-    void calc_long_term_dynamical_matrix(const int iat,
-                                         const int jat,
-                                         const double *xk_in,
-                                         const double *kvec_in,
-                                         std::complex<double> **mat_out);
+    void calc_anisotropic_hmat(double, const double *, Eigen::Matrix3d &hmat_out) const;
 
-    void calc_realspace_sum(const int iat,
-                            const int jat,
-                            const double xdist[3],
-                            const double lambda_in,
-                            std::vector<std::vector<double>> &ret);
+    void get_lambda_and_lgmax(const Eigen::Matrix3d &lavec, const Eigen::Matrix3d &rlavec,
+                              const Eigen::Matrix3d &epsilon, const Eigen::Matrix3d &epsilon_inv, const double &p,
+                              double &lambda_out, double &Lmax_out, double &Gmax_out, Eigen::Vector3i &lsize,
+                              Eigen::Vector3i &gsize);
 
-    void calc_anisotropic_hmat(double,
-                               const double *,
-                               double **);
+private:
+    // Collaborators (non-owning; owned by PHON, which outlives this object).
+    const RunInfo &run;
+    const System *system;
 };
-}
+} // namespace PHON_NS

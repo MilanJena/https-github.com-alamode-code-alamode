@@ -8,19 +8,26 @@
  or http://opensource.org/licenses/mit-license.php for information.
 */
 
-#include "alm_cui.h"
 #include <cstdlib>
+#include <exception>
+#include <iostream>
+#include <memory>
+#include "alm_cui.h"
 
 using namespace ALM_NS;
 
-int main(const int argc,
-         char **argv)
+auto main(const int argc, char **argv) -> int
 {
-    const auto alm_cui = new ALMCUI();
-
-    alm_cui->run(argc, argv);
-
-    delete alm_cui;
+    // Turn uncaught exceptions (HDF5 I/O, ...) into a clean error exit
+    // instead of std::terminate.
+    try {
+        const auto alm_cui = std::make_unique<ALMCUI>();
+        alm_cui->run(argc, argv);
+    } catch (const std::exception &e) {
+        std::cout << '\n' << " ERROR: " << e.what() << '\n';
+        std::cerr << " ERROR: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }

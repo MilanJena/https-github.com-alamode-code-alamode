@@ -1,0 +1,113 @@
+name: Sanitizer build (ASan/UBSan)
+
+# Builds ALM/ANPHON with AddressSanitizer + UndefinedBehaviorSanitizer and runs
+# the small Si example. This catches out-of-bounds accesses, use-after-free and
+# undefined behaviour that ordinary Release builds silently ignore.
+#
+# Notes:
+#  * detect_leaks=0 — the code intentionally relies on process exit to release
+#    memory, so leak detection is disabled to avoid noise. Heap-overflow and
+#    use-after-free detection (the valuable part of ASan) stays on.
+#  * If third-party libraries (Eigen/Boost/HDF5) produce false positives, add a
+#    suppressions file via ASAN_OPTIONS/UBSAN_OPTIONS rather than disabling here.
+
+# Expensive: run nightly from nightly.yaml (and manually), not on every push.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  sanitize:
+    runs-on: ${{ github.repository == 'alamode-code/alamode-developer' && fromJSON('["self-hosted","Linux"]') || 'ubuntu-latest' }}
+    name: ASan/UBSan build + Si test
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      # OpenMPI's memory "patcher" binary-rewrites malloc/mprotect during MPI_Init,
+      # which is incompatible with AddressSanitizer (ASan has already intercepted
+      # those functions) and traps with SIGILL inside libasan -- not an ALAMODE bug.
+      # Backtrace: PMPI_Init -> opal_memory_base_open -> patcher_open -> mprotect.
+      # Disable the patcher and the UCX PML that pulls it in; neither is needed for
+      # a single-node CI run over TCP/shared memory.
+      OMPI_MCA_memory: "^patcher"
+      # Open MPI 5's cm/ofi path opens a libfabric domain whose MR-cache monitor
+      # binary-patches mprotect the same way the patcher does (ofi_memhooks_start ->
+      # ofi_write_patch -> mprotect) and traps in libasan. Keep MPI on ob1 and turn
+      # the libfabric monitor off; neither is needed for a single-node CI run.
+      OMPI_MCA_pml: "ob1"
+      OMPI_MCA_mtl: "^ofi"
+      OMPI_MCA_btl: "^ofi"
+      FI_MR_CACHE_MONITOR: "disabled"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: alamode
+          python-version: '3.10'
+
+      - name: Update environment
+        run: conda env update -n alamode -f etc/alamode-environment.yml
+
+      - name: Build alm and anphon with sanitizers
+        run: |
+          # Build into _build because test/test_si.py looks for the binaries at
+          # _build/alm/alm and _build/anphon/anphon (the path is hardcoded there).
+          mkdir -p _build
+          cd _build
+          # UBSan is left in recoverable (report-only) mode — the codebase has not
+          # been UBSan-audited yet, so halting on the first hit would abort every run
+          # before it produces output. ASan stays fatal (memory corruption is the
+          # high-value, low-false-positive signal). Once the UBSan reports are
+          # triaged, add -fno-sanitize-recover=undefined to make UB fatal too.
+          cmake -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+                -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+                ..
+          # Limit parallelism: each cc1plus uses several GB under ASan+UBSan, so an
+          # unbounded "make -j" launches ~30 compiles of the large translation units
+          # at once and the runner is OOM-killed. -j2 keeps peak memory in check.
+          make -j2 alm anphon
+          cd ..
+
+      - name: Run test Si under sanitizers
+        working-directory: ./test
+        env:
+          # ASan halts on memory errors; UBSan reports and continues (halt_on_error=0)
+          # so the run completes and produces output for the consistency check.
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=0
+        run: python test_si.py
+
+      - name: Run test ALGO_REDUCTION consistency under sanitizers
+        working-directory: ./test
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=0
+        run: python test_algo_reduction.py
+
+      # On failure, re-run the two anphon modes directly (the inputs and FCS file
+      # were generated under test/si by test_si.py) with stderr captured, so the
+      # exact AddressSanitizer/UBSan report and the failing mode are visible in
+      # the log instead of just a downstream "failed to execute" message.
+      - name: Show sanitizer report on failure
+        if: failure()
+        working-directory: ./test/si
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=0
+        run: |
+          command -v gdb >/dev/null || { sudo -n apt-get update -qq && sudo -n apt-get install -y -qq gdb; } || true
+          echo "=== output files present ==="; ls -la
+          # The crash is a hard trap (SIGILL) with no message, so run under gdb to
+          # capture the backtrace (file:line) of the faulting frame. -g is already on
+          # (Debug build). Works whether the trap is a libstdc++ hardened-assert
+          # (_GLIBCXX_ASSERTIONS) or an ASan/UBSan abort.
+          for inp in phband.in RTA.in; do
+            echo "=================== anphon $inp ==================="
+            gdb -batch -nx -ex run -ex bt -ex quit \
+                --args ../../_build/anphon/anphon "$inp" 2>&1 | tail -50 || true
+          done

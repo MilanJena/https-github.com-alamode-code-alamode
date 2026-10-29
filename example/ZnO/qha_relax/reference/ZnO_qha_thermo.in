@@ -1,10 +1,8 @@
 &general
   PREFIX = ZnO_qha
   MODE = QHA
-  NKD = 2
-  FCSXML = ZnO332_500K_cutoff1208_nbody233.xml
-  FC2XML = ZnO442_harmonic.xml
-  KD = Zn O
+  FCSFILE = ZnO332_500K_cutoff1208_nbody233.xml
+  FC2FILE = ZnO442_harmonic.xml
 
   TMIN = 0
   TMAX = 1000
@@ -29,9 +27,6 @@
   SET_INIT_STR = 2
   ADD_HESS_DIAG = 0.0
 
-  RENORM_3TO2ND = 2
-  RENORM_2TO1ST = 2
-  RENORM_34TO1ST = 0
 
   STRAIN_IFC_DIR = strain_IFC
 /

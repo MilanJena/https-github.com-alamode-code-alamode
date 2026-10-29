@@ -9,32 +9,181 @@
 */
 
 #include "optimize.h"
-#include "files.h"
+#include <algorithm>
+#include <boost/algorithm/string.hpp>
+#include <cmath>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 #include "constants.h"
 #include "constraint.h"
 #include "error.h"
 #include "fcs.h"
+#include "files.h"
 #include "input_parser.h"
-#include "mathfunctions.h"
+#include "lapack_wrapper.h"
+#include "least_squares.h"
 #include "memory.h"
 #include "symmetry.h"
 #include "timer.h"
-#include <iostream>
-#include <cmath>
-#include <string>
-#include <vector>
-#include <boost/lexical_cast.hpp>
-#include <boost/algorithm/string.hpp>
 
 #include <Eigen/Dense>
+#include <Eigen/IterativeLinearSolvers>
+#include <Eigen/SparseCholesky>
 #include <Eigen/SparseCore>
 #include <Eigen/SparseQR>
-#include <Eigen/SparseCholesky>
-#include <Eigen/IterativeLinearSolvers>
-
+#ifdef USE_SUITESPARSE_BACKEND
+// CHOLMOD supernodal Cholesky for the PSD normal matrix solved in the USE_CHOLESKY sparse path.
+#include <Eigen/CholmodSupport>
+#endif
 #include <omp.h>
+#include <unistd.h>
+#include "logger.h"
 
 using namespace ALM_NS;
+
+namespace
+{
+// Build the Gram matrix with one GEMM when N <= factor * M; use lazy
+// column-wise GEMVs for strongly underdetermined problems (N >> M).
+// ALM_GRAM_LAZY forces the lazy path.
+constexpr Eigen::Index gram_dense_factor = 2;
+
+inline auto use_full_gram(const Eigen::MatrixXd &A) -> bool
+{
+    return A.cols() <= gram_dense_factor * A.rows() && std::getenv("ALM_GRAM_LAZY") == nullptr;
+}
+
+// Thread count for the hand-parallelized matvecs below. Capped at the column count so the
+// per-thread scratch (rows x nthreads) can never exceed the design matrix itself (rows x cols) --
+// it is therefore always far smaller than A and cannot be an independent memory/OOM constraint.
+inline auto matvec_nthreads(const Eigen::Index ncols) -> int
+{
+    const Eigen::Index maxt = omp_get_max_threads();
+    Eigen::Index n = std::min<Eigen::Index>(maxt, std::max<Eigen::Index>(ncols, 1));
+    if (n < 1) n = 1;
+    return static_cast<int>(n);
+}
+
+// Compute A*x over column-major A with per-block sums in reusable
+// scratch[A.rows()][nthreads], skipping zero x entries. The column blocks
+// (the OpenMP static partition) are fixed by nthreads, not by the active team
+// size, so the summation order is the same inside a nested region (CV folds).
+inline void parallel_Ax(const Eigen::MatrixXd &A, const Eigen::VectorXd &x, const int nthreads,
+                        Eigen::MatrixXd &scratch, Eigen::VectorXd &res)
+{
+    scratch.setZero();
+    const Eigen::Index q = A.cols() / nthreads;
+    const Eigen::Index r = A.cols() % nthreads;
+#pragma omp parallel for num_threads(nthreads) schedule(static, 1)
+    for (int t = 0; t < nthreads; ++t) {
+        auto local = scratch.col(t);
+        const Eigen::Index j0 = t * q + std::min<Eigen::Index>(t, r);
+        const Eigen::Index j1 = j0 + q + (t < r ? 1 : 0);
+        for (Eigen::Index j = j0; j < j1; ++j) {
+            const double xj = x(j);
+            if (xj != 0.0) local.noalias() += A.col(j) * xj;
+        }
+    }
+    res.noalias() = scratch.rowwise().sum();
+}
+
+// out = A^T * r, parallelized over columns (each a cache-friendly column dot for column-major A).
+inline void parallel_Atr(const Eigen::MatrixXd &A, const Eigen::VectorXd &r, const int nthreads, Eigen::VectorXd &out)
+{
+#pragma omp parallel for num_threads(nthreads)
+    for (Eigen::Index j = 0; j < A.cols(); ++j) {
+        out(j) = A.col(j).dot(r);
+    }
+}
+
+// Compute OLS coefficients and rank_out for adaptive-LASSO weights.
+// Use threaded normal equations with Cholesky, falling back to
+// rank-revealing QR for rank-deficient or ill-conditioned matrices.
+inline auto solve_ols_for_adalasso(const Eigen::MatrixXd &A, const Eigen::VectorXd &b,
+                                   Eigen::Index &rank_out) -> Eigen::VectorXd
+{
+    const Eigen::Index ncols = A.cols();
+    const Eigen::MatrixXd gram = A.transpose() * A; // threaded dgemm with EIGEN_USE_BLAS
+    const Eigen::VectorXd atb = A.transpose() * b;
+
+    Eigen::LLT<Eigen::MatrixXd> llt(gram);
+    if (llt.info() == Eigen::Success) {
+        // Small relative Cholesky pivots indicate inaccurate normal-equation
+        // weights; fall back to rank-revealing QR.
+        const auto ldiag = llt.matrixLLT().diagonal().cwiseAbs();
+        const double dmin = ldiag.minCoeff();
+        const double dmax = ldiag.maxCoeff();
+        if (dmax > 0.0 && dmin / dmax > 1.0e-7) { // ~cond(A^T A) < 1e14, well within double precision
+            rank_out = ncols;                     // A^T A safely positive-definite => A full column rank
+            return llt.solve(atb);
+        }
+    }
+
+    // Rank-deficient or ill-conditioned normal matrix: use the rank-revealing QR.
+    Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
+    rank_out = qr.rank();
+    return qr.solve(b);
+}
+
+// Adaptive-LASSO weights |x_ols| from the OLS fit of (A, b): fast normal-equations
+// path with a rank-revealing QR fallback for rank-deficient systems. Stops through
+// exit(func_name, ...) when the problem is rank-deficient and warns about near-zero
+// weights. The message details differ between the callers: `headline` starts the
+// error message, `extra_info` (a full line or empty) follows the rank line, and the
+// two flags select the optional lines of the warning.
+inline auto compute_adalasso_weights(const Eigen::MatrixXd &A, const Eigen::VectorXd &b, const size_t N_new,
+                                     const char *func_name, const std::string &headline, const std::string &extra_info,
+                                     const int verbosity, const bool print_max_weight,
+                                     const bool print_advice) -> Eigen::VectorXd
+{
+    Eigen::Index rank = 0;
+    const Eigen::VectorXd x_ols = solve_ols_for_adalasso(A, b, rank);
+
+    if (rank < static_cast<Eigen::Index>(N_new)) {
+        std::string error_msg = headline +
+                                ": The least squares problem is rank-deficient.\n"
+                                "  Matrix rank = " +
+                                std::to_string(rank) + ", Number of parameters = " + std::to_string(N_new) + "\n" +
+                                extra_info +
+                                "  This typically occurs when there are too few training data\n"
+                                "  or when some parameters cannot be uniquely determined.\n"
+                                "  Please try one of the following:\n"
+                                "  - Increase the amount of training data (DFSET)\n"
+                                "  - Use LMODEL = 1 (least-squares) or 2 (elastic-net) instead\n"
+                                "  - Reduce the interaction cutoff distance\n";
+        ALM_NS::exit(func_name, error_msg.c_str());
+    }
+
+    Eigen::VectorXd weight_adalasso = x_ols.cwiseAbs();
+
+    // Check if any weights are too small (could cause numerical issues)
+    const double min_weight_threshold = 1.0e-10;
+    int n_zero_weights = 0;
+    for (int i = 0; i < weight_adalasso.size(); ++i) {
+        if (weight_adalasso[i] < min_weight_threshold) {
+            n_zero_weights++;
+        }
+    }
+
+    if (n_zero_weights > 0 && verbosity > 0) {
+        std::cout << "  WARNING: Adaptive lasso detected " << n_zero_weights << " near-zero weights (< "
+                  << min_weight_threshold << ").\n";
+        if (print_max_weight) std::cout << "  Maximum weight = " << weight_adalasso.maxCoeff() << "\n";
+        if (print_advice) {
+            std::cout << "  This may indicate an underdetermined or ill-conditioned problem.\n";
+            std::cout << "  The optimization will continue but results may be unreliable.\n";
+            std::cout << "  Consider using LMODEL = 2 (elastic-net) instead.\n\n";
+        } else {
+            std::cout << "  This may indicate an underdetermined or ill-conditioned problem.\n\n";
+        }
+    }
+    return weight_adalasso;
+}
+} // namespace
 
 Optimize::Optimize()
 {
@@ -59,111 +208,117 @@ void Optimize::deallocate_variables()
     }
 }
 
-int Optimize::optimize_main(const Symmetry *symmetry,
-                            Constraint *constraint,
-                            Fcs *fcs,
-                            const int maxorder,
-                            const std::string &file_prefix,
-                            const std::vector<std::string> &str_order,
-                            const int verbosity,
-                            const DispForceFile &filedata_train,
-                            const DispForceFile &filedata_validation,
-                            const int output_maxorder,
-                            Timer *timer)
+auto Optimize::optimize_main(const std::unique_ptr<Symmetry> &symmetry, std::unique_ptr<Constraint> &constraint,
+                             const std::unique_ptr<Fcs> &fcs, const int maxorder, const std::string &file_prefix,
+                             const std::vector<std::string> &str_order, const int verbosity,
+                             const DispForceFile &filedata_train, const DispForceFile &filedata_validation,
+                             const int output_maxorder, std::unique_ptr<Timer> &timer) -> int
 {
     timer->start_clock("optimize");
 
-    const auto natmin = symmetry->get_nat_prim();
-    const auto ndata_used = filedata_train.nend - filedata_train.nstart + 1
-                            - filedata_train.skip_e + filedata_train.skip_s;
+    // Phase-1 energy-term self-test: validate the energy-row builder against the force builder
+    // (Euler identity) and exit, without running any fit. Zero-impact on the normal path.
+    if (std::getenv("ALM_ENERGY_SELFTEST")) {
+        const bool selftest_ok = run_energy_selftest(symmetry, fcs, constraint, maxorder, verbosity);
+        // Diagnostic mode: terminate before FC writing, which would use the (uncomputed) params.
+        // Propagate PASS/FAIL via the exit code so CI/scripts can detect a regression.
+        std::cout << std::flush;
+        timer->stop_clock("optimize");
+        std::exit(selftest_ok ? EXIT_SUCCESS : EXIT_FAILURE);
+    }
+
+    // The energy term is wired only through the LASSO/elastic-net path (optimize_with_given_l1alpha);
+    // refuse the plain least-squares path rather than silently ignoring EFIT_WEIGHT.
+    if (optcontrol.efit_weight > 0.0 && optcontrol.linear_model != 2 && optcontrol.linear_model != 3) {
+        exit("optimize_main",
+             "EFIT_WEIGHT > 0 is currently supported only with LMODEL = 2 or 3 (elastic-net / adaptive LASSO).");
+    }
+    // Elastic-net and adaptive LASSO both apply global column standardization (apply_standardizer),
+    // which re-centers the columns over ALL rows and breaks the energy-block (Frisch-Waugh) centering.
+    // Refuse the unsafe combination for either model. (Adaptive LASSO standardizes since the
+    // standardized + per-column-penalty reformulation.)
+    if (optcontrol.efit_weight > 0.0 && optcontrol.standardize &&
+        (optcontrol.linear_model == 2 || optcontrol.linear_model == 3))
+    {
+        exit("optimize_main",
+             "EFIT_WEIGHT > 0 with LMODEL = 2 or 3 requires STANDARDIZE = 0; global "
+             "standardization is incompatible with the energy-block centering.");
+    }
+
+    const auto ndata_used =
+        filedata_train.nend - filedata_train.nstart + 1 - filedata_train.skip_e + filedata_train.skip_s;
     const auto ndata_used_validation = filedata_validation.nend - filedata_validation.nstart + 1;
-    const auto ntran = symmetry->get_ntran();
     auto info_fitting = 0;
     const auto M = get_number_of_rows_sensing_matrix();
-    const auto M_validation = 3 * natmin * ndata_used_validation * ntran;
-    size_t N = 0;
-    size_t N_new = 0;
+    size_t nparams = 0;
+    size_t nparams_irred = 0;
     for (auto i = 0; i < maxorder; ++i) {
-        N += fcs->get_nequiv()[i].size();
+        nparams += fcs->get_nequiv()[i].size();
     }
 
     if (constraint->get_constraint_algebraic()) {
         for (auto i = 0; i < maxorder; ++i) {
-            N_new += constraint->get_index_bimap(i).size();
+            nparams_irred += constraint->get_index_bimap(i).size();
         }
     }
 
     if (verbosity > 0) {
         std::vector<std::string> str_linearmodel{"least-squares", "elastic-net", "adaptive-lasso"};
-        std::cout << " OPTIMIZATION\n";
-        std::cout << " ============\n\n";
+        std::cout << " ==============\n";
+        std::cout << "  OPTIMIZATION \n";
+        std::cout << " ==============\n\n";
         std::cout << "  LMODEL = " << str_linearmodel[optcontrol.linear_model - 1] << "\n\n";
         if (!filedata_train.filename.empty()) {
             std::cout << "  Training data file (DFSET) : " << filedata_train.filename << "\n\n";
             std::cout << "  NSTART = " << filedata_train.nstart << "; NEND = " << filedata_train.nend << '\n';
             if (filedata_train.skip_s < filedata_train.skip_e) {
-                std::cout << ": SKIP = " << filedata_train.skip_s << "-" <<
-                          filedata_train.skip_e - 1 << '\n';
+                std::cout << ": SKIP = " << filedata_train.skip_s << "-" << filedata_train.skip_e - 1 << '\n';
             }
-            std::cout << "  " << ndata_used
-                      << " entries will be used for training.\n\n";
+            std::cout << "  " << ndata_used << " entries will be used for training.\n\n";
         }
 
         if (optcontrol.cross_validation == -1) {
             std::cout << "  CV = -1 : Manual cross-validation mode is selected\n";
             if (!filedata_validation.filename.empty()) {
                 std::cout << "  Validation data file (DFSET_CV) : " << filedata_validation.filename << "\n\n";
-                std::cout << "  NSTART_CV = " << filedata_validation.nstart << "; NEND_CV = "
-                          << filedata_validation.nend << '\n';
-                std::cout << "  " << ndata_used_validation
-                          << " entries will be used for validation.\n\n";
+                std::cout << "  NSTART_CV = " << filedata_validation.nstart
+                          << "; NEND_CV = " << filedata_validation.nend << '\n';
+                std::cout << "  " << ndata_used_validation << " entries will be used for validation.\n\n";
             }
         }
-        std::cout << "  Total Number of Parameters : " << N << '\n';
+        std::cout << "  Total Number of Parameters : " << nparams << '\n';
         if (constraint->get_constraint_algebraic()) {
-            std::cout << "  Total Number of Free Parameters : " << N_new << '\n';
+            std::cout << "  Total Number of Free Parameters : " << nparams_irred << '\n';
         }
         std::cout << '\n';
     }
 
-    // Run optimization and obtain force constants
+    // Run optimization and get force constants
 
-    std::vector<double> fcs_tmp(N, 0.0);
+    std::vector<double> fcs_tmp(nparams, 0.0);
     if (optcontrol.linear_model == 1) {
         // Use ordinary least-squares
 
-        info_fitting = least_squares(maxorder,
-                                     N,
-                                     N_new,
-                                     M,
-                                     verbosity,
-                                     symmetry,
-                                     fcs,
-                                     constraint,
-                                     fcs_tmp);
+        info_fitting =
+            least_squares(maxorder, nparams, nparams_irred, M, verbosity, symmetry, fcs, constraint, fcs_tmp);
 
     } else if (optcontrol.linear_model == 2 or optcontrol.linear_model == 3) {
 
         // Use elastic net or adaptive lasso
 
         if (!constraint->get_constraint_algebraic()) {
-            exit("optimize_main",
-                 "Sorry, ICONST = 10 or ICONST = 11 must be used when using elastic net.");
+            exit("optimize_main", "Sorry, ICONST >= 10 must be used when using elastic net.");
         }
 
         if (optcontrol.linear_model == 3) {
-            if (optcontrol.standardize) {
-                if (verbosity > 0) {
-                    warn("optimize_main", "STANDARDIZE = 1 in adaptive LASSO is meaningless.\n"
-                                          " Switch to STANDARDIZE = 0.");
-                }
-                optcontrol.standardize = 0;
-            }
+            // Per-column L1 penalties (factor_std) preserve the adaptive-LASSO
+            // objective when standardizing the reweighted design matrix.
 
             if (std::abs(optcontrol.displacement_normalization_factor - 1.0) > eps) {
                 if (verbosity > 0) {
-                    warn("optimize_main", "DNORM_BASIS != 1.0 should be avoided in adaptive LASSO.\n"
-                                          " Switch to DNORM_BASIS = 1.0.");
+                    warn("optimize_main",
+                         "DNORM_BASIS != 1.0 should be avoided in adaptive LASSO.\n"
+                         " Switch to DNORM_BASIS = 1.0.");
                 }
                 optcontrol.displacement_normalization_factor = 1.0;
             }
@@ -177,7 +332,7 @@ int Optimize::optimize_main(const Symmetry *symmetry,
 
         info_fitting = compressive_sensing(file_prefix,
                                            maxorder,
-                                           N_new,
+                                           nparams_irred,
                                            M,
                                            symmetry,
                                            str_order,
@@ -193,23 +348,25 @@ int Optimize::optimize_main(const Symmetry *symmetry,
         if (params) {
             deallocate(params);
         }
-        allocate(params, N);
-        for (auto i = 0; i < N; ++i) params[i] = fcs_tmp[i];
+        allocate(params, nparams);
+        for (auto i = 0; i < nparams; ++i) params[i] = fcs_tmp[i];
 
         // Set calculated force constants in FCS class
         auto maxorder_min = std::min(maxorder, output_maxorder);
-        fcs->set_forceconstant_cartesian(maxorder_min,
-                                         params);
+        fcs->set_forceconstant_cartesian(maxorder_min, params);
+    } else {
+        exit("optimize_main",
+             "Fitting failed. \n"
+             " Please check the input parameters and try other optimization algorithms.");
     }
 
     fcs_tmp.clear();
     fcs_tmp.shrink_to_fit();
 
     if (verbosity > 0) {
-        std::cout << std::endl;
+        std::cout << '\n';
         timer->print_elapsed();
-        std::cout << " -------------------------------------------------------------------" << std::endl;
-        std::cout << std::endl;
+        std::cout << " -------------------------------------------------------------------\n\n";
     }
 
     timer->stop_clock("optimize");
@@ -217,237 +374,211 @@ int Optimize::optimize_main(const Symmetry *symmetry,
     return info_fitting;
 }
 
-int Optimize::least_squares(const int maxorder,
-                            const size_t N,
-                            const size_t N_new,
-                            const size_t M,
-                            const int verbosity,
-                            const Symmetry *symmetry,
-                            const Fcs *fcs,
-                            const Constraint *constraint,
-                            std::vector<double> &param_out)
+auto Optimize::least_squares(const int maxorder, const size_t N, const size_t N_new, const size_t M,
+                             const int verbosity, const std::unique_ptr<Symmetry> &symmetry,
+                             const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Constraint> &constraint,
+                             std::vector<double> &param_out) const -> int
 {
     auto info_fitting = 0;
 
-    if (constraint->get_constraint_algebraic()) {
+    const bool sparse = optcontrol.use_sparse_solver;
+    const bool compact = (constraint->get_constraint_algebraic() == 1);
+    const bool return_ata = (optcontrol.use_cholesky == 1);
 
-        // Apply constraints algebraically. (ICONST = 2, 3 is not supported.)
-        // SPARSE = 1 is used only when the constraints are considered algebraically.
-        // Calculate matrix elements for fitting
+    auto matrix_out = std::make_unique<SensingMatrix>();
 
-        double fnorm;
-        const auto nrows = get_number_of_rows_sensing_matrix();
-        const unsigned long ncols = static_cast<long>(N_new);
+    if (return_ata && (!compact) && constraint->get_exist_constraint()) {
+        exit("least_squares",
+             "The combination of ICONST=1, 2, 3 and USE_CHOLESKY=1 is not supported.\n"
+             " Please use ICONST=10, 11, 12 instead.");
+    }
 
-        if (optcontrol.use_sparse_solver) {
+    LOG_IF(verbosity, 1, " compact= ", compact, '\n');
+    LOG_IF(verbosity, 1, " sparse = ", sparse, '\n');
+    LOG_IF(verbosity, 1, " return_ata = ", return_ata, "\n\n");
 
-            // Use a solver for sparse matrix
-            // (Requires less memory for sparse inputs.)
+    get_matrix_elements_unified(maxorder,
+                                matrix_out,
+                                u_train,
+                                f_train,
+                                symmetry,
+                                fcs,
+                                constraint,
+                                compact,
+                                sparse,
+                                return_ata,
+                                (verbosity > 0));
+    auto fnorm = 0.0;
+    for (const auto &it: matrix_out->original_forces) {
+        fnorm += it * it;
+    }
+    fnorm = std::sqrt(fnorm);
 
-            SpMat sp_amat(nrows, ncols);
-            Eigen::VectorXd sp_bvec(nrows);
+    LOG_IF(verbosity, 1, "Sensing matrix is generated.\n");
 
-            get_matrix_elements_in_sparse_form(maxorder,
-                                               sp_amat,
-                                               sp_bvec,
-                                               u_train,
-                                               f_train,
-                                               fnorm,
-                                               symmetry,
-                                               fcs,
-                                               constraint);
+    if (return_ata) {
+        if (sparse) {
+            const Eigen::VectorXd sp_bvec =
+                Eigen::Map<Eigen::VectorXd>(matrix_out->bvec.data(), matrix_out->bvec.size());
             if (verbosity > 0) {
-                std::cout << "  Now, start fitting ..." << std::endl;
+                std::cout << "  Now, start fitting ...\n";
             }
 
-            info_fitting = run_eigen_sparse_solver(sp_amat,
-                                                   sp_bvec,
-                                                   param_out,
-                                                   fnorm,
-                                                   maxorder,
-                                                   fcs,
-                                                   constraint,
-                                                   optcontrol.sparsesolver,
-                                                   verbosity);
+            // amat_sparse already holds the normal matrix A^T A (symmetric positive (semi)definite);
+            // bvec is A^T b. Solve the normal equations with a sparse Cholesky factorization.
+            Eigen::VectorXd x;
+#ifdef USE_SUITESPARSE_BACKEND
+            // CHOLMOD supernodal Cholesky is the fast path when A^T A is positive definite. If it
+            // fails (e.g. rank-deficient A^T A), fall back to Eigen's LDLT which tolerates semidefinite.
+            Eigen::CholmodSupernodalLLT<SpMat, Eigen::Lower> chol(matrix_out->amat_sparse);
+            if (chol.info() == Eigen::Success) {
+                x = chol.solve(sp_bvec);
+            }
+            if (chol.info() != Eigen::Success) {
+                LOG_IF(verbosity,
+                       1,
+                       "  CHOLMOD supernodal LLT failed on A^T A; falling back to Eigen SimplicialLDLT.\n");
+                const Eigen::SimplicialLDLT<SpMat> ldlt(matrix_out->amat_sparse);
+                x = ldlt.solve(sp_bvec);
+            }
+#else
+            const Eigen::SimplicialLDLT<SpMat> ldlt(matrix_out->amat_sparse);
+            x = ldlt.solve(sp_bvec);
+#endif
+
+            const auto nparams = x.size();
+            std::vector<double> param_irred(nparams);
+
+            for (auto i = 0; i < nparams; ++i) {
+                param_irred[i] = x(i);
+            }
+            if (compact) {
+                // Recover full reducible force constants
+                recover_original_forceconstants(maxorder, param_irred, param_out, fcs->get_nequiv(), constraint);
+            } else {
+                param_out = param_irred;
+            }
 
         } else {
-
-            if (optcontrol.use_cholesky) {
-
-                std::vector<double> ata_mat; // (A^T A)
-                std::vector<double> atb_vec; // (A^T b)
-
-                // Compute (A^T A) and (A^T b) by summation by parts.
-                get_matrix_elements_normal_equation(maxorder,
-                                                    ata_mat,
-                                                    atb_vec,
-                                                    u_train,
-                                                    f_train,
-                                                    fnorm,
-                                                    symmetry,
-                                                    fcs,
-                                                    constraint);
-
-                // Solve the normal equation using Cholesky decomposition
-                info_fitting
-                        = solve_normal_equation(N_new,
-                                                ata_mat.data(),
-                                                atb_vec.data(),
-                                                param_out,
-                                                fnorm,
-                                                maxorder,
-                                                fcs,
-                                                constraint,
-                                                verbosity, true);
-            } else {
-
-                // Use a direct solver for a dense matrix
-
-                std::vector<double> amat;
-                std::vector<double> bvec;
-
-                // Calculate the matrix elements of matrix A for fitting
-                amat.resize(nrows * ncols, 0.0);
-                bvec.resize(nrows, 0.0);
-
-                get_matrix_elements_algebraic_constraint(maxorder,
-                                                         amat,
-                                                         bvec,
-                                                         u_train,
-                                                         f_train,
-                                                         fnorm,
-                                                         symmetry,
-                                                         fcs,
-                                                         constraint);
-
-                // Perform singular value decomposition to solve
-                // min||Ax-b||^{2}_{2}
-                info_fitting
-                        = fit_algebraic_constraints(N_new,
-                                                    M,
-                                                    &amat[0],
-                                                    &bvec[0],
-                                                    param_out,
-                                                    fnorm,
-                                                    maxorder,
-                                                    fcs,
-                                                    constraint,
-                                                    verbosity);
-            }
+            // Solve the normal equation (A^T A)x=A^T b using dense datatype
+            // Cholesky decomposition
+            info_fitting = solve_normal_equation(matrix_out->bvec.size(),
+                                                 matrix_out->amat_dense.data(),
+                                                 matrix_out->bvec.data(),
+                                                 param_out,
+                                                 fnorm,
+                                                 maxorder,
+                                                 fcs,
+                                                 constraint,
+                                                 verbosity,
+                                                 compact);
         }
 
     } else {
 
-        // Apply constraints numerically (ICONST=2 is supported)
-
-        if (optcontrol.use_sparse_solver && verbosity > 0) {
-            std::cout << "  WARNING: SPARSE = 1 works only with ICONST = 10 or ICONST = 11." << std::endl;
-            std::cout << "  Use a solver for dense matrix." << std::endl;
-        }
-
-
-        if (constraint->get_exist_constraint()) {
-
-            std::vector<double> amat;
-            std::vector<double> bvec;
-
-            get_matrix_elements(maxorder,
-                                amat,
-                                bvec,
-                                u_train,
-                                f_train,
-                                symmetry,
-                                fcs);
-
-            // Perform fitting with SVD or QRD
-
-            assert(!amat.empty());
-            assert(!bvec.empty());
-
-            info_fitting
-                    = fit_with_constraints(N,
-                                           M,
-                                           constraint->get_number_of_constraints(),
-                                           &amat[0],
-                                           &bvec[0],
-                                           &param_out[0],
-                                           constraint->get_const_mat(),
-                                           constraint->get_const_rhs(),
-                                           verbosity);
-        } else {
-
-            if (optcontrol.use_cholesky) {
-
-                std::vector<double> ata_mat; // (A^T A)
-                std::vector<double> atb_vec; // (A^T b)
-
-                // Compute (A^T A) and (A^T b) by summation by parts.
-                get_matrix_elements_normal_equation(maxorder,
-                                                    ata_mat,
-                                                    atb_vec,
-                                                    u_train,
-                                                    f_train,
-                                                    symmetry,
-                                                    fcs);
-
-                double fnorm = 0.0;
-                // Solve the normal equation using Cholesky decomposition
-                info_fitting
-                        = solve_normal_equation(N,
-                                                ata_mat.data(),
-                                                atb_vec.data(),
-                                                param_out,
-                                                fnorm,
-                                                maxorder,
-                                                fcs,
-                                                constraint,
-                                                verbosity, false);
-
-
-            } else {
-
-                std::vector<double> amat;
-                std::vector<double> bvec;
-
-                get_matrix_elements(maxorder,
-                                    amat,
-                                    bvec,
-                                    u_train,
-                                    f_train,
-                                    symmetry,
-                                    fcs);
-
-                // Perform fitting with SVD or QRD
-
-                assert(!amat.empty());
-                assert(!bvec.empty());
-
-                info_fitting
-                        = fit_without_constraints(N,
-                                                  M,
-                                                  &amat[0],
-                                                  &bvec[0],
-                                                  &param_out[0],
-                                                  verbosity);
+        if (sparse) {
+            Eigen::VectorXd sp_bvec = Eigen::Map<Eigen::VectorXd>(matrix_out->bvec.data(), matrix_out->bvec.size());
+            if (verbosity > 0) {
+                std::cout << "  Now, start fitting ...\n";
             }
 
+            if (compact) {
+                info_fitting = run_eigen_sparse_solver(matrix_out->amat_sparse,
+                                                       sp_bvec,
+                                                       param_out,
+                                                       fnorm,
+                                                       maxorder,
+                                                       fcs,
+                                                       constraint,
+                                                       optcontrol.sparsesolver,
+                                                       verbosity);
+            } else {
+                Eigen::VectorXd x, lambda;
+
+                solveGQRSparse(matrix_out->amat_sparse,
+                               sp_bvec,
+                               constraint->get_const_mat_sparse(),
+                               constraint->get_const_rhs_vec(),
+                               x,
+                               lambda,
+                               verbosity,
+                               optcontrol.sparsesolver,
+                               optcontrol.tolerance_iteration,
+                               optcontrol.maxnum_iteration);
+
+                auto res = sp_bvec - matrix_out->amat_sparse * x;
+                const auto res2norm = res.squaredNorm();
+                const auto nparams = x.size();
+                std::vector<double> param_irred(nparams);
+
+                for (auto i = 0; i < nparams; ++i) {
+                    param_irred[i] = x(i);
+                }
+
+                // Recover reducible set of force constants
+
+                if (constraint->get_constraint_algebraic()) {
+                    recover_original_forceconstants(maxorder, param_irred, param_out, fcs->get_nequiv(), constraint);
+                } else {
+                    param_out.resize(nparams, 0.0);
+                    for (size_t i = 0; i < nparams; ++i) {
+                        param_out[i] = param_irred[i];
+                    }
+                }
+
+                if (verbosity > 0) {
+                    std::cout << "  Residual sum of squares for the solution: " << sqrt(res2norm) << '\n';
+                    std::cout << "  Fitting error (%) : " << sqrt(res2norm / (fnorm * fnorm)) * 100.0 << '\n';
+                }
+            }
+
+        } else {
+            // Use a direct solver for a dense matrix
+
+            if (compact) {
+                // Perform singular value decomposition to solve
+                // min||Ax-b||^{2}_{2}
+                info_fitting = fit_algebraic_constraints(N_new,
+                                                         M,
+                                                         matrix_out->amat_dense.data(),
+                                                         matrix_out->bvec.data(),
+                                                         param_out,
+                                                         fnorm,
+                                                         maxorder,
+                                                         fcs,
+                                                         constraint,
+                                                         verbosity);
+            } else if (constraint->get_exist_constraint()) {
+
+                info_fitting = least_squares_with_constraints_gqr(N,
+                                                                  M,
+                                                                  constraint->get_number_of_constraints(),
+                                                                  matrix_out->amat_dense.data(),
+                                                                  matrix_out->bvec.data(),
+                                                                  param_out.data(),
+                                                                  constraint->get_const_mat(),
+                                                                  constraint->get_const_rhs(),
+                                                                  verbosity);
+            } else {
+                // Perform fitting with SVD
+                info_fitting = least_squares_svd(N,
+                                                 M,
+                                                 matrix_out->amat_dense.data(),
+                                                 matrix_out->bvec.data(),
+                                                 param_out.data(),
+                                                 verbosity);
+            }
         }
     }
-
     return info_fitting;
 }
 
 
-int Optimize::compressive_sensing(const std::string job_prefix,
-                                  const int maxorder,
-                                  const size_t N_new,
-                                  const size_t M,
-                                  const Symmetry *symmetry,
-                                  const std::vector<std::string> &str_order,
-                                  const Fcs *fcs,
-                                  Constraint *constraint,
-                                  const int verbosity,
-                                  std::vector<double> &param_out)
+auto Optimize::compressive_sensing(const std::string &job_prefix, const int maxorder, const size_t N_new,
+                                   const size_t M, const std::unique_ptr<Symmetry> &symmetry,
+                                   const std::vector<std::string> &str_order, const std::unique_ptr<Fcs> &fcs,
+                                   std::unique_ptr<Constraint> &constraint, const int verbosity,
+                                   std::vector<double> &param_out) -> int
 {
     // Perform compressive sensing analysis of the linear model either based on
     // the elastic net or adaptive lasso.
@@ -458,10 +589,8 @@ int Optimize::compressive_sensing(const std::string job_prefix,
 
     // Scale displacements if DNORM != 1.0 and the data is not standardized.
     // This rule is not applied when the adaptive lasso is selected.
-    const int scale_displacement
-            = std::abs(optcontrol.displacement_normalization_factor - 1.0) > eps
-              && (optcontrol.standardize == 0)
-              && (optcontrol.linear_model == 2);
+    const int scale_displacement = std::abs(optcontrol.displacement_normalization_factor - 1.0) > eps &&
+                                   (optcontrol.standardize == 0) && (optcontrol.linear_model == 2);
 
     if (optcontrol.cross_validation == 0) {
 
@@ -470,14 +599,7 @@ int Optimize::compressive_sensing(const std::string job_prefix,
         }
 
         // Optimize with a given L1 coefficient (l1_alpha)
-        optimize_with_given_l1alpha(maxorder,
-                                    M,
-                                    N_new,
-                                    fcs,
-                                    symmetry,
-                                    constraint,
-                                    verbosity,
-                                    param_tmp);
+        optimize_with_given_l1alpha(maxorder, M, N_new, fcs, symmetry, constraint, verbosity, param_tmp);
 
         if (verbosity > 0) {
             size_t iparam = 0;
@@ -493,27 +615,20 @@ int Optimize::compressive_sensing(const std::string job_prefix,
             }
 
             for (auto order = 0; order < maxorder; ++order) {
-                std::cout << "  Number of non-zero " << std::setw(9) << str_order[order] << " FCs : "
-                          << constraint->get_index_bimap(order).size() - nzero_cs[order] << std::endl;
+                std::cout << "  Number of non-zero " << std::setw(9) << str_order[order]
+                          << " FCs : " << constraint->get_index_bimap(order).size() - nzero_cs[order] << '\n';
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
 
         // Scale back force constants
 
         if (scale_displacement) {
-            apply_scaler_force_constants(maxorder,
-                                         optcontrol.displacement_normalization_factor,
-                                         constraint,
-                                         param_tmp);
+            apply_scaler_force_constants(maxorder, optcontrol.displacement_normalization_factor, constraint, param_tmp);
             finalize_scalers(maxorder, constraint);
         }
 
-        recover_original_forceconstants(maxorder,
-                                        param_tmp,
-                                        param_out,
-                                        fcs->get_nequiv(),
-                                        constraint);
+        recover_original_forceconstants(maxorder, param_tmp, param_out, fcs->get_nequiv(), constraint);
         info_fitting = 0;
 
     } else {
@@ -524,29 +639,21 @@ int Optimize::compressive_sensing(const std::string job_prefix,
         }
 
         // cv_l1_alpha is a private variable of Optimize class.
-        cv_l1_alpha = crossvalidation(job_prefix,
-                                      maxorder,
-                                      fcs,
-                                      symmetry,
-                                      constraint,
-                                      verbosity);
+        cv_l1_alpha = crossvalidation(job_prefix, maxorder, fcs, symmetry, constraint, verbosity);
         if (scale_displacement) {
             finalize_scalers(maxorder, constraint);
         }
 
-        info_fitting = 1;
+        info_fitting = 0;
     }
 
     return info_fitting;
 }
 
 
-double Optimize::crossvalidation(const std::string job_prefix,
-                                 const int maxorder,
-                                 const Fcs *fcs,
-                                 const Symmetry *symmetry,
-                                 const Constraint *constraint,
-                                 const int verbosity)
+auto Optimize::crossvalidation(const std::string &job_prefix, const int maxorder, const std::unique_ptr<Fcs> &fcs,
+                               const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Constraint> &constraint,
+                               const int verbosity) -> double
 {
     // Cross-validation mode:
     // Returns alpha giving minimum CV score
@@ -561,16 +668,18 @@ double Optimize::crossvalidation(const std::string job_prefix,
         if (optcontrol.l1_alpha_min > 0) {
             std::cout << "   CV_MINALPHA = " << std::setw(15) << optcontrol.l1_alpha_min;
         } else {
-            std::cout << "   CV_MINALPHA = CV_MAXALPHA*1e-6 ";
+            std::cout << "   CV_MINALPHA = CV_MAXALPHA * CV_MINALPHA_RATIO (" << std::setw(10)
+                      << optcontrol.l1_alpha_min_ratio << ")";
         }
         if (optcontrol.l1_alpha_max > 0) {
             std::cout << "  CV_MAXALPHA = " << std::setw(15) << optcontrol.l1_alpha_max << '\n';
         } else {
-            std::cout << " CV_MAXALPHA = (Use recommended value)" << '\n';
+            std::cout << " CV_MAXALPHA = (Use recommended value)\n";
         }
         std::cout << "   CV_NALPHA = " << std::setw(5) << optcontrol.num_l1_alpha << '\n';
         std::cout << "   CONV_TOL = " << std::setw(15) << optcontrol.tolerance_iteration << '\n';
         std::cout << "   MAXITER = " << std::setw(5) << optcontrol.maxnum_iteration << '\n';
+        std::cout << "   L1_SOLVER = " << get_l1_solver_name() << '\n';
         std::cout << "   STOP_CRITERION = " << std::setw(5) << optcontrol.stop_criterion << '\n';
         std::cout << "   ENET_DNORM = " << std::setw(15) << optcontrol.displacement_normalization_factor << '\n';
         std::cout << '\n';
@@ -591,8 +700,7 @@ double Optimize::crossvalidation(const std::string job_prefix,
         } else if (optcontrol.cross_validation > 0) {
             std::cout << "  CV > 0: Automatic CV mode.\n";
         } else {
-            exit("crossvalidation",
-                 "This cannot happen.");
+            exit("crossvalidation", "This cannot happen.");
         }
         std::cout << '\n';
     }
@@ -600,34 +708,40 @@ double Optimize::crossvalidation(const std::string job_prefix,
 
     // Returns alpha at minimum CV
     if (optcontrol.cross_validation == -1) {
-        return run_manual_cv(job_prefix,
-                             maxorder,
-                             fcs,
-                             symmetry,
-                             constraint,
-                             verbosity);
+        return run_manual_cv(job_prefix, maxorder, fcs, symmetry, constraint, verbosity);
     } else {
-        return run_auto_cv(job_prefix,
-                           maxorder,
-                           fcs,
-                           symmetry,
-                           constraint,
-                           verbosity);
+        return run_auto_cv(job_prefix, maxorder, fcs, symmetry, constraint, verbosity);
     }
 }
 
-double Optimize::run_manual_cv(const std::string job_prefix,
-                               const int maxorder,
-                               const Fcs *fcs,
-                               const Symmetry *symmetry,
-                               const Constraint *constraint,
-                               const int verbosity)
+// Stack a (row-major n x N_new) energy block and its target onto (A, b) in place.
+static void append_energy_block(Eigen::MatrixXd &A, Eigen::VectorXd &b, const std::vector<double> &amat_e,
+                                const std::vector<double> &evec_e, const size_t N_new)
+{
+    const size_t n = evec_e.size();
+    if (n == 0) return;
+    if (amat_e.size() != n * N_new || static_cast<size_t>(A.cols()) != N_new) {
+        exit("append_energy_block", "Energy block size is inconsistent with the design matrix.");
+    }
+    const size_t m0 = A.rows();
+    Eigen::MatrixXd A2(m0 + n, N_new);
+    A2.topRows(m0) = A;
+    for (size_t c = 0; c < n; ++c)
+        for (size_t q = 0; q < N_new; ++q) A2(m0 + c, q) = amat_e[c * N_new + q];
+    Eigen::VectorXd b2(m0 + n);
+    b2.head(m0) = b;
+    for (size_t c = 0; c < n; ++c) b2(m0 + c) = evec_e[c];
+    A.swap(A2);
+    b.swap(b2);
+}
+
+auto Optimize::run_manual_cv(const std::string &job_prefix, const int maxorder, const std::unique_ptr<Fcs> &fcs,
+                             const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Constraint> &constraint,
+                             const int verbosity) const -> double
 {
     // Manual CV mode where the test data is read from the user-defined file.
     // Indeed, the test data is already read in the input_parser and stored in u_validation and f_validation.
 
-    std::vector<double> amat_1D, amat_1D_validation;
-    std::vector<double> bvec, bvec_validation;
     std::vector<double> alphas, training_error, validation_error;
     std::vector<std::vector<int>> nonzeros;
     double fnorm, fnorm_validation;
@@ -639,31 +753,100 @@ double Optimize::run_manual_cv(const std::string job_prefix,
         }
     }
 
-    get_matrix_elements_algebraic_constraint(maxorder,
-                                             amat_1D,
-                                             bvec,
-                                             u_train,
-                                             f_train,
-                                             fnorm,
-                                             symmetry,
-                                             fcs,
-                                             constraint);
+    std::unique_ptr<SensingMatrix> matrix_train = std::make_unique<SensingMatrix>();
+    std::unique_ptr<SensingMatrix> matrix_validation = std::make_unique<SensingMatrix>();
 
-    get_matrix_elements_algebraic_constraint(maxorder,
-                                             amat_1D_validation,
-                                             bvec_validation,
-                                             u_validation,
-                                             f_validation,
-                                             fnorm_validation,
-                                             symmetry,
-                                             fcs,
-                                             constraint);
+    get_matrix_elements_unified(maxorder,
+                                matrix_train,
+                                u_train,
+                                f_train,
+                                symmetry,
+                                fcs,
+                                constraint,
+                                true,
+                                false,
+                                false);
 
-    Eigen::MatrixXd A = Eigen::Map<Eigen::MatrixXd>(&amat_1D[0], amat_1D.size() / N_new, N_new);
-    Eigen::VectorXd b = Eigen::Map<Eigen::VectorXd>(&bvec[0], bvec.size());
-    Eigen::MatrixXd A_validation = Eigen::Map<Eigen::MatrixXd>(&amat_1D_validation[0],
-                                                               amat_1D_validation.size() / N_new, N_new);
-    Eigen::VectorXd b_validation = Eigen::Map<Eigen::VectorXd>(&bvec_validation[0], bvec_validation.size());
+    get_matrix_elements_unified(maxorder,
+                                matrix_validation,
+                                u_validation,
+                                f_validation,
+                                symmetry,
+                                fcs,
+                                constraint,
+                                true,
+                                false,
+                                false);
+
+    Eigen::MatrixXd A =
+        Eigen::Map<Eigen::MatrixXd>(matrix_train->amat_dense.data(), matrix_train->amat_dense.size() / N_new, N_new);
+    Eigen::VectorXd b = Eigen::Map<Eigen::VectorXd>(matrix_train->bvec.data(), matrix_train->bvec.size());
+    Eigen::MatrixXd A_validation = Eigen::Map<Eigen::MatrixXd>(matrix_validation->amat_dense.data(),
+                                                               matrix_validation->amat_dense.size() / N_new,
+                                                               N_new);
+    Eigen::VectorXd b_validation =
+        Eigen::Map<Eigen::VectorXd>(matrix_validation->bvec.data(), matrix_validation->bvec.size());
+
+    fnorm = 0.0;
+    for (const auto &it: matrix_train->original_forces) {
+        fnorm += it * it;
+    }
+    fnorm = std::sqrt(fnorm);
+
+    fnorm_validation = 0.0;
+    for (const auto &it: matrix_validation->original_forces) {
+        fnorm_validation += it * it;
+    }
+    fnorm_validation = std::sqrt(fnorm_validation);
+
+    // EFIT_CV adds centered, weighted energy rows to training and validation.
+    // Select alpha by the combined residual normalized by sqrt(fnorm^2 + enorm^2);
+    // retain force-row counts and norms for separate component errors.
+    const bool efit_in_cv = (optcontrol.efit_weight > 0.0 && optcontrol.efit_cv);
+    size_t nrow_force_train = 0, nrow_force_val = 0;
+    double fnorm_force_train = 0.0, fnorm_force_val = 0.0, enorm_train_cv = 0.0, enorm_val_cv = 0.0;
+    if (efit_in_cv) {
+        if (!constraint->get_constraint_algebraic())
+            exit("run_manual_cv", "EFIT_CV requires an algebraic constraint (ICONST >= 10).");
+        if (e_train.empty() || e_validation.empty())
+            exit("run_manual_cv", "EFIT_CV is set but training/validation reference energies were not read.");
+        nrow_force_train = A.rows();
+        nrow_force_val = A_validation.rows();
+        fnorm_force_train = fnorm;
+        fnorm_force_val = fnorm_validation;
+        double emin = e_train[0];
+        for (const auto v: e_train) emin = std::min(emin, v);
+        std::vector<double> amat_e, evec_e, amat_e_val, evec_e_val;
+        build_energy_block(symmetry,
+                           fcs,
+                           constraint,
+                           maxorder,
+                           N_new,
+                           u_train,
+                           e_train,
+                           emin,
+                           amat_e,
+                           evec_e,
+                           enorm_train_cv);
+        build_energy_block(symmetry,
+                           fcs,
+                           constraint,
+                           maxorder,
+                           N_new,
+                           u_validation,
+                           e_validation,
+                           emin,
+                           amat_e_val,
+                           evec_e_val,
+                           enorm_val_cv);
+        append_energy_block(A, b, amat_e, evec_e, N_new);
+        append_energy_block(A_validation, b_validation, amat_e_val, evec_e_val, N_new);
+        fnorm = std::sqrt(fnorm * fnorm + enorm_train_cv * enorm_train_cv);
+        fnorm_validation = std::sqrt(fnorm_validation * fnorm_validation + enorm_val_cv * enorm_val_cv);
+        if (verbosity > 0)
+            std::cout << "  EFIT_CV: energy term included in CV; errors are combined "
+                         "(force + w*energy) relative residuals.\n";
+    }
 
     if (optcontrol.linear_model == 3) {
         // Merge training and validation sets and run OLS once to get the weight in adalasso.
@@ -672,8 +855,16 @@ double Optimize::run_manual_cv(const std::string job_prefix,
         A_merged << A, A_validation;
         b_merged << b, b_validation;
 
-        Eigen::VectorXd x_ols = A_merged.colPivHouseholderQr().solve(b_merged);
-        Eigen::VectorXd weight_adalasso = x_ols.cwiseAbs();
+        // Adaptive-LASSO weights from the OLS fit (stops if it is rank-deficient).
+        Eigen::VectorXd weight_adalasso = compute_adalasso_weights(A_merged,
+                                                                   b_merged,
+                                                                   N_new,
+                                                                   "optimize_main",
+                                                                   "Adaptive lasso failed",
+                                                                   "",
+                                                                   verbosity,
+                                                                   false,
+                                                                   true);
 
         A = A * weight_adalasso.asDiagonal();
         A_validation = A_validation * weight_adalasso.asDiagonal();
@@ -682,55 +873,82 @@ double Optimize::run_manual_cv(const std::string job_prefix,
     const auto estimated_max_alpha = get_estimated_max_alpha(A, b);
 
     if (verbosity > 0) {
-        std::cout << "  Recommended CV_MAXALPHA = "
-                  << estimated_max_alpha
-                  << std::endl << std::endl;
+        std::cout << "  Recommended CV_MAXALPHA = " << estimated_max_alpha << "\n\n";
     }
 
     const auto file_coef = job_prefix + ".solution_path";
     const auto file_cv = job_prefix + ".cvset";
 
-    compute_alphas(optcontrol.l1_alpha_max,
-                   optcontrol.l1_alpha_min,
-                   optcontrol.num_l1_alpha,
-                   alphas);
+    if (optcontrol.l1_alpha_max > 0) {
+        compute_alphas(optcontrol.l1_alpha_max, optcontrol.l1_alpha_min, optcontrol.num_l1_alpha, alphas);
+    } else {
+        if (optcontrol.l1_alpha_min > 0) {
+            compute_alphas(estimated_max_alpha, optcontrol.l1_alpha_min, optcontrol.num_l1_alpha, alphas);
+        } else {
+            compute_alphas(estimated_max_alpha,
+                           estimated_max_alpha * optcontrol.l1_alpha_min_ratio,
+                           optcontrol.num_l1_alpha,
+                           alphas);
+        }
+    }
 
-    solution_path(maxorder, A, b, A_validation, b_validation,
-                  fnorm, fnorm_validation,
-                  file_coef, verbosity,
+    std::vector<double> terr_force, terr_energy, verr_force, verr_energy;
+    solution_path(maxorder,
+                  A,
+                  b,
+                  A_validation,
+                  b_validation,
+                  fnorm,
+                  fnorm_validation,
+                  file_coef,
+                  verbosity,
                   constraint,
                   alphas,
-                  training_error, validation_error, nonzeros);
+                  training_error,
+                  validation_error,
+                  nonzeros,
+                  nrow_force_train,
+                  nrow_force_val,
+                  fnorm_force_train,
+                  enorm_train_cv,
+                  fnorm_force_val,
+                  enorm_val_cv,
+                  efit_in_cv ? &terr_force : nullptr,
+                  efit_in_cv ? &terr_energy : nullptr,
+                  efit_in_cv ? &verr_force : nullptr,
+                  efit_in_cv ? &verr_energy : nullptr);
 
     write_cvresult_to_file(file_cv,
                            alphas,
                            training_error,
                            validation_error,
-                           nonzeros);
+                           nonzeros,
+                           efit_in_cv,
+                           terr_force,
+                           terr_energy,
+                           verr_force,
+                           verr_energy);
 
     const auto ialpha = get_ialpha_at_minimum_validation_error(validation_error);
 
     if (verbosity > 0) {
-        std::cout << "  The manual CV has been done." << std::endl;
-        std::cout << "  Minimum validation error at alpha = "
-                  << alphas[ialpha] << std::endl;
-        std::cout << "  The CV result is saved in " << file_cv << std::endl;
+        std::cout << "  The manual CV has been done.\n";
+        std::cout << "  Minimum validation error at alpha = " << alphas[ialpha] << '\n';
+        std::cout << "  The CV result is saved in " << file_cv << '\n';
 
         if (ialpha == optcontrol.num_l1_alpha - 1) {
-            warn("run_manual_cv", "The minimum validation score occurs at CV_MINALPHA.\n"
-                                  " Please use a smaller CV_MINALPHA to suppress this message.");
+            warn("run_manual_cv",
+                 "The minimum validation score occurs at CV_MINALPHA.\n"
+                 " Please use a smaller CV_MINALPHA or CV_MINALPHA_RATIO to suppress this message.");
         }
     }
 
     return alphas[ialpha];
 }
 
-double Optimize::run_auto_cv(const std::string job_prefix,
-                             const int maxorder,
-                             const Fcs *fcs,
-                             const Symmetry *symmetry,
-                             const Constraint *constraint,
-                             const int verbosity)
+auto Optimize::run_auto_cv(const std::string &job_prefix, const int maxorder, const std::unique_ptr<Fcs> &fcs,
+                           const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Constraint> &constraint,
+                           const int verbosity) -> double
 {
     // Automatic CV mode.
 
@@ -745,8 +963,7 @@ double Optimize::run_auto_cv(const std::string job_prefix,
     const auto nsets = optcontrol.cross_validation;
 
     if (nsets > nstructures) {
-        exit("run_auto_cv",
-             "The input CV is larger than the total number of training data.");
+        exit("run_auto_cv", "The input CV is larger than the total number of training data.");
     }
 
     std::vector<int> ndata_block(nsets, nstructures / nsets);
@@ -756,208 +973,360 @@ double Optimize::run_auto_cv(const std::string job_prefix,
         }
     }
 
-    std::vector<std::vector<double>> u_train_tmp, u_validation_tmp;
-    std::vector<std::vector<double>> f_train_tmp, f_validation_tmp;
-
-    std::vector<double> amat_1D, amat_1D_validation;
-    std::vector<double> bvec, bvec_validation;
-    std::vector<double> alphas, training_error, validation_error;
-    std::vector<std::vector<int>> nonzeros;
-    std::vector<std::vector<double>> training_error_accum, validation_error_accum;
-    double fnorm, fnorm_validation, estimated_max_alpha;
-    Eigen::VectorXd weight_adalasso;
-
-    auto ishift = 0;
-
-    if (verbosity > 0) {
-        std::cout << "  Start " << nsets << "-fold CV with "
-                  << u_train.size() << " Datasets" << std::endl;
-        std::cout << std::endl;
+    // EFIT_CV: include the energy term inside each CV fold. emin_energy (global training E_min)
+    // is the weight reference, kept identical across folds so the per-config weighting is consistent.
+    const bool fe_cv = (optcontrol.efit_weight > 0.0 && optcontrol.efit_cv);
+    double emin_energy = 0.0;
+    if (fe_cv) {
+        if (!constraint->get_constraint_algebraic())
+            exit("run_auto_cv", "EFIT_CV requires an algebraic constraint (ICONST >= 10).");
+        if (e_train.size() != nstructures)
+            exit("run_auto_cv", "EFIT_CV is set but the number of reference energies != training configs.");
+        emin_energy = e_train[0];
+        for (const auto v: e_train) emin_energy = std::min(emin_energy, v);
+        if (verbosity > 0)
+            std::cout << "  EFIT_CV: energy term included in CV; CV errors are combined "
+                         "(force + w*energy) relative residuals.\n\n";
     }
 
-    if (optcontrol.linear_model == 3) {
-        get_matrix_elements_algebraic_constraint(maxorder,
-                                                 amat_1D,
-                                                 bvec,
-                                                 u_train,
-                                                 f_train,
-                                                 fnorm,
-                                                 symmetry,
-                                                 fcs,
-                                                 constraint);
+    std::vector<double> alphas;
+    std::vector<std::vector<double>> training_error_accum, validation_error_accum;
+    std::vector<std::vector<double>> terr_force_accum, terr_energy_accum, verr_force_accum, verr_energy_accum;
+    double estimated_max_alpha{0.0};
+    Eigen::VectorXd weight_adalasso;
 
-        Eigen::MatrixXd A_full = Eigen::Map<Eigen::MatrixXd>(&amat_1D[0], amat_1D.size() / N_new, N_new);
-        Eigen::VectorXd b_full = Eigen::Map<Eigen::VectorXd>(&bvec[0], bvec.size());
-        Eigen::VectorXd x_ols = A_full.colPivHouseholderQr().solve(b_full);
-        weight_adalasso = x_ols.cwiseAbs();
+    if (verbosity > 0) {
+        std::cout << "  Start " << nsets << "-fold CV with " << u_train.size() << " Datasets\n\n";
+    }
+
+    // Build the force rows of all configurations once. Each configuration owns a contiguous,
+    // independently computed block of rows, so every fold's training/validation system is a row
+    // slice of this matrix (bitwise identical to building it from the fold's data).
+    Eigen::MatrixXd A_all;
+    Eigen::VectorXd b_all, forces_all;
+    {
+        auto matrix_all = std::make_unique<SensingMatrix>();
+        get_matrix_elements_unified(maxorder,
+                                    matrix_all,
+                                    u_train,
+                                    f_train,
+                                    symmetry,
+                                    fcs,
+                                    constraint,
+                                    true,
+                                    false,
+                                    false);
+        A_all =
+            Eigen::Map<Eigen::MatrixXd>(matrix_all->amat_dense.data(), matrix_all->amat_dense.size() / N_new, N_new);
+        b_all = Eigen::Map<Eigen::VectorXd>(matrix_all->bvec.data(), matrix_all->bvec.size());
+        forces_all =
+            Eigen::Map<Eigen::VectorXd>(matrix_all->original_forces.data(), matrix_all->original_forces.size());
+    }
+    const auto nrow_per_data = static_cast<Eigen::Index>(u_train[0].size());
+
+    if (optcontrol.linear_model == 3) {
+        Eigen::MatrixXd A_full = A_all;
+        Eigen::VectorXd b_full = b_all;
+
+        // Include the energy rows in the OLS that defines the adaptive-LASSO weights (consistency
+        // with the augmented per-fold fits).
+        if (fe_cv) {
+            std::vector<double> amat_e, evec_e;
+            double enorm_full = 0.0;
+            build_energy_block(symmetry,
+                               fcs,
+                               constraint,
+                               maxorder,
+                               N_new,
+                               u_train,
+                               e_train,
+                               emin_energy,
+                               amat_e,
+                               evec_e,
+                               enorm_full);
+            append_energy_block(A_full, b_full, amat_e, evec_e, N_new);
+        }
+
+        // Adaptive-LASSO weights from the OLS fit (stops if it is rank-deficient).
+        weight_adalasso = compute_adalasso_weights(A_full,
+                                                   b_full,
+                                                   N_new,
+                                                   "optimize_main",
+                                                   "Adaptive lasso failed in CV",
+                                                   "",
+                                                   verbosity,
+                                                   false,
+                                                   false);
+    }
+
+    // Per-fold design matrices and results. Fold systems are assembled serially (slicing, energy
+    // rows, weights; may call exit()); the solution paths then run concurrently, one fold per
+    // thread. All printing and file output happens afterwards, in fold order.
+    struct CvFold
+    {
+        Eigen::MatrixXd A, A_validation;
+        Eigen::VectorXd b, b_validation;
+        double fnorm{0.0}, fnorm_validation{0.0}, fnorm_force_train{0.0}, fnorm_force_val{0.0};
+        double enorm_t{0.0}, enorm_v{0.0}, max_alpha{0.0};
+        size_t nrow_force_train{0}, nrow_force_val{0};
+        std::vector<double> training_error, validation_error, terr_force, terr_energy, verr_force, verr_energy;
+        std::vector<std::vector<int>> nonzeros;
+    };
+    std::vector<CvFold> folds(nsets);
+    std::vector<size_t> istart_validation(nsets, 0);
+    for (auto iset = 1; iset < nsets; ++iset) {
+        istart_validation[iset] = istart_validation[iset - 1] + ndata_block[iset - 1];
+    }
+
+    auto build_fold = [&](const int iset) {
+        auto &fold = folds[iset];
+        const auto istart = istart_validation[iset];
+        const auto iend = istart + ndata_block[iset];
+
+        // Row slices of the full system: training = rows before + after the held-out block.
+        const Eigen::Index r0 = static_cast<Eigen::Index>(istart) * nrow_per_data;
+        const Eigen::Index nval = static_cast<Eigen::Index>(ndata_block[iset]) * nrow_per_data;
+        const Eigen::Index ntail = A_all.rows() - r0 - nval;
+        fold.A.resize(r0 + ntail, N_new);
+        fold.A.topRows(r0) = A_all.topRows(r0);
+        fold.A.bottomRows(ntail) = A_all.bottomRows(ntail);
+        fold.b.resize(r0 + ntail);
+        fold.b.head(r0) = b_all.head(r0);
+        fold.b.tail(ntail) = b_all.tail(ntail);
+        fold.A_validation = A_all.middleRows(r0, nval);
+        fold.b_validation = b_all.segment(r0, nval);
+        double fn = 0.0; // accumulated in row order, as when the fold's matrix was built directly
+        for (Eigen::Index i = 0; i < r0; ++i) fn += forces_all(i) * forces_all(i);
+        for (Eigen::Index i = r0 + nval; i < forces_all.size(); ++i) fn += forces_all(i) * forces_all(i);
+        fold.fnorm = std::sqrt(fn);
+        fn = 0.0;
+        for (Eigen::Index i = r0; i < r0 + nval; ++i) fn += forces_all(i) * forces_all(i);
+        fold.fnorm_validation = std::sqrt(fn);
+
+        // Append this fold's energy rows to both train and held-out systems (combined-score CV).
+        // Capture the pre-augmentation force-row counts/norms so solution_path can also report the
+        // separate force and energy errors.
+        fold.nrow_force_train = fold.A.rows();
+        fold.nrow_force_val = fold.A_validation.rows();
+        fold.fnorm_force_train = fold.fnorm;
+        fold.fnorm_force_val = fold.fnorm_validation;
+        if (fe_cv) {
+            std::vector<std::vector<double>> u_train_tmp, u_validation_tmp;
+            std::vector<double> e_train_tmp, e_validation_tmp;
+            for (size_t idata = 0; idata < nstructures; ++idata) {
+                const bool held_out = idata >= istart && idata < iend;
+                (held_out ? u_validation_tmp : u_train_tmp).emplace_back(u_train[idata]);
+                (held_out ? e_validation_tmp : e_train_tmp).emplace_back(e_train[idata]);
+            }
+            std::vector<double> amat_e, evec_e, amat_e_val, evec_e_val;
+            build_energy_block(symmetry,
+                               fcs,
+                               constraint,
+                               maxorder,
+                               N_new,
+                               u_train_tmp,
+                               e_train_tmp,
+                               emin_energy,
+                               amat_e,
+                               evec_e,
+                               fold.enorm_t);
+            build_energy_block(symmetry,
+                               fcs,
+                               constraint,
+                               maxorder,
+                               N_new,
+                               u_validation_tmp,
+                               e_validation_tmp,
+                               emin_energy,
+                               amat_e_val,
+                               evec_e_val,
+                               fold.enorm_v);
+            append_energy_block(fold.A, fold.b, amat_e, evec_e, N_new);
+            append_energy_block(fold.A_validation, fold.b_validation, amat_e_val, evec_e_val, N_new);
+            fold.fnorm = std::sqrt(fold.fnorm * fold.fnorm + fold.enorm_t * fold.enorm_t);
+            fold.fnorm_validation =
+                std::sqrt(fold.fnorm_validation * fold.fnorm_validation + fold.enorm_v * fold.enorm_v);
+        }
+
+        if (optcontrol.linear_model == 3) {
+            fold.A = fold.A * weight_adalasso.asDiagonal();
+            fold.A_validation = fold.A_validation * weight_adalasso.asDiagonal();
+        }
+        if (fold.max_alpha == 0.0) fold.max_alpha = get_estimated_max_alpha(fold.A, fold.b); // once per fold
+    };
+    auto free_fold_matrices = [&](const int iset) {
+        auto &fold = folds[iset];
+        fold.A.resize(0, 0);
+        fold.A_validation.resize(0, 0);
+        fold.b.resize(0);
+        fold.b_validation.resize(0);
+    };
+
+    // Concurrent folds, capped by memory. Per fold: the train+validation design matrices (all rows)
+    // plus up to ~3 N x N solver work arrays (Gram / ADMM factorization), on top of the shared full
+    // matrix. Budget: half of physical RAM.
+    // ponytail: static estimate, not a live free-memory query.
+    const double nrows_all =
+        static_cast<double>(nstructures) * static_cast<double>(u_train[0].size() + (fe_cv ? 1 : 0));
+    const double bytes_matrices = 8.0 * nrows_all * static_cast<double>(N_new);
+    const double bytes_solver = 8.0 * 3.0 * static_cast<double>(N_new) * static_cast<double>(N_new);
+    const long phys_pages = sysconf(_SC_PHYS_PAGES);
+    const long page_size = sysconf(_SC_PAGE_SIZE);
+    const double bytes_budget =
+        (phys_pages > 0 && page_size > 0)
+            ? 0.5 * static_cast<double>(phys_pages) * static_cast<double>(page_size) - bytes_matrices
+            : 0.0;
+    int nconc = std::min<int>(nsets, omp_get_max_threads());
+    // Verbose solver diagnostics (verbosity > 1) are printed live, so keep folds serial then.
+    if (verbosity > 1) nconc = 1;
+    const double nfit = bytes_budget / (bytes_matrices + bytes_solver);
+    if (nfit < static_cast<double>(nconc)) nconc = static_cast<int>(std::max(1.0, nfit));
+
+    if (verbosity > 0) {
+        std::cout << "  CV folds solved concurrently: " << nconc << " (est. "
+                  << static_cast<long>((bytes_matrices + bytes_solver) / (1024.0 * 1024.0) + 0.5)
+                  << " MiB per fold)\n\n";
     }
 
     if (optcontrol.l1_alpha_max <= 0) {
         estimated_max_alpha = 0;
         for (auto iset = 0; iset < nsets; ++iset) {
-            const auto istart_validation = ishift;
-            const auto iend_validation = istart_validation + ndata_block[iset];
-
-            u_train_tmp.clear();
-            f_train_tmp.clear();
-            u_validation_tmp.clear();
-            f_validation_tmp.clear();
-
-            for (auto idata = 0; idata < nstructures; ++idata) {
-                if (idata >= istart_validation && idata < iend_validation) {
-                    u_validation_tmp.emplace_back(u_train[idata]);
-                    f_validation_tmp.emplace_back(f_train[idata]);
-                } else {
-                    u_train_tmp.emplace_back(u_train[idata]);
-                    f_train_tmp.emplace_back(f_train[idata]);
-                }
-            }
-            ishift += ndata_block[iset];
-
-            get_matrix_elements_algebraic_constraint(maxorder,
-                                                     amat_1D,
-                                                     bvec,
-                                                     u_train_tmp,
-                                                     f_train_tmp,
-                                                     fnorm,
-                                                     symmetry,
-                                                     fcs,
-                                                     constraint);
-
-            Eigen::MatrixXd A = Eigen::Map<Eigen::MatrixXd>(&amat_1D[0], amat_1D.size() / N_new, N_new);
-            Eigen::VectorXd b = Eigen::Map<Eigen::VectorXd>(&bvec[0], bvec.size());
-            if (optcontrol.linear_model == 3) A = A * weight_adalasso.asDiagonal();
-            const auto this_estimated_max_alpha = get_estimated_max_alpha(A, b);
+            build_fold(iset); // slicing is cheap: drop the matrices and re-slice before the solve
+            free_fold_matrices(iset);
 
             if (verbosity > 0) {
-                std::cout << "  Recommended CV_MAXALPHA (" << std::setw(3)
-                          << iset + 1 << ") = "
-                          << this_estimated_max_alpha << std::endl;
+                std::cout << "  Recommended CV_MAXALPHA (" << std::setw(3) << iset + 1
+                          << ") = " << folds[iset].max_alpha << '\n';
             }
-
-            if (this_estimated_max_alpha > estimated_max_alpha) {
-                estimated_max_alpha = this_estimated_max_alpha;
-            }
+            estimated_max_alpha = std::max(estimated_max_alpha, folds[iset].max_alpha);
         }
-        ishift = 0;
     }
 
-    for (auto iset = 0; iset < nsets; ++iset) {
-
-        if (verbosity > 0) {
-            std::cout << std::endl;
-            std::cout << "  SET : " << std::setw(3) << iset + 1 << std::endl;
-        }
-        const auto istart_validation = ishift;
-        const auto iend_validation = istart_validation + ndata_block[iset];
-
-        u_train_tmp.clear();
-        f_train_tmp.clear();
-        u_validation_tmp.clear();
-        f_validation_tmp.clear();
-
-        for (auto idata = 0; idata < nstructures; ++idata) {
-            if (idata >= istart_validation && idata < iend_validation) {
-                u_validation_tmp.emplace_back(u_train[idata]);
-                f_validation_tmp.emplace_back(f_train[idata]);
-            } else {
-                u_train_tmp.emplace_back(u_train[idata]);
-                f_train_tmp.emplace_back(f_train[idata]);
-            }
-        }
-        ishift += ndata_block[iset];
-
-        get_matrix_elements_algebraic_constraint(maxorder,
-                                                 amat_1D,
-                                                 bvec,
-                                                 u_train_tmp,
-                                                 f_train_tmp,
-                                                 fnorm,
-                                                 symmetry,
-                                                 fcs,
-                                                 constraint);
-
-        get_matrix_elements_algebraic_constraint(maxorder,
-                                                 amat_1D_validation,
-                                                 bvec_validation,
-                                                 u_validation_tmp,
-                                                 f_validation_tmp,
-                                                 fnorm_validation,
-                                                 symmetry,
-                                                 fcs,
-                                                 constraint);
-
-        Eigen::MatrixXd A = Eigen::Map<Eigen::MatrixXd>(&amat_1D[0], amat_1D.size() / N_new, N_new);
-        Eigen::VectorXd b = Eigen::Map<Eigen::VectorXd>(&bvec[0], bvec.size());
-        Eigen::MatrixXd A_validation = Eigen::Map<Eigen::MatrixXd>(&amat_1D_validation[0],
-                                                                   amat_1D_validation.size() / N_new, N_new);
-        Eigen::VectorXd b_validation = Eigen::Map<Eigen::VectorXd>(&bvec_validation[0], bvec_validation.size());
-
-        if (optcontrol.linear_model == 3) {
-            A = A * weight_adalasso.asDiagonal();
-            A_validation = A_validation * weight_adalasso.asDiagonal();
-        }
-
-        if (verbosity > 0) {
-            std::cout << "  Recommended CV_MAXALPHA = "
-                      << get_estimated_max_alpha(A, b)
-                      << std::endl << std::endl;
-        }
-
-        const auto file_coef = job_prefix + ".solution_path" + std::to_string(iset + 1);
-        const auto file_cv = job_prefix + ".cvset" + std::to_string(iset + 1);
-
-        if (optcontrol.l1_alpha_max > 0) {
-            compute_alphas(optcontrol.l1_alpha_max,
-                           optcontrol.l1_alpha_min,
+    if (optcontrol.l1_alpha_max > 0) {
+        compute_alphas(optcontrol.l1_alpha_max, optcontrol.l1_alpha_min, optcontrol.num_l1_alpha, alphas);
+    } else {
+        if (optcontrol.l1_alpha_min > 0) {
+            compute_alphas(estimated_max_alpha, optcontrol.l1_alpha_min, optcontrol.num_l1_alpha, alphas);
+        } else {
+            compute_alphas(estimated_max_alpha,
+                           estimated_max_alpha * optcontrol.l1_alpha_min_ratio,
                            optcontrol.num_l1_alpha,
                            alphas);
-        } else {
-            if (optcontrol.l1_alpha_min > 0) {
-                compute_alphas(estimated_max_alpha,
-                               optcontrol.l1_alpha_min,
-                               optcontrol.num_l1_alpha,
-                               alphas);
-            } else {
-                compute_alphas(estimated_max_alpha,
-                               estimated_max_alpha * 1e-6,
-                               optcontrol.num_l1_alpha,
-                               alphas);
-            }
         }
+    }
 
-        solution_path(maxorder, A, b, A_validation, b_validation,
-                      fnorm, fnorm_validation,
-                      file_coef, verbosity,
+    auto print_set_header = [&](const int iset) {
+        if (verbosity > 0) {
+            std::cout << '\n';
+            std::cout << "  SET : " << std::setw(3) << iset + 1 << '\n';
+            std::cout << "  Recommended CV_MAXALPHA = " << folds[iset].max_alpha << "\n\n";
+        }
+    };
+
+    auto solve_fold = [&](const int iset, const int verbosity_path) {
+        auto &fold = folds[iset];
+        const auto file_coef = job_prefix + ".solution_path" + std::to_string(iset + 1);
+        solution_path(maxorder,
+                      fold.A,
+                      fold.b,
+                      fold.A_validation,
+                      fold.b_validation,
+                      fold.fnorm,
+                      fold.fnorm_validation,
+                      file_coef,
+                      verbosity_path,
                       constraint,
                       alphas,
-                      training_error, validation_error, nonzeros);
+                      fold.training_error,
+                      fold.validation_error,
+                      fold.nonzeros,
+                      fold.nrow_force_train,
+                      fold.nrow_force_val,
+                      fold.fnorm_force_train,
+                      fold.enorm_t,
+                      fold.fnorm_force_val,
+                      fold.enorm_v,
+                      fe_cv ? &fold.terr_force : nullptr,
+                      fe_cv ? &fold.terr_energy : nullptr,
+                      fe_cv ? &fold.verr_force : nullptr,
+                      fe_cv ? &fold.verr_energy : nullptr);
+        free_fold_matrices(iset);
+    };
 
-        if (!job_prefix.empty()) {
-            write_cvresult_to_file(file_cv,
-                                   alphas,
-                                   training_error,
-                                   validation_error,
-                                   nonzeros);
+    for (auto iset0 = 0; iset0 < nsets; iset0 += nconc) {
+        const auto iset1 = std::min<int>(nsets, iset0 + nconc);
+        for (auto iset = iset0; iset < iset1; ++iset) build_fold(iset);
+
+        if (nconc == 1) {
+            // Serial: print live, exactly as before.
+            print_set_header(iset0);
+            solve_fold(iset0, verbosity);
+        } else {
+            // Concurrent: silent solves; the progress dots are replayed below in fold order.
+#pragma omp parallel for schedule(dynamic) num_threads(iset1 - iset0)
+            for (auto iset = iset0; iset < iset1; ++iset) {
+                solve_fold(iset, 0);
+            }
         }
 
-        if (verbosity > 0) {
-            auto ialpha = get_ialpha_at_minimum_validation_error(validation_error);
-            std::cout << "  SET " << std::setw(3) << iset + 1 << " has been finished.\n";
-            std::cout << "  Minimum validation error at alpha = " << alphas[ialpha] << '\n';
+        for (auto iset = iset0; iset < iset1; ++iset) {
+            auto &fold = folds[iset];
+            const auto nsolved = fold.validation_error.size();
+            if (nconc > 1) {
+                print_set_header(iset);
+                // Same progress output as solution_path with verbosity == 1.
+                if (verbosity == 1) {
+                    std::cout << std::setw(3);
+                    for (size_t ialpha = 0; ialpha < nsolved; ++ialpha) {
+                        std::cout << '.';
+                        if (ialpha % 25 == 24) std::cout << '\n' << std::setw(3);
+                    }
+                    std::cout << '\n';
+                    if (alphas.size() > nsolved) {
+                        std::cout << "  STOP_CRITERION is satisfied: The solution path calculation has stopped.\n";
+                    }
+                }
+            }
+
+            const auto file_cv = job_prefix + ".cvset" + std::to_string(iset + 1);
             if (!job_prefix.empty()) {
-                std::cout << "  The CV result is saved in " << file_cv << "\n\n";
+                write_cvresult_to_file(file_cv,
+                                       alphas,
+                                       fold.training_error,
+                                       fold.validation_error,
+                                       fold.nonzeros,
+                                       fe_cv,
+                                       fold.terr_force,
+                                       fold.terr_energy,
+                                       fold.verr_force,
+                                       fold.verr_energy);
             }
 
-            if (ialpha == optcontrol.num_l1_alpha - 1) {
-                warn("run_auto_cv", "The minimum validation score occurs at CV_MINALPHA.\n"
-                                    " Please use a smaller CV_MINALPHA to suppress this message.");
+            if (verbosity > 0) {
+                auto ialpha = get_ialpha_at_minimum_validation_error(fold.validation_error);
+                std::cout << "  SET " << std::setw(3) << iset + 1 << " has been finished.\n";
+                std::cout << "  Minimum validation error at alpha = " << alphas[ialpha] << '\n';
+                if (!job_prefix.empty()) {
+                    std::cout << "  The CV result is saved in " << file_cv << "\n\n";
+                }
+
+                if (ialpha == optcontrol.num_l1_alpha - 1) {
+                    warn("run_auto_cv",
+                         "The minimum validation score occurs at CV_MINALPHA.\n"
+                         " Please use a smaller CV_MINALPHA to suppress this message.");
+                }
+                std::cout << "  ---------------------------------------------------\n";
             }
-            std::cout << "  ---------------------------------------------------\n";
+
+            training_error_accum.emplace_back(fold.training_error);
+            validation_error_accum.emplace_back(fold.validation_error);
+            if (fe_cv) {
+                terr_force_accum.emplace_back(fold.terr_force);
+                terr_energy_accum.emplace_back(fold.terr_energy);
+                verr_force_accum.emplace_back(fold.verr_force);
+                verr_energy_accum.emplace_back(fold.verr_energy);
+            }
         }
-
-        training_error_accum.emplace_back(training_error);
-        validation_error_accum.emplace_back(validation_error);
     }
 
     std::vector<double> terr_mean, terr_std;
@@ -970,8 +1339,22 @@ double Optimize::run_auto_cv(const std::string job_prefix,
     verr_mean.resize(nalphas);
     verr_std.resize(nalphas);
 
-    set_errors_of_cvscore(terr_mean, terr_std, verr_mean, verr_std,
-                          training_error_accum, validation_error_accum);
+    set_errors_of_cvscore(terr_mean, terr_std, verr_mean, verr_std, training_error_accum, validation_error_accum);
+
+    // Per-fold averages of the separate force and energy errors (for the extra cvscore columns).
+    std::vector<double> tf_mean, tf_std, te_mean, te_std, vf_mean, vf_std, ve_mean, ve_std;
+    if (fe_cv) {
+        tf_mean.resize(nalphas);
+        tf_std.resize(nalphas);
+        te_mean.resize(nalphas);
+        te_std.resize(nalphas);
+        vf_mean.resize(nalphas);
+        vf_std.resize(nalphas);
+        ve_mean.resize(nalphas);
+        ve_std.resize(nalphas);
+        set_errors_of_cvscore(tf_mean, tf_std, vf_mean, vf_std, terr_force_accum, verr_force_accum);
+        set_errors_of_cvscore(te_mean, te_std, ve_mean, ve_std, terr_energy_accum, verr_energy_accum);
+    }
     const auto ialpha_minimum = get_ialpha_at_minimum_validation_error(verr_mean);
 
     if (!job_prefix.empty()) {
@@ -983,12 +1366,27 @@ double Optimize::run_auto_cv(const std::string job_prefix,
                               verr_mean,
                               verr_std,
                               ialpha_minimum,
-                              nsets);
+                              nsets,
+                              fe_cv,
+                              tf_mean,
+                              tf_std,
+                              te_mean,
+                              te_std,
+                              vf_mean,
+                              vf_std,
+                              ve_mean,
+                              ve_std);
 
         if (verbosity > 0) {
             std::cout << " Average and standard deviation of the CV error are\n";
             std::cout << " saved in " << file_cvscore << '\n';
             std::cout << " Minimum CVSCORE at alpha = " << alphas[ialpha_minimum] << "\n\n";
+
+            if (ialpha_minimum == optcontrol.num_l1_alpha - 1) {
+                warn("run_auto_cv",
+                     "The minimum CVSCORE occurs at CV_MINALPHA.\n"
+                     " It is highly recommended to use CV_MINALPHA or CV_MINALPHA_RATIO.");
+            }
         }
     }
 
@@ -996,58 +1394,87 @@ double Optimize::run_auto_cv(const std::string job_prefix,
 }
 
 
-void Optimize::write_cvresult_to_file(const std::string file_out,
-                                      const std::vector<double> &alphas,
+auto Optimize::write_cvresult_to_file(const std::string &file_out, const std::vector<double> &alphas,
                                       const std::vector<double> &training_error,
                                       const std::vector<double> &validation_error,
-                                      const std::vector<std::vector<int>> &nonzeros) const
+                                      const std::vector<std::vector<int>> &nonzeros, const bool with_components,
+                                      const std::vector<double> &terr_force, const std::vector<double> &terr_energy,
+                                      const std::vector<double> &verr_force,
+                                      const std::vector<double> &verr_energy) const -> void
 {
     std::vector<std::string> str_linearmodel{"Elastic-net", "Adaptive LASSO"};
     std::ofstream ofs_cv;
     ofs_cv.open(file_out.c_str(), std::ios::out);
-    ofs_cv << "# Algorithm : Coordinate descent" << '\n';
+    ofs_cv << "# Algorithm : " << get_l1_solver_name() << '\n';
     ofs_cv << "# Linear model : " << str_linearmodel[optcontrol.linear_model - 2] << '\n';
     ofs_cv << "# L1_RATIO = " << optcontrol.l1_ratio << '\n';
     ofs_cv << "# ENET_DNORM = " << std::setw(15) << optcontrol.displacement_normalization_factor << '\n';
     ofs_cv << "# STANDARDIZE = " << optcontrol.standardize << '\n';
     ofs_cv << "# CONV_TOL = " << std::setw(15) << optcontrol.tolerance_iteration << '\n';
-    ofs_cv << "# L1 ALPHA, Fitting error, Validation error, Num. zero IFCs (2nd, 3rd, ...) \n";
+    if (optcontrol.efit_weight > 0.0 && optcontrol.efit_cv) {
+        ofs_cv << "# EFIT_CV = 1: errors are COMBINED (force + w*energy) dimensionless relative\n";
+        ofs_cv << "#                residuals ||A_aug x - b_aug|| / ||b_aug|| (NOT a pure force error).\n";
+    }
+    if (with_components) {
+        ofs_cv << "# L1 ALPHA, Fitting error, Validation error, Fit force, Fit energy, Val force, "
+                  "Val energy, Num. zero IFCs (2nd, 3rd, ...) \n";
+    } else {
+        ofs_cv << "# L1 ALPHA, Fitting error, Validation error, Num. zero IFCs (2nd, 3rd, ...) \n";
+    }
 
     const auto maxorder = nonzeros[0].size();
     for (auto ialpha = 0; ialpha < training_error.size(); ++ialpha) {
         ofs_cv << std::setw(15) << alphas[ialpha];
         ofs_cv << std::setw(15) << training_error[ialpha];
         ofs_cv << std::setw(15) << validation_error[ialpha];
+        if (with_components) {
+            ofs_cv << std::setw(15) << terr_force[ialpha];
+            ofs_cv << std::setw(15) << terr_energy[ialpha];
+            ofs_cv << std::setw(15) << verr_force[ialpha];
+            ofs_cv << std::setw(15) << verr_energy[ialpha];
+        }
         for (auto i = 0; i < maxorder; ++i) {
             ofs_cv << std::setw(10) << nonzeros[ialpha][i];
         }
-        ofs_cv << std::endl;
+        ofs_cv << '\n';
     }
     ofs_cv.close();
 }
 
-void Optimize::write_cvscore_to_file(const std::string file_out,
-                                     const std::vector<double> &alphas,
-                                     const std::vector<double> &terr_mean,
-                                     const std::vector<double> &terr_std,
-                                     const std::vector<double> &verr_mean,
-                                     const std::vector<double> &verr_std,
-                                     const int ialpha_minimum,
-                                     const size_t nsets) const
+auto Optimize::write_cvscore_to_file(const std::string &file_out, const std::vector<double> &alphas,
+                                     const std::vector<double> &terr_mean, const std::vector<double> &terr_std,
+                                     const std::vector<double> &verr_mean, const std::vector<double> &verr_std,
+                                     const int ialpha_minimum, const size_t nsets, const bool with_components,
+                                     const std::vector<double> &tf_mean, const std::vector<double> &tf_std,
+                                     const std::vector<double> &te_mean, const std::vector<double> &te_std,
+                                     const std::vector<double> &vf_mean, const std::vector<double> &vf_std,
+                                     const std::vector<double> &ve_mean,
+                                     const std::vector<double> &ve_std) const -> void
 {
     const auto nalphas = alphas.size();
     const auto n_terr = terr_mean.size();
     std::vector<std::string> str_linearmodel{"Elastic-net", "Adaptive LASSO"};
     std::ofstream ofs_cv;
     ofs_cv.open(file_out.c_str(), std::ios::out);
-    ofs_cv << "# Algorithm : Coordinate descent" << '\n';
+    ofs_cv << "# Algorithm : " << get_l1_solver_name() << '\n';
     ofs_cv << "# Linear model : " << str_linearmodel[optcontrol.linear_model - 2] << '\n';
     ofs_cv << "# L1_RATIO = " << optcontrol.l1_ratio << '\n';
     ofs_cv << "# ENET_DNORM = " << std::setw(15) << optcontrol.displacement_normalization_factor << '\n';
     ofs_cv << "# STANDARDIZE = " << optcontrol.standardize << '\n';
     ofs_cv << "# CONV_TOL = " << std::setw(15) << optcontrol.tolerance_iteration << '\n';
     ofs_cv << "# " << nsets << "-fold cross-validation scores\n";
-    ofs_cv << "# L1 ALPHA, Fitting error (mean, std), Validation error (mean, std) \n";
+    if (optcontrol.efit_weight > 0.0 && optcontrol.efit_cv) {
+        ofs_cv << "# EFIT_CV = 1, EFIT_WEIGHT = " << optcontrol.efit_weight
+               << ", EFIT_ESCALE = " << optcontrol.efit_escale << " eV\n";
+        ofs_cv << "# NOTE: the errors below are the COMBINED (force + w*energy) dimensionless relative\n";
+        ofs_cv << "#       residuals  ||A_aug x - b_aug|| / ||b_aug||  (NOT a pure force error).\n";
+    }
+    if (with_components) {
+        ofs_cv << "# L1 ALPHA, Fitting error (mean, std), Validation error (mean, std), "
+                  "Fit force (mean, std), Fit energy (mean, std), Val force (mean, std), Val energy (mean, std)\n";
+    } else {
+        ofs_cv << "# L1 ALPHA, Fitting error (mean, std), Validation error (mean, std) \n";
+    }
 
     const auto nsize = std::min(nalphas, n_terr);
     for (size_t ialpha = 0; ialpha < nsize; ++ialpha) {
@@ -1056,19 +1483,23 @@ void Optimize::write_cvscore_to_file(const std::string file_out,
         ofs_cv << std::setw(15) << terr_std[ialpha];
         ofs_cv << std::setw(15) << verr_mean[ialpha];
         ofs_cv << std::setw(15) << verr_std[ialpha];
-        ofs_cv << std::endl;
+        if (with_components) {
+            ofs_cv << std::setw(15) << tf_mean[ialpha] << std::setw(15) << tf_std[ialpha];
+            ofs_cv << std::setw(15) << te_mean[ialpha] << std::setw(15) << te_std[ialpha];
+            ofs_cv << std::setw(15) << vf_mean[ialpha] << std::setw(15) << vf_std[ialpha];
+            ofs_cv << std::setw(15) << ve_mean[ialpha] << std::setw(15) << ve_std[ialpha];
+        }
+        ofs_cv << '\n';
     }
 
-    ofs_cv << "# Minimum CVSCORE at alpha = " << alphas[ialpha_minimum] << std::endl;
+    ofs_cv << "# Minimum CVSCORE at alpha = " << alphas[ialpha_minimum] << '\n';
     ofs_cv.close();
 }
 
-void Optimize::set_errors_of_cvscore(std::vector<double> &terr_mean,
-                                     std::vector<double> &terr_std,
-                                     std::vector<double> &verr_mean,
-                                     std::vector<double> &verr_std,
+auto Optimize::set_errors_of_cvscore(std::vector<double> &terr_mean, std::vector<double> &terr_std,
+                                     std::vector<double> &verr_mean, std::vector<double> &verr_std,
                                      const std::vector<std::vector<double>> &training_error_accum,
-                                     const std::vector<std::vector<double>> &validation_error_accum) const
+                                     const std::vector<std::vector<double>> &validation_error_accum) const -> void
 {
     const auto nsets = training_error_accum.size();
     const auto nalphas = terr_mean.size();
@@ -1095,11 +1526,9 @@ void Optimize::set_errors_of_cvscore(std::vector<double> &terr_mean,
         sum2_v = 0.0;
         for (size_t iset = 0; iset < nsets; ++iset) {
             sum_t += training_error_accum[iset][ialpha];
-            sum2_t += training_error_accum[iset][ialpha]
-                      * training_error_accum[iset][ialpha];
+            sum2_t += training_error_accum[iset][ialpha] * training_error_accum[iset][ialpha];
             sum_v += validation_error_accum[iset][ialpha];
-            sum2_v += validation_error_accum[iset][ialpha]
-                      * validation_error_accum[iset][ialpha];
+            sum2_v += validation_error_accum[iset][ialpha] * validation_error_accum[iset][ialpha];
         }
         sum_t *= factor;
         sum2_t *= factor;
@@ -1112,27 +1541,21 @@ void Optimize::set_errors_of_cvscore(std::vector<double> &terr_mean,
     }
 }
 
-int Optimize::get_ialpha_at_minimum_validation_error(const std::vector<double> &validation_error) const
+auto Optimize::get_ialpha_at_minimum_validation_error(const std::vector<double> &validation_error) -> int
 {
-    return std::distance(validation_error.begin(),
-                         std::min_element(validation_error.begin(),
-                                          validation_error.end()));
+    return std::distance(validation_error.begin(), std::min_element(validation_error.begin(), validation_error.end()));
 }
 
-void Optimize::solution_path(const int maxorder,
-                             Eigen::MatrixXd &A,
-                             Eigen::VectorXd &b,
-                             Eigen::MatrixXd &A_validation,
-                             Eigen::VectorXd &b_validation,
-                             const double fnorm,
-                             const double fnorm_validation,
-                             const std::string file_coef,
-                             const int verbosity,
-                             const Constraint *constraint,
-                             const std::vector<double> &alphas,
-                             std::vector<double> &training_error,
-                             std::vector<double> &validation_error,
-                             std::vector<std::vector<int>> &nonzeros) const
+auto Optimize::solution_path(const int maxorder, Eigen::MatrixXd &A, Eigen::VectorXd &b, Eigen::MatrixXd &A_validation,
+                             Eigen::VectorXd &b_validation, const double fnorm, const double fnorm_validation,
+                             const std::string &file_coef, const int verbosity,
+                             const std::unique_ptr<Constraint> &constraint, const std::vector<double> &alphas,
+                             std::vector<double> &training_error, std::vector<double> &validation_error,
+                             std::vector<std::vector<int>> &nonzeros, const size_t nrow_force_train,
+                             const size_t nrow_force_val, const double fnorm_force_train, const double enorm_train,
+                             const double fnorm_force_val, const double enorm_val, std::vector<double> *terr_force,
+                             std::vector<double> *terr_energy, std::vector<double> *verr_force,
+                             std::vector<double> *verr_energy) const -> void
 {
     int initialize_mode;
     int ncount_verr_consecutive_increase = 0;
@@ -1141,11 +1564,11 @@ void Optimize::solution_path(const int maxorder,
     std::vector<double> params_tmp;
     std::vector<int> nzero_lasso(maxorder);
 
-    bool *has_prod;
+    bool *has_prod = nullptr;
 
     Eigen::MatrixXd Prod;
     Eigen::VectorXd grad0, grad, x;
-    Eigen::VectorXd scale_beta, scale_beta_enet;
+    Eigen::VectorXd scale_beta, col_scale;
     Eigen::VectorXd factor_std;
     Eigen::VectorXd fdiff, fdiff_validation;
     Eigen::VectorXd mean, dev;
@@ -1154,25 +1577,16 @@ void Optimize::solution_path(const int maxorder,
     size_t M = A.rows();
     size_t M_validation = A_validation.rows();
 
-    Prod.setZero(N_new, N_new);
-    grad0.resize(N_new);
-    grad.resize(N_new);
     x.setZero(N_new);
     scale_beta.resize(N_new);
-    scale_beta_enet.resize(N_new);
+    col_scale.resize(N_new);
     factor_std.resize(N_new);
     fdiff.resize(M);
     fdiff_validation.resize(M_validation);
 
-    allocate(has_prod, N_new);
-
-    for (size_t i = 0; i < N_new; ++i) {
-        has_prod[i] = false;
-    }
-
     if (optcontrol.save_solution_path) {
         ofs_coef.open(file_coef.c_str(), std::ios::out);
-        ofs_coef << "# L1 ALPHA, coefficients" << std::endl;
+        ofs_coef << "# L1 ALPHA, coefficients\n";
         params_tmp.resize(N_new);
     }
 
@@ -1183,15 +1597,59 @@ void Optimize::solution_path(const int maxorder,
     } else {
         get_standardizer(A, mean, dev, factor_std, scale_beta);
     }
+    get_column_scale(A, col_scale);
+
+    // Per-column L1/L2 penalty weights: uniform for elastic net; factor_std for adaptive LASSO so the
+    // standardized solve targets the same (reweighted) objective (factor_std == 1 when STANDARDIZE = 0).
+    const Eigen::VectorXd penalty_scale = (optcontrol.linear_model == 3) ? factor_std : Eigen::VectorXd::Ones(N_new);
 
     training_error.clear();
     validation_error.clear();
     nonzeros.clear();
 
-    // Start iteration
+    double lipschitz_l2 = 0.0;
+    // ADMM (l1_solver == 2) state. G = (1/M) A^T A + diag(lambda2 p^2 + tau) is alpha-independent for
+    // pure LASSO (lambda2 == 0) and is Cholesky-factored once; for elastic net it is refactored per alpha.
+    Eigen::MatrixXd admm_AtA;
+    Eigen::LLT<Eigen::MatrixXd> admm_llt;
+    Eigen::VectorXd admm_q;
+    double admm_tau = 0.0;
+    bool admm_lasso = false;
+    const auto Minv_path = 1.0 / static_cast<double>(M);
+    if (optcontrol.l1_solver == 0) {
+        grad0.resize(N_new);
+        grad.resize(N_new);
+        grad0 = A.transpose() * b;
+        grad = grad0;
 
-    grad0 = A.transpose() * b;
-    grad = grad0;
+        Prod.setZero(N_new, N_new);
+        allocate(has_prod, N_new);
+        for (size_t i = 0; i < N_new; ++i) {
+            has_prod[i] = false;
+        }
+
+        // Build the whole Gram up front with one parallel GEMM when it is affordable (see use_full_gram),
+        // so coordinate_descent never fills columns lazily. Falls back to the lazy build when N >> M.
+        if (use_full_gram(A)) {
+            Prod.noalias() = A.transpose() * A;
+            std::fill(has_prod, has_prod + N_new, true);
+        }
+    } else if (optcontrol.l1_solver == 1) {
+        lipschitz_l2 = estimate_lipschitz_l2(A);
+    } else { // ADMM
+        admm_q.noalias() = A.transpose() * b;
+        admm_q *= Minv_path;
+        admm_AtA.noalias() = A.transpose() * A;
+        admm_AtA *= Minv_path;
+        admm_tau = admm_AtA.diagonal().mean(); // alpha-independent penalty: mean Gram diagonal
+        if (admm_tau < eps) admm_tau = 1.0;
+        admm_lasso = std::abs(optcontrol.l1_ratio - 1.0) < eps;
+        if (admm_lasso) {
+            Eigen::MatrixXd G = admm_AtA;
+            G.diagonal().array() += admm_tau;
+            admm_llt.compute(G);
+        }
+    }
 
     if (verbosity == 1) std::cout << std::setw(3);
 
@@ -1205,16 +1663,47 @@ void Optimize::solution_path(const int maxorder,
             initialize_mode = 1;
         }
 
-#pragma omp parallel for
-        for (auto i = 0; i < N_new; ++i) {
-            scale_beta_enet(i) = 1.0 / (1.0 / scale_beta(i) + (1.0 - optcontrol.l1_ratio) * l1_alpha);
+        if (optcontrol.l1_solver == 0) {
+            coordinate_descent(M,
+                               N_new,
+                               l1_alpha,
+                               initialize_mode,
+                               x,
+                               A,
+                               b,
+                               grad0,
+                               has_prod,
+                               Prod,
+                               grad,
+                               fnorm,
+                               col_scale,
+                               penalty_scale,
+                               verbosity);
+        } else if (optcontrol.l1_solver == 1) {
+            fista(M, N_new, l1_alpha, initialize_mode, x, A, b, fnorm, lipschitz_l2, penalty_scale, verbosity);
+        } else {               // ADMM
+            if (!admm_lasso) { // elastic net: G depends on alpha through lambda2, refactor
+                const auto lambda2 = l1_alpha * (1.0 - optcontrol.l1_ratio);
+                Eigen::MatrixXd G = admm_AtA;
+                for (size_t j = 0; j < N_new; ++j) {
+                    G(j, j) += lambda2 * penalty_scale(j) * penalty_scale(j) + admm_tau;
+                }
+                admm_llt.compute(G);
+            }
+            admm(M,
+                 N_new,
+                 l1_alpha,
+                 initialize_mode,
+                 x,
+                 A,
+                 b,
+                 admm_llt,
+                 admm_q,
+                 admm_tau,
+                 penalty_scale,
+                 fnorm,
+                 verbosity);
         }
-
-        coordinate_descent(M, N_new, l1_alpha,
-                           initialize_mode,
-                           x, A, b, grad0, has_prod, Prod, grad, fnorm,
-                           scale_beta_enet,
-                           verbosity);
 
         double correction_intercept = 0.0;
         for (size_t i = 0; i < N_new; ++i) {
@@ -1225,14 +1714,24 @@ void Optimize::solution_path(const int maxorder,
         const auto res1 = fdiff.dot(fdiff) / (fnorm * fnorm);
         const auto res2 = fdiff_validation.dot(fdiff_validation) / (fnorm_validation * fnorm_validation);
 
-        get_number_of_zero_coefs(maxorder,
-                                 constraint,
-                                 x,
-                                 nzero_lasso);
+        get_number_of_zero_coefs(maxorder, constraint, x, nzero_lasso);
 
         training_error.push_back(std::sqrt(res1));
         validation_error.push_back(std::sqrt(res2));
         nonzeros.push_back(nzero_lasso);
+
+        // Fill separate force and energy relative errors when all four outputs
+        // are provided. Report zero for a zero reference norm.
+        if (terr_force != nullptr && terr_energy != nullptr && verr_force != nullptr && verr_energy != nullptr) {
+            const double fres_t = fdiff.head(nrow_force_train).squaredNorm();
+            const double eres_t = fdiff.tail(M - nrow_force_train).squaredNorm();
+            const double fres_v = fdiff_validation.head(nrow_force_val).squaredNorm();
+            const double eres_v = fdiff_validation.tail(M_validation - nrow_force_val).squaredNorm();
+            terr_force->push_back(fnorm_force_train > 0.0 ? std::sqrt(fres_t) / fnorm_force_train : 0.0);
+            terr_energy->push_back(enorm_train > 0.0 ? std::sqrt(eres_t) / enorm_train : 0.0);
+            verr_force->push_back(fnorm_force_val > 0.0 ? std::sqrt(fres_v) / fnorm_force_val : 0.0);
+            verr_energy->push_back(enorm_val > 0.0 ? std::sqrt(eres_v) / enorm_val : 0.0);
+        }
 
         if (optcontrol.save_solution_path) {
             ofs_coef << std::setw(15) << l1_alpha;
@@ -1247,14 +1746,13 @@ void Optimize::solution_path(const int maxorder,
             for (auto i = 0; i < N_new; ++i) {
                 ofs_coef << std::setw(15) << params_tmp[i];
             }
-            ofs_coef << std::endl;
+            ofs_coef << '\n';
         }
 
         if (verbosity == 1) {
-
             std::cout << '.' << std::flush;
             if (ialpha % 25 == 24) {
-                std::cout << std::endl;
+                std::cout << '\n';
                 std::cout << std::setw(3);
             }
         }
@@ -1274,7 +1772,7 @@ void Optimize::solution_path(const int maxorder,
         }
     }
 
-    if (verbosity == 1) std::cout << std::endl;
+    if (verbosity == 1) std::cout << '\n';
 
     if (verbosity == 1 && (alphas.size() > validation_error.size())) {
         std::cout << "  STOP_CRITERION is satisfied: The solution path calculation has stopped.\n";
@@ -1285,130 +1783,196 @@ void Optimize::solution_path(const int maxorder,
         params_tmp.clear();
         params_tmp.shrink_to_fit();
     }
-    deallocate(has_prod);
+    if (has_prod) deallocate(has_prod);
 }
 
-void Optimize::compute_alphas(const double l1_alpha_max,
-                              const double l1_alpha_min,
-                              const int num_l1_alpha,
-                              std::vector<double> &alphas) const
+auto Optimize::compute_alphas(const double l1_alpha_max, const double l1_alpha_min, const int num_l1_alpha,
+                              std::vector<double> &alphas) -> void
 {
     alphas.resize(num_l1_alpha);
 
     for (auto ialpha = 0; ialpha < num_l1_alpha; ++ialpha) {
 
-        const auto l1_alpha = l1_alpha_min
-                              * std::pow(l1_alpha_max / l1_alpha_min,
-                                         static_cast<double>(num_l1_alpha - ialpha - 1) /
-                                         static_cast<double>(num_l1_alpha));
+        const auto l1_alpha =
+            l1_alpha_min * std::pow(l1_alpha_max / l1_alpha_min,
+                                    static_cast<double>(num_l1_alpha - ialpha - 1) / static_cast<double>(num_l1_alpha));
 
         alphas[ialpha] = l1_alpha;
     }
 }
 
-void Optimize::optimize_with_given_l1alpha(const int maxorder,
-                                           const size_t M,
-                                           const size_t N_new,
-                                           const Fcs *fcs,
-                                           const Symmetry *symmetry,
-                                           const Constraint *constraint,
-                                           const int verbosity,
-                                           std::vector<double> &param_out) const
+auto Optimize::optimize_with_given_l1alpha(const int maxorder, const size_t M, const size_t N_new,
+                                           const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Symmetry> &symmetry,
+                                           const std::unique_ptr<Constraint> &constraint, const int verbosity,
+                                           std::vector<double> &param_out) const -> void
 {
     // Start Elastic-net or adaptive lasso optimization
     int i;
-    bool *has_prod;
-    double fnorm;
+    bool *has_prod = nullptr;
 
     Eigen::MatrixXd A, Prod;
     Eigen::VectorXd b, grad0, grad, x;
-    Eigen::VectorXd scale_beta, factor_std;
+    Eigen::VectorXd scale_beta, factor_std, col_scale;
     Eigen::VectorXd fdiff;
     Eigen::VectorXd mean, dev;
     Eigen::VectorXd weight_adalasso;
 
-    std::vector<double> amat_1D;
-    std::vector<double> bvec;
 
-    get_matrix_elements_algebraic_constraint(maxorder,
-                                             amat_1D,
-                                             bvec,
-                                             u_train,
-                                             f_train,
-                                             fnorm,
-                                             symmetry,
-                                             fcs,
-                                             constraint);
+    std::unique_ptr<SensingMatrix> matrix_train = std::make_unique<SensingMatrix>();
+    get_matrix_elements_unified(maxorder,
+                                matrix_train,
+                                u_train,
+                                f_train,
+                                symmetry,
+                                fcs,
+                                constraint,
+                                true,
+                                false,
+                                false);
 
+    double fnorm = 0.0;
+    for (const auto &it: matrix_train->original_forces) {
+        fnorm += it * it;
+    }
+    fnorm = std::sqrt(fnorm);
 
-    A = Eigen::Map<Eigen::MatrixXd>(&amat_1D[0], M, N_new);
-    b = Eigen::Map<Eigen::VectorXd>(&bvec[0], M);
+    A = Eigen::Map<Eigen::MatrixXd>(matrix_train->amat_dense.data(), M, N_new);
+    b = Eigen::Map<Eigen::VectorXd>(matrix_train->bvec.data(), M);
+
+    // Energy-difference term: append w·(centered, constraint-compacted) energy rows so the whole
+    // pipeline (rank check, adaptive weights, standardization, coordinate descent, DEBIAS refit)
+    // sees the augmented system. Only the row count grows (M -> M_eff); N_new is unchanged.
+    size_t M_eff = M;
+    if (optcontrol.efit_weight > 0.0) {
+        if (optcontrol.use_sparse_solver || optcontrol.use_cholesky) {
+            exit("optimize_with_given_l1alpha",
+                 "EFIT_WEIGHT > 0 is not yet supported with the sparse / Cholesky solver path.");
+        }
+        std::vector<double> amat_e, evec_e;
+        build_energy_matrix(symmetry, fcs, constraint, maxorder, N_new, amat_e, evec_e, verbosity);
+        const size_t n_ene = evec_e.size();
+        Eigen::MatrixXd A_aug(M + n_ene, N_new);
+        A_aug.topRows(M) = A;
+        for (size_t c = 0; c < n_ene; ++c) {
+            for (size_t q = 0; q < N_new; ++q) A_aug(M + c, q) = amat_e[c * N_new + q];
+        }
+        Eigen::VectorXd b_aug(M + n_ene);
+        b_aug.head(M) = b;
+        for (size_t c = 0; c < n_ene; ++c) b_aug(M + c) = evec_e[c];
+        A = A_aug;
+        b = b_aug;
+        M_eff = M + n_ene;
+    }
 
     if (optcontrol.linear_model == 3) {
-        Eigen::VectorXd x_ols = A.colPivHouseholderQr().solve(b);
-        weight_adalasso = x_ols.cwiseAbs();
+        // Adaptive-LASSO weights from the OLS fit (stops if it is rank-deficient).
+        weight_adalasso = compute_adalasso_weights(A,
+                                                   b,
+                                                   N_new,
+                                                   "optimize_elasticnet",
+                                                   "Adaptive lasso failed",
+                                                   "  Number of data points = " + std::to_string(M_eff) + "\n",
+                                                   verbosity,
+                                                   true,
+                                                   true);
+
         A = A * weight_adalasso.asDiagonal();
     }
 
-    Prod.setZero(N_new, N_new);
-    grad0.resize(N_new);
-    grad.resize(N_new);
     x.setZero(N_new);
     scale_beta.resize(N_new);
     factor_std.resize(N_new);
-    fdiff.resize(M);
-
-    allocate(has_prod, N_new);
-
-    for (i = 0; i < N_new; ++i) {
-        has_prod[i] = false;
-    }
+    col_scale.resize(N_new);
+    fdiff.resize(M_eff);
 
     if (verbosity > 0) {
         if (optcontrol.linear_model == 2) {
-            std::cout << "  Elastic-net minimization with the following parameters:" << std::endl;
-            std::cout << "   L1_RATIO = " << optcontrol.l1_ratio << std::endl;
-            std::cout << "   ENET_DNORM = " << std::setw(15) << optcontrol.displacement_normalization_factor
-                      << std::endl;
+            std::cout << "  Elastic-net minimization with the following parameters:" << '\n';
+            std::cout << "   L1_RATIO = " << optcontrol.l1_ratio << '\n';
+            std::cout << "   ENET_DNORM = " << std::setw(15) << optcontrol.displacement_normalization_factor << '\n';
             if (optcontrol.standardize) {
-                std::cout << "  STANDARDIZE = 1 : Standardization will be performed for matrix A and vector b."
-                          << std::endl;
-                std::cout << "                    The ENET_DNORM-tag will be neglected." << std::endl << std::endl;
+                std::cout << "  STANDARDIZE = 1 : Standardization will be performed for matrix A and vector b.\n";
+                std::cout << "                    The ENET_DNORM-tag will be neglected.\n\n";
             } else {
-                std::cout << "  STANDARDIZE = 0 : No standardization of matrix A and vector b." << std::endl;
-                std::cout << "                    Columns of matrix A will be scaled by the ENET_DNORM value."
-                          << std::endl
-                          << std::endl;
+                std::cout << "  STANDARDIZE = 0 : No standardization of matrix A and vector b.\n";
+                std::cout << "                    Columns of matrix A will be scaled by the ENET_DNORM value.\n\n";
             }
         } else if (optcontrol.linear_model == 3) {
-            std::cout << "  Adaptive LASSO optimization with the following parameters:" << std::endl;
+            std::cout << "  Adaptive LASSO optimization with the following parameters:\n";
         }
-        std::cout << "   L1_ALPHA = " << std::setw(15) << optcontrol.l1_alpha << std::endl;
-        std::cout << "   CONV_TOL = " << std::setw(15) << optcontrol.tolerance_iteration << std::endl;
-        std::cout << "   MAXITER = " << std::setw(5) << optcontrol.maxnum_iteration << std::endl;
-        std::cout << std::endl;
+        std::cout << "   L1_ALPHA = " << std::setw(15) << optcontrol.l1_alpha << '\n';
+        std::cout << "   CONV_TOL = " << std::setw(15) << optcontrol.tolerance_iteration << '\n';
+        std::cout << "   MAXITER = " << std::setw(5) << optcontrol.maxnum_iteration << '\n';
+        std::cout << "   L1_SOLVER = " << get_l1_solver_name() << '\n';
+        std::cout << '\n';
     }
 
     get_standardizer(A, mean, dev, factor_std, scale_beta);
 
-    // Standardize if necessary only for the elastic net
-    if (optcontrol.standardize && optcontrol.linear_model == 2) {
+    // Standardize for elastic net, and for adaptive LASSO. For adaptive LASSO the per-column penalty
+    // below makes the standardized solve identical to the un-standardized reweighted objective, but
+    // far better conditioned (much faster coordinate descent in the near-OLS, small-alpha regime).
+    if (optcontrol.standardize && (optcontrol.linear_model == 2 || optcontrol.linear_model == 3)) {
         apply_standardizer(A, mean, dev);
     }
-    grad0 = A.transpose() * b;
-    grad = grad0;
+    get_column_scale(A, col_scale);
 
-#pragma omp parallel for
-    for (i = 0; i < N_new; ++i) {
-        scale_beta(i) = 1.0 / (1.0 / scale_beta(i) + (1.0 - optcontrol.l1_ratio) * optcontrol.l1_alpha);
+    // Per-column L1/L2 penalty weights: uniform for elastic net; factor_std for adaptive LASSO so that
+    // penalizing the standardized coefficients equals penalizing the reweighted ones (factor_std == 1
+    // when STANDARDIZE = 0, recovering the old uniform penalty).
+    const Eigen::VectorXd penalty_scale = (optcontrol.linear_model == 3) ? factor_std : Eigen::VectorXd::Ones(N_new);
+
+    if (optcontrol.l1_solver == 0) {
+        grad0.resize(N_new);
+        grad.resize(N_new);
+        grad0 = A.transpose() * b;
+        grad = grad0;
+
+        Prod.setZero(N_new, N_new);
+        allocate(has_prod, N_new);
+        for (i = 0; i < N_new; ++i) {
+            has_prod[i] = false;
+        }
+
+        // Build the whole Gram up front with one parallel GEMM when affordable (see use_full_gram).
+        if (use_full_gram(A)) {
+            Prod.noalias() = A.transpose() * A;
+            std::fill(has_prod, has_prod + N_new, true);
+        }
+
+        coordinate_descent(M_eff,
+                           N_new,
+                           optcontrol.l1_alpha,
+                           0,
+                           x,
+                           A,
+                           b,
+                           grad0,
+                           has_prod,
+                           Prod,
+                           grad,
+                           fnorm,
+                           col_scale,
+                           penalty_scale,
+                           verbosity);
+    } else if (optcontrol.l1_solver == 1) {
+        const auto lipschitz_l2 = estimate_lipschitz_l2(A);
+        fista(M_eff, N_new, optcontrol.l1_alpha, 0, x, A, b, fnorm, lipschitz_l2, penalty_scale, verbosity);
+    } else { // ADMM (single alpha: build and factor G once)
+        const auto Minv = 1.0 / static_cast<double>(M_eff);
+        Eigen::VectorXd q = A.transpose() * b;
+        q *= Minv;
+        Eigen::MatrixXd G = A.transpose() * A;
+        G *= Minv;
+        auto tau = G.diagonal().mean();
+        if (tau < eps) tau = 1.0;
+        const auto lambda2 = optcontrol.l1_alpha * (1.0 - optcontrol.l1_ratio);
+        for (i = 0; i < N_new; ++i) {
+            G(i, i) += lambda2 * penalty_scale(i) * penalty_scale(i) + tau;
+        }
+        Eigen::LLT<Eigen::MatrixXd> llt(G);
+        admm(M_eff, N_new, optcontrol.l1_alpha, 0, x, A, b, llt, q, tau, penalty_scale, fnorm, verbosity);
     }
-
-    // Coordinate Descent Method
-    coordinate_descent(M, N_new, optcontrol.l1_alpha,
-                       0,
-                       x, A, b, grad0, has_prod, Prod, grad, fnorm,
-                       scale_beta,
-                       verbosity);
 
     if (optcontrol.linear_model == 2) {
         for (i = 0; i < N_new; ++i) {
@@ -1425,33 +1989,46 @@ void Optimize::optimize_with_given_l1alpha(const int maxorder,
         for (size_t i = 0; i < N_new; ++i) {
             correction_intercept += x(i) * mean(i) * factor_std(i);
         }
-        fdiff = A * x - b + correction_intercept * Eigen::VectorXd::Ones(M);
-        const auto res1 = fdiff.dot(fdiff) / (fnorm * fnorm);
-        std::cout << "  RESIDUAL (%): " << std::sqrt(res1) * 100.0 << std::endl;
+        fdiff = A * x - b + correction_intercept * Eigen::VectorXd::Ones(M_eff);
+        if (M_eff > M) {
+            // Report force and energy block residuals separately (the blocks have different units).
+            const size_t n_ene = M_eff - M;
+            const double r_force = fdiff.head(M).squaredNorm();
+            const double r_energy = fdiff.tail(n_ene).squaredNorm();
+            const double enorm = b.tail(n_ene).norm(); // norm of w·centered target
+            std::cout << "  RESIDUAL force  (%): " << std::sqrt(r_force) / fnorm * 100.0 << '\n';
+            std::cout << "  RESIDUAL energy (%): " << (enorm > 0.0 ? std::sqrt(r_energy) / enorm * 100.0 : 0.0) << '\n';
+        } else {
+            const auto res1 = fdiff.dot(fdiff) / (fnorm * fnorm);
+            std::cout << "  RESIDUAL (%): " << std::sqrt(res1) * 100.0 << '\n';
+        }
     }
 
-    deallocate(has_prod);
+    if (has_prod) deallocate(has_prod);
 
-    if (optcontrol.debiase_after_l1opt && optcontrol.linear_model == 2) {
-        run_least_squares_with_nonzero_coefs(A, b,
-                                             factor_std,
-                                             param_out,
-                                             verbosity);
+    if (optcontrol.debiase_after_l1opt) {
+        if (optcontrol.linear_model == 2) {
+            run_least_squares_with_nonzero_coefs(A, b, factor_std, param_out, verbosity);
+        } else if (optcontrol.linear_model == 3) {
+            // The columns of A are scaled by the adaptive lasso weights,
+            // so the OLS solution must be scaled back by them as well.
+            const Eigen::VectorXd factor_adalasso = factor_std.cwiseProduct(weight_adalasso);
+            run_least_squares_with_nonzero_coefs(A, b, factor_adalasso, param_out, verbosity);
+        }
     }
 }
 
 
-void Optimize::run_least_squares_with_nonzero_coefs(const Eigen::MatrixXd &A_in,
-                                                    const Eigen::VectorXd &b_in,
+auto Optimize::run_least_squares_with_nonzero_coefs(const Eigen::MatrixXd &A_in, const Eigen::VectorXd &b_in,
                                                     const Eigen::VectorXd &factor_std,
                                                     std::vector<double> &params_inout,
-                                                    const int verbosity) const
+                                                    const int verbosity) const -> void
 {
     // Perform OLS fitting to the features selected by LASSO for reducing the bias.
 
     if (verbosity > 0) {
-        std::cout << " DEBIAS_OLS = 1: Attempt to reduce the bias of LASSO by performing OLS fitting" << std::endl;
-        std::cout << "                 with features selected by LASSO." << std::endl;
+        std::cout << " DEBIAS_OLS = 1: Attempt to reduce the bias of LASSO by performing OLS fitting\n";
+        std::cout << "                 with features selected by LASSO.\n";
     }
 
     const auto N_new = A_in.cols();
@@ -1481,10 +2058,8 @@ void Optimize::run_least_squares_with_nonzero_coefs(const Eigen::MatrixXd &A_in,
     }
 }
 
-void Optimize::get_number_of_zero_coefs(const int maxorder,
-                                        const Constraint *constraint,
-                                        const Eigen::VectorXd &x,
-                                        std::vector<int> &nzeros) const
+auto Optimize::get_number_of_zero_coefs(const int maxorder, const std::unique_ptr<Constraint> &constraint,
+                                        const Eigen::VectorXd &x, std::vector<int> &nzeros) -> void
 {
     // Count the number of zero parameters
     size_t iparam = 0;
@@ -1494,18 +2069,14 @@ void Optimize::get_number_of_zero_coefs(const int maxorder,
         for (const auto &it: constraint->get_index_bimap(i)) {
             const auto inew = it.left + iparam;
             if (std::abs(x[inew]) < eps) ++nzeros[i];
-
         }
         iparam += constraint->get_index_bimap(i).size();
     }
 }
 
 
-void Optimize::get_standardizer(const Eigen::MatrixXd &Amat,
-                                Eigen::VectorXd &mean,
-                                Eigen::VectorXd &dev,
-                                Eigen::VectorXd &factor_std,
-                                Eigen::VectorXd &scale_beta) const
+auto Optimize::get_standardizer(const Eigen::MatrixXd &Amat, Eigen::VectorXd &mean, Eigen::VectorXd &dev,
+                                Eigen::VectorXd &factor_std, Eigen::VectorXd &scale_beta) const -> void
 {
     const auto nrows = Amat.rows();
     const auto ncols = Amat.cols();
@@ -1523,7 +2094,10 @@ void Optimize::get_standardizer(const Eigen::MatrixXd &Amat,
             sum1 = Amat.col(j).sum() * inv_nrows;
             sum2 = Amat.col(j).dot(Amat.col(j)) * inv_nrows;
             mean(j) = sum1;
-            dev(j) = std::sqrt(sum2 - sum1 * sum1);
+            dev(j) = std::sqrt(std::max(sum2 - sum1 * sum1, 0.0));
+            // A constant (e.g. all-zero) column, as in a CV fold of pattern-based DFSET data where the
+            // held-out snapshots carry all the displacements of a cluster: leave it unscaled.
+            if (!(dev(j) > eps12 * std::sqrt(sum2))) dev(j) = 1.0;
             factor_std(j) = 1.0 / dev(j);
             scale_beta(j) = 1.0;
         }
@@ -1538,9 +2112,8 @@ void Optimize::get_standardizer(const Eigen::MatrixXd &Amat,
     }
 }
 
-void Optimize::apply_standardizer(Eigen::MatrixXd &Amat,
-                                  const Eigen::VectorXd &mean,
-                                  const Eigen::VectorXd &dev) const
+auto Optimize::apply_standardizer(Eigen::MatrixXd &Amat, const Eigen::VectorXd &mean,
+                                  const Eigen::VectorXd &dev) const -> void
 {
     const auto ncols = Amat.cols();
     const auto nrows = Amat.rows();
@@ -1548,15 +2121,26 @@ void Optimize::apply_standardizer(Eigen::MatrixXd &Amat,
         exit("apply_standardizer", "The number of colums is inconsistent.");
     }
 
-    for (auto i = 0; i < nrows; ++i) {
-        for (auto j = 0; j < ncols; ++j) {
+    for (auto j = 0; j < ncols; ++j) {
+        for (auto i = 0; i < nrows; ++i) {
             Amat(i, j) = (Amat(i, j) - mean(j)) / dev(j);
         }
     }
 }
 
-double Optimize::get_estimated_max_alpha(const Eigen::MatrixXd &Amat,
-                                         const Eigen::VectorXd &bvec) const
+auto Optimize::get_column_scale(const Eigen::MatrixXd &Amat, Eigen::VectorXd &col_scale) -> void
+{
+    const auto ncols = Amat.cols();
+    const auto nrows = Amat.rows();
+    if (col_scale.size() != ncols) col_scale.resize(ncols);
+
+    const auto inv_nrows = 1.0 / static_cast<double>(nrows);
+    for (auto j = 0; j < ncols; ++j) {
+        col_scale(j) = Amat.col(j).squaredNorm() * inv_nrows;
+    }
+}
+
+auto Optimize::get_estimated_max_alpha(const Eigen::MatrixXd &Amat, const Eigen::VectorXd &bvec) const -> double
 {
     const auto ncols = Amat.cols();
     const auto nrows = Amat.rows();
@@ -1572,8 +2156,8 @@ double Optimize::get_estimated_max_alpha(const Eigen::MatrixXd &Amat,
         get_standardizer(Amat, mean, dev, factor_std, scale_beta);
     }
 
-    for (auto i = 0; i < nrows; ++i) {
-        for (auto j = 0; j < ncols; ++j) {
+    for (auto j = 0; j < ncols; ++j) {
+        for (auto i = 0; i < nrows; ++i) {
             C(i, j) = (C(i, j) - mean(j)) / dev(j);
         }
     }
@@ -1581,17 +2165,21 @@ double Optimize::get_estimated_max_alpha(const Eigen::MatrixXd &Amat,
     C = C.transpose() * bvec;
     auto max_alpha = 0.0;
 
+    // Adaptive-LASSO zero-solution threshold: |Z_j^T b| / (p_j * M * l1_ratio),
+    // where p_j = factor_std_j = 1/dev_j. With STANDARDIZE = 0, dev_j = 1.
+    const bool adalasso = (optcontrol.linear_model == 3);
     for (auto i = 0; i < ncols; ++i) {
-        max_alpha = std::max<double>(max_alpha, std::abs(C(i)));
+        const auto grad_abs = adalasso ? std::abs(C(i)) * dev(i) : std::abs(C(i));
+        max_alpha = std::max<double>(max_alpha, grad_abs);
     }
     max_alpha /= static_cast<double>(nrows);
+    max_alpha /= optcontrol.l1_ratio;
 
     return max_alpha;
 }
 
-void Optimize::apply_scaler_displacement(std::vector<std::vector<double>> &u_inout,
-                                         const double normalization_factor,
-                                         const bool scale_back) const
+auto Optimize::apply_scaler_displacement(std::vector<std::vector<double>> &u_inout, const double normalization_factor,
+                                         const bool scale_back) -> void
 {
     const auto nrows = u_inout.size();
     const auto ncols = u_inout[0].size();
@@ -1612,10 +2200,8 @@ void Optimize::apply_scaler_displacement(std::vector<std::vector<double>> &u_ino
     }
 }
 
-void Optimize::apply_scaler_constraint(const int maxorder,
-                                       const double normalization_factor,
-                                       Constraint *constraint,
-                                       const bool scale_back) const
+auto Optimize::apply_scaler_constraint(const int maxorder, const double normalization_factor,
+                                       const std::unique_ptr<Constraint> &constraint, const bool scale_back) -> void
 {
     if (scale_back) {
         for (auto i = 0; i < maxorder; ++i) {
@@ -1636,10 +2222,36 @@ void Optimize::apply_scaler_constraint(const int maxorder,
     }
 }
 
-void Optimize::apply_scaler_force_constants(const int maxorder,
-                                            const double normalization_factor,
-                                            const Constraint *constraint,
-                                            std::vector<double> &param_inout) const
+auto Optimize::apply_scaler_relate(const int maxorder, const double normalization_factor,
+                                   const std::unique_ptr<Constraint> &constraint, const bool scale_back) -> void
+{
+    // In scaled variables x_o = phi_o * s^(o+1), the relation phi_t = -sum_j alpha_j phi_j becomes
+    // x_t = -sum_j alpha_j s^(o_t - o_j) x_j. Only cross-order coefficients change.
+    for (auto i = 0; i < maxorder; ++i) {
+        const auto &relate = constraint->get_const_relate(i);
+        // The constant part (STRESS) scales as the target, like val_to_fix.
+        const auto offset_factor = std::pow(normalization_factor, i + 1);
+        for (size_t r = 0; r < relate.size(); ++r) {
+            if (relate[r].offset != 0.0) {
+                constraint->set_const_relate_offset(i,
+                                                    r,
+                                                    scale_back ? relate[r].offset / offset_factor
+                                                               : relate[r].offset * offset_factor);
+            }
+            for (size_t j = 0; j < relate[r].alpha.size(); ++j) {
+                const auto dorder = i - relate[r].order_orig[j];
+                if (dorder == 0) continue;
+                const auto factor = std::pow(normalization_factor, dorder);
+                const auto alpha = scale_back ? relate[r].alpha[j] / factor : relate[r].alpha[j] * factor;
+                constraint->set_const_relate_alpha(i, r, j, alpha);
+            }
+        }
+    }
+}
+
+auto Optimize::apply_scaler_force_constants(const int maxorder, const double normalization_factor,
+                                            const std::unique_ptr<Constraint> &constraint,
+                                            std::vector<double> &param_inout) -> void
 {
     auto k = 0;
     for (auto i = 0; i < maxorder; ++i) {
@@ -1652,41 +2264,30 @@ void Optimize::apply_scaler_force_constants(const int maxorder,
     }
 }
 
-void Optimize::apply_scalers(const int maxorder,
-                             Constraint *constraint)
+auto Optimize::apply_scalers(const int maxorder, const std::unique_ptr<Constraint> &constraint) -> void
 {
-    apply_scaler_displacement(u_train,
-                              optcontrol.displacement_normalization_factor);
-    apply_scaler_constraint(maxorder,
-                            optcontrol.displacement_normalization_factor,
-                            constraint);
+    apply_scaler_displacement(u_train, optcontrol.displacement_normalization_factor);
+    apply_scaler_constraint(maxorder, optcontrol.displacement_normalization_factor, constraint);
+    apply_scaler_relate(maxorder, optcontrol.displacement_normalization_factor, constraint);
+    energy_row_scale = optcontrol.displacement_normalization_factor;
 
     if (optcontrol.cross_validation == -1) {
-        apply_scaler_displacement(u_validation,
-                                  optcontrol.displacement_normalization_factor);
-
+        apply_scaler_displacement(u_validation, optcontrol.displacement_normalization_factor);
     }
 }
 
-void Optimize::finalize_scalers(const int maxorder,
-                                Constraint *constraint)
+auto Optimize::finalize_scalers(const int maxorder, const std::unique_ptr<Constraint> &constraint) -> void
 {
-    apply_scaler_displacement(u_train,
-                              optcontrol.displacement_normalization_factor,
-                              true);
-    apply_scaler_constraint(maxorder,
-                            optcontrol.displacement_normalization_factor,
-                            constraint,
-                            true);
+    apply_scaler_displacement(u_train, optcontrol.displacement_normalization_factor, true);
+    apply_scaler_constraint(maxorder, optcontrol.displacement_normalization_factor, constraint, true);
+    apply_scaler_relate(maxorder, optcontrol.displacement_normalization_factor, constraint, true);
+    energy_row_scale = 1.0;
     if (optcontrol.cross_validation == -1) {
-        apply_scaler_displacement(u_validation,
-                                  optcontrol.displacement_normalization_factor,
-                                  true);
+        apply_scaler_displacement(u_validation, optcontrol.displacement_normalization_factor, true);
     }
 }
 
-void Optimize::apply_basis_converter(std::vector<std::vector<double>> &u_multi,
-                                     Eigen::Matrix3d cmat) const
+auto Optimize::apply_basis_converter(std::vector<std::vector<double>> &u_multi, Eigen::Matrix3d cmat) -> void
 {
     // Convert the basis of displacements from Cartesian to fractional
     const auto nrows = u_multi.size();
@@ -1708,45 +2309,58 @@ void Optimize::apply_basis_converter(std::vector<std::vector<double>> &u_multi,
     }
 }
 
-void Optimize::apply_basis_converter_amat(const int natmin3,
-                                          const int ncols,
-                                          double **amat_orig_tmp,
-                                          Eigen::Matrix3d cmat) const
+auto Optimize::apply_basis_converter_amat(const int natmin3, const int ncols, double **amat_orig_tmp,
+                                          Eigen::Matrix3d cmat) -> void
 {
     const auto natmin = natmin3 / 3;
     Eigen::Vector3d vec_tmp;
     const Eigen::Matrix3d cmat_t = cmat.transpose();
 
+    // amat_orig_tmp is parameter-major: amat_orig_tmp[icol][component].
     for (auto icol = 0; icol < ncols; ++icol) {
         for (auto iat = 0; iat < natmin; ++iat) {
             for (auto i = 0; i < 3; ++i) {
-                vec_tmp(i) = amat_orig_tmp[3 * iat + i][icol];
+                vec_tmp(i) = amat_orig_tmp[icol][3 * iat + i];
             }
             vec_tmp = cmat_t * vec_tmp;
             for (auto i = 0; i < 3; ++i) {
-                amat_orig_tmp[3 * iat + i][icol] = vec_tmp(i);
+                amat_orig_tmp[icol][3 * iat + i] = vec_tmp(i);
             }
         }
     }
 }
 
 
-void Optimize::set_u_train(const std::vector<std::vector<double>> &u_train_in)
+auto Optimize::set_u_train(const std::vector<std::vector<double>> &u_train_in) -> void
 {
     u_train.clear();
     u_train = u_train_in;
     u_train.shrink_to_fit();
 }
 
-void Optimize::set_f_train(const std::vector<std::vector<double>> &f_train_in)
+auto Optimize::set_f_train(const std::vector<std::vector<double>> &f_train_in) -> void
 {
     f_train.clear();
     f_train = f_train_in;
     f_train.shrink_to_fit();
 }
 
-void Optimize::set_validation_data(const std::vector<std::vector<double>> &u_validation_in,
-                                   const std::vector<std::vector<double>> &f_validation_in)
+auto Optimize::set_e_train(const std::vector<double> &e_train_in) -> void
+{
+    e_train.clear();
+    e_train = e_train_in;
+    e_train.shrink_to_fit();
+}
+
+auto Optimize::set_e_validation(const std::vector<double> &e_validation_in) -> void
+{
+    e_validation.clear();
+    e_validation = e_validation_in;
+    e_validation.shrink_to_fit();
+}
+
+auto Optimize::set_validation_data(const std::vector<std::vector<double>> &u_validation_in,
+                                   const std::vector<std::vector<double>> &f_validation_in) -> void
 {
     u_validation.clear();
     f_validation.clear();
@@ -1756,25 +2370,23 @@ void Optimize::set_validation_data(const std::vector<std::vector<double>> &u_val
     f_validation.shrink_to_fit();
 }
 
-std::vector<std::vector<double>> Optimize::get_u_train() const
+auto Optimize::get_u_train() const -> std::vector<std::vector<double>>
 {
     return u_train;
 }
 
-std::vector<std::vector<double>> Optimize::get_f_train() const
+auto Optimize::get_f_train() const -> std::vector<std::vector<double>>
 {
     return f_train;
 }
 
-size_t Optimize::get_number_of_data() const
+auto Optimize::get_number_of_data() const -> size_t
 {
     return u_train.size();
 }
 
-void Optimize::set_fcs_values(const int maxorder,
-                              double *fc_in,
-                              std::vector<size_t> *nequiv,
-                              const Constraint *constraint)
+auto Optimize::set_fcs_values(const int maxorder, double *fc_in, std::vector<size_t> *nequiv,
+                              const std::unique_ptr<Constraint> &constraint) -> void
 {
     // fc_in: irreducible set of force constants
     // fc_length: dimension of params (can differ from that of fc_in)
@@ -1794,11 +2406,7 @@ void Optimize::set_fcs_values(const int maxorder,
     for (i = 0; i < Nirred; ++i) {
         param_in[i] = fc_in[i];
     }
-    recover_original_forceconstants(maxorder,
-                                    param_in,
-                                    param_out,
-                                    nequiv,
-                                    constraint);
+    recover_original_forceconstants(maxorder, param_in, param_out, nequiv, constraint);
     if (params) {
         deallocate(params);
     }
@@ -1808,211 +2416,16 @@ void Optimize::set_fcs_values(const int maxorder,
     }
 }
 
-size_t Optimize::get_number_of_rows_sensing_matrix() const
+auto Optimize::get_number_of_rows_sensing_matrix() const -> size_t
 {
     return u_train.size() * u_train[0].size();
 }
 
-int Optimize::fit_without_constraints(const size_t N,
-                                      const size_t M,
-                                      double *amat,
-                                      const double *bvec,
-                                      double *param_out,
-                                      const int verbosity) const
-{
-    int i;
-    int nrhs = 1, nrank, INFO, M_tmp, N_tmp;
-    auto rcond = -1.0;
-    auto f_square = 0.0;
-    double *WORK, *S, *fsum2;
 
-
-    const auto LMIN = std::min<int>(M, N);
-    auto LMAX = std::max<int>(M, N);
-
-    auto LWORK = 3 * LMIN + std::max<int>(2 * LMIN, LMAX);
-    LWORK = 2 * LWORK;
-
-    if (verbosity > 0) {
-        std::cout << "  Entering fitting routine: SVD without constraints" << std::endl;
-    }
-
-
-    allocate(WORK, LWORK);
-    allocate(S, LMIN);
-    allocate(fsum2, LMAX);
-
-    for (i = 0; i < M; ++i) {
-        fsum2[i] = bvec[i];
-        f_square += std::pow(bvec[i], 2);
-    }
-    for (i = M; i < LMAX; ++i) fsum2[i] = 0.0;
-
-    if (verbosity > 0) std::cout << "  SVD has started ... ";
-
-    // Fitting with singular value decomposition
-    // M_tmp and N_tmp are prepared to cast N and M to (non-const) int.
-    M_tmp = M;
-    N_tmp = N;
-    dgelss_(&M_tmp, &N_tmp, &nrhs, amat, &M_tmp, fsum2, &LMAX,
-            S, &rcond, &nrank, WORK, &LWORK, &INFO);
-
-    if (verbosity > 0) {
-        std::cout << "finished !" << std::endl << std::endl;
-        std::cout << "  RANK of the matrix = " << nrank << std::endl;
-    }
-
-    if (nrank < N)
-        warn("fit_without_constraints",
-             "Matrix is rank-deficient. Force constants could not be determined uniquely :(");
-
-    if (nrank == N && verbosity > 0) {
-        auto f_residual = 0.0;
-        for (i = N; i < M; ++i) {
-            f_residual += std::pow(fsum2[i], 2);
-        }
-        std::cout << std::endl << "  Residual sum of squares for the solution: "
-                  << sqrt(f_residual) << std::endl;
-        std::cout << "  Fitting error (%) : "
-                  << sqrt(f_residual / f_square) * 100.0 << std::endl;
-    }
-
-    for (i = 0; i < N; ++i) {
-        param_out[i] = fsum2[i];
-    }
-
-    deallocate(WORK);
-    deallocate(S);
-    deallocate(fsum2);
-
-    return INFO;
-}
-
-int Optimize::fit_with_constraints(const size_t N,
-                                   const size_t M,
-                                   const size_t P,
-                                   double *amat,
-                                   const double *bvec,
-                                   double *param_out,
-                                   const double *const *cmat,
-                                   double *dvec,
-                                   const int verbosity) const
-{
-    size_t i, j;
-    int N_tmp, M_tmp, P_tmp;
-    double *fsum2;
-    double *mat_tmp;
-
-    if (verbosity > 0) {
-        std::cout << "  Entering fitting routine: QRD with constraints" << std::endl;
-    }
-
-    allocate(fsum2, M);
-    allocate(mat_tmp, (M + P) * N);
-
-    size_t k = 0;
-    size_t l = 0;
-
-    // Concatenate two matrices as 1D array
-    for (j = 0; j < N; ++j) {
-        for (i = 0; i < M; ++i) {
-            mat_tmp[k++] = amat[l++];
-        }
-        for (i = 0; i < P; ++i) {
-            mat_tmp[k++] = cmat[i][j];
-        }
-    }
-
-    const auto nrank = rankQRD((M + P), N, mat_tmp, eps12);
-    deallocate(mat_tmp);
-
-    if (nrank != N) {
-        std::cout << std::endl;
-        std::cout << " **************************************************************************" << std::endl;
-        std::cout << "  WARNING : rank deficient.                                                " << std::endl;
-        std::cout << "  rank ( (A) ) ! = N            A: Fitting matrix     B: Constraint matrix " << std::endl;
-        std::cout << "       ( (B) )                  N: The number of parameters                " << std::endl;
-        std::cout << "  rank = " << nrank << " N = " << N << std::endl << std::endl;
-        std::cout << "  This can cause a difficulty in solving the fitting problem properly      " << std::endl;
-        std::cout << "  with DGGLSE, especially when the difference is large. Please check if    " << std::endl;
-        std::cout << "  you obtain reliable force constants in the .fcs file.                    " << std::endl << std::
-        endl;
-        std::cout << "  You may need to reduce the cutoff radii and/or increase NDATA            " << std::endl;
-        std::cout << "  by giving linearly-independent displacement patterns.                    " << std::endl;
-        std::cout << " **************************************************************************" << std::endl;
-        std::cout << std::endl;
-    }
-
-    auto f_square = 0.0;
-    for (i = 0; i < M; ++i) {
-        fsum2[i] = bvec[i];
-        f_square += std::pow(bvec[i], 2);
-    }
-    if (verbosity > 0) std::cout << "  QR-Decomposition has started ...";
-
-    double *cmat_mod;
-    allocate(cmat_mod, P * N);
-
-    k = 0;
-    for (j = 0; j < N; ++j) {
-        for (i = 0; i < P; ++i) {
-            cmat_mod[k++] = cmat[i][j];
-        }
-    }
-
-    // Fitting
-
-    auto LWORK = static_cast<int>(P) + std::min<int>(M, N) + 10 * std::max<int>(M, N);
-    int INFO;
-    double *WORK, *x;
-    allocate(WORK, LWORK);
-    allocate(x, N);
-
-    // M_tmp, N_tmp, P_tmp are prepared to cast N, M, P to (non-const)
-    // int.
-    M_tmp = M;
-    N_tmp = N;
-    P_tmp = P;
-    dgglse_(&M_tmp, &N_tmp, &P_tmp, amat, &M_tmp, cmat_mod, &P_tmp,
-            fsum2, dvec, x, WORK, &LWORK, &INFO);
-
-    if (verbosity > 0) std::cout << " finished. " << std::endl;
-
-    auto f_residual = 0.0;
-    for (i = N - P; i < M; ++i) {
-        f_residual += std::pow(fsum2[i], 2);
-    }
-
-    if (verbosity > 0) {
-        std::cout << std::endl << "  Residual sum of squares for the solution: "
-                  << sqrt(f_residual) << std::endl;
-        std::cout << "  Fitting error (%) : "
-                  << std::sqrt(f_residual / f_square) * 100.0 << std::endl;
-    }
-
-    // copy fcs to bvec
-    for (i = 0; i < N; ++i) {
-        param_out[i] = x[i];
-    }
-
-    deallocate(cmat_mod);
-    deallocate(WORK);
-    deallocate(x);
-    deallocate(fsum2);
-
-    return INFO;
-}
-
-int Optimize::fit_algebraic_constraints(const size_t N,
-                                        const size_t M,
-                                        double *amat,
-                                        const double *bvec,
-                                        std::vector<double> &param_out,
-                                        const double fnorm,
-                                        const int maxorder,
-                                        const Fcs *fcs,
-                                        const Constraint *constraint,
-                                        const int verbosity) const
+auto Optimize::fit_algebraic_constraints(const size_t N, const size_t M, double *amat, const double *bvec,
+                                         std::vector<double> &param_out, const double fnorm, const int maxorder,
+                                         const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Constraint> &constraint,
+                                         const int verbosity) const -> int
 {
     int i;
     int nrhs = 1, nrank, INFO, M_tmp, N_tmp;
@@ -2020,7 +2433,7 @@ int Optimize::fit_algebraic_constraints(const size_t N,
     double *WORK, *S, *fsum2;
 
     if (verbosity > 0) {
-        std::cout << "  Entering fitting routine: SVD with constraints considered algebraically." << std::endl;
+        std::cout << "  Entering fitting routine: SVD with constraints considered algebraically.\n";
     }
 
     auto LMIN = std::min<int>(M, N);
@@ -2038,21 +2451,20 @@ int Optimize::fit_algebraic_constraints(const size_t N,
     }
     for (i = M; i < LMAX; ++i) fsum2[i] = 0.0;
 
-    if (verbosity > 0) std::cout << "  SVD has started ... ";
+    if (verbosity > 0) std::cout << "  SVD has started ... " << std::flush;
 
     // Fitting with singular value decomposition
     // M_tmp and N_tmp are prepared to cast N and M to (non-const) int.
     M_tmp = M;
     N_tmp = N;
-    dgelss_(&M_tmp, &N_tmp, &nrhs, amat, &M_tmp, fsum2, &LMAX,
-            S, &rcond, &nrank, WORK, &LWORK, &INFO);
+    dgelss_(&M_tmp, &N_tmp, &nrhs, amat, &M_tmp, fsum2, &LMAX, S, &rcond, &nrank, WORK, &LWORK, &INFO);
 
     deallocate(WORK);
     deallocate(S);
 
     if (verbosity > 0) {
-        std::cout << "finished !" << std::endl << std::endl;
-        std::cout << "  RANK of the matrix = " << nrank << std::endl;
+        std::cout << "finished !\n\n";
+        std::cout << "  RANK of the matrix = " << nrank << '\n' << std::flush;
     }
 
     if (nrank < N) {
@@ -2068,13 +2480,11 @@ int Optimize::fit_algebraic_constraints(const size_t N,
     if (nrank == N && verbosity > 0) {
         auto f_residual = 0.0;
         for (i = N; i < M; ++i) {
-            f_residual += std::pow(fsum2[i], 2);
+            f_residual += pow2(fsum2[i]);
         }
-        std::cout << std::endl;
-        std::cout << "  Residual sum of squares for the solution: "
-                  << sqrt(f_residual) << std::endl;
-        std::cout << "  Fitting error (%) : "
-                  << sqrt(f_residual / (fnorm * fnorm)) * 100.0 << std::endl;
+        std::cout << '\n';
+        std::cout << "  Residual sum of squares for the solution: " << sqrt(f_residual) << '\n';
+        std::cout << "  Fitting error (%) : " << sqrt(f_residual / (fnorm * fnorm)) * 100.0 << '\n';
     }
 
     if (INFO == 0) {
@@ -2084,26 +2494,16 @@ int Optimize::fit_algebraic_constraints(const size_t N,
 
         // Recover reducible set of force constants
 
-        recover_original_forceconstants(maxorder,
-                                        param_irred,
-                                        param_out,
-                                        fcs->get_nequiv(),
-                                        constraint);
+        recover_original_forceconstants(maxorder, param_irred, param_out, fcs->get_nequiv(), constraint);
     }
 
     return INFO;
 }
 
-int Optimize::solve_normal_equation(const size_t N,
-                                    double *amat,
-                                    double *bvec,
-                                    std::vector<double> &param_out,
-                                    const double fnorm,
-                                    const int maxorder,
-                                    const Fcs *fcs,
-                                    const Constraint *constraint,
-                                    const int verbosity,
-                                    const bool algebraic_constraint) const
+auto Optimize::solve_normal_equation(const size_t N, double *amat, double *bvec, std::vector<double> &param_out,
+                                     const double fnorm, const int maxorder, const std::unique_ptr<Fcs> &fcs,
+                                     const std::unique_ptr<Constraint> &constraint, const int verbosity,
+                                     const bool algebraic_constraint) const -> int
 {
     if (verbosity > 0) {
         std::cout << "  Entering fitting routine: Solve normal equation (A^T A)x= (A^T b) by Cholesky.\n" << std::flush;
@@ -2126,11 +2526,7 @@ int Optimize::solve_normal_equation(const size_t N,
             for (auto i = 0; i < N; ++i) param_irred[i] = bvec[i];
             // Recover reducible set of force constants
 
-            recover_original_forceconstants(maxorder,
-                                            param_irred,
-                                            param_out,
-                                            fcs->get_nequiv(),
-                                            constraint);
+            recover_original_forceconstants(maxorder, param_irred, param_out, fcs->get_nequiv(), constraint);
         } else {
             param_out.resize(N, 0.0);
             for (size_t i = 0; i < N; ++i) {
@@ -2141,402 +2537,333 @@ int Optimize::solve_normal_equation(const size_t N,
     return info;
 }
 
-
-void Optimize::get_matrix_elements(const int maxorder,
-                                   std::vector<double> &amat,
-                                   std::vector<double> &bvec,
-                                   const std::vector<std::vector<double>> &u_in,
-                                   const std::vector<std::vector<double>> &f_in,
-                                   const Symmetry *symmetry,
-                                   const Fcs *fcs) const
+auto Optimize::get_matrix_elements_unified(const int maxorder, std::unique_ptr<SensingMatrix> &matrix_out,
+                                           const std::vector<std::vector<double>> &u_in,
+                                           const std::vector<std::vector<double>> &f_in,
+                                           const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Fcs> &fcs,
+                                           const std::unique_ptr<Constraint> &constraint, const bool compact,
+                                           const bool sparse, const bool return_ata, const int verbosity) const -> void
 {
-    size_t i, j;
-    long irow;
-    const auto natmin = symmetry->get_nat_prim();
-    const auto natmin3 = 3 * natmin;
-    std::vector<std::vector<double>> u_multi, f_multi;
+    // Construct the matrix and vector necessary for estimating force constants.
+    // The computed results are stored in matrix_out, and the updated variables in matrix_out
+    // changes depending on the input options (compact, sparse, return_ata).
+    //
+    // compact: If true, the matrix A and vector b are projected to the null space of the constraint matrix.
+    // return_ata: If true, compute (A^T A) and (A^T b) instead of A and b for solving the normal equation.
+    //             If false, compute A and b for solving the least-square problem.
+    // sparse: If true, store the matrix A in sparse form and save it in matrix_out->amat_sparse.
+    //         If false, store the matrix A in dense form and save if in matrix_out->amat_dense.
 
     if (u_in.size() != f_in.size()) {
-        exit("get_matrix_elements",
-             "The lengths of displacement array and force array are diferent.");
+        exit("get_matrix_elements_unified", "The lengths of displacement array and force array are diferent.");
     }
 
+    size_t i, j;
+    const auto natmin = symmetry->get_nat_trueprim();
     const auto ndata_fit = u_in.size();
     const auto ncycle = ndata_fit * symmetry->get_ntran();
-    const auto nrows = ndata_fit * u_in[0].size();
-    size_t ncols = 0;
-    for (i = 0; i < maxorder; ++i) {
-        ncols += fcs->get_nequiv()[i].size();
-    }
+    const auto nrows = ndata_fit * u_in[0].size(); // length of the flattened displacement array
 
-    if (amat.size() != nrows * ncols) {
-        amat.resize(nrows * ncols, 0.0);
-    }
-    if (bvec.size() != nrows) {
-        bvec.resize(nrows, 0.0);
-    }
-
-    data_multiplier(u_in, u_multi, symmetry);
-    data_multiplier(f_in, f_multi, symmetry);
-
-    if (fcs->get_forceconstant_basis() == "Lattice") {
-        apply_basis_converter(u_multi,
-                              fcs->get_basis_conversion_matrix());
-    }
-
-
-#ifdef _OPENMP
-#pragma omp parallel private(irow, i, j)
-#endif
-    {
-        int *ind;
-        int mm, order, iat, k;
-        size_t im, iparam;
-        size_t idata;
-        double amat_tmp;
-        double **amat_orig_tmp;
-
-        allocate(ind, maxorder + 1);
-        allocate(amat_orig_tmp, natmin3, ncols);
-
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (irow = 0; irow < ncycle; ++irow) {
-
-            // generate r.h.s vector B
-            for (i = 0; i < natmin; ++i) {
-                iat = symmetry->get_map_p2s()[i][0];
-                for (j = 0; j < 3; ++j) {
-                    im = 3 * i + j + natmin3 * irow;
-                    bvec[im] = f_multi[irow][3 * iat + j];
-                }
-            }
-
-            for (i = 0; i < natmin3; ++i) {
-                for (j = 0; j < ncols; ++j) {
-                    amat_orig_tmp[i][j] = 0.0;
-                }
-            }
-
-            // generate l.h.s. matrix A
-
-            idata = natmin3 * irow;
-            iparam = 0;
-
-            for (order = 0; order < maxorder; ++order) {
-
-                mm = 0;
-
-                for (const auto &iter: fcs->get_nequiv()[order]) {
-                    for (i = 0; i < iter; ++i) {
-                        ind[0] = fcs->get_fc_table()[order][mm].elems[0];
-                        k = inprim_index(ind[0], symmetry);
-                        amat_tmp = 1.0;
-                        for (j = 1; j < order + 2; ++j) {
-                            ind[j] = fcs->get_fc_table()[order][mm].elems[j];
-                            amat_tmp *= u_multi[irow][fcs->get_fc_table()[order][mm].elems[j]];
-                        }
-                        amat_orig_tmp[k][iparam] -= gamma(order + 2, ind) * fcs->get_fc_table()[order][mm].sign *
-                                                    amat_tmp;
-                        ++mm;
-                    }
-                    ++iparam;
-                }
-            }
-
-            // When the force constants are defined in the fractional coordinate,
-            // we need to multiply the basis_conversion_matrix to obtain atomic forces
-            // in the Cartesian coordinate.
-            if (fcs->get_forceconstant_basis() == "Lattice") {
-                apply_basis_converter_amat(natmin3,
-                                           ncols,
-                                           amat_orig_tmp,
-                                           fcs->get_basis_conversion_matrix());
-            }
-
-            for (i = 0; i < natmin3; ++i) {
-                for (j = 0; j < ncols; ++j) {
-                    // Transpose here for later use of lapack without transpose
-                    amat[natmin3 * ncycle * j + i + idata] = amat_orig_tmp[i][j];
-                }
-            }
-        }
-
-        deallocate(ind);
-        deallocate(amat_orig_tmp);
-    }
-
-    u_multi.clear();
-    f_multi.clear();
-}
-
-
-void Optimize::get_matrix_elements_algebraic_constraint(const int maxorder,
-                                                        std::vector<double> &amat,
-                                                        std::vector<double> &bvec,
-                                                        const std::vector<std::vector<double>> &u_in,
-                                                        const std::vector<std::vector<double>> &f_in,
-                                                        double &fnorm,
-                                                        const Symmetry *symmetry,
-                                                        const Fcs *fcs,
-                                                        const Constraint *constraint) const
-{
-    size_t i, j;
-    long irow;
-
-    if (u_in.size() != f_in.size()) {
-        exit("get_matrix_elements",
-             "The lengths of displacement array and force array are diferent.");
-    }
-
-    const auto ndata_fit = u_in.size();
-    const auto natmin = symmetry->get_nat_prim();
-    const auto natmin3 = 3 * natmin;
-    const auto nrows = u_in.size() * u_in[0].size();
     size_t ncols = 0;
     size_t ncols_new = 0;
-
     for (i = 0; i < maxorder; ++i) {
         ncols += fcs->get_nequiv()[i].size();
-        ncols_new += constraint->get_index_bimap(i).size();
     }
 
-    const auto ncycle = ndata_fit * symmetry->get_ntran();
-
-    if (amat.size() != nrows * ncols_new) {
-        amat.resize(nrows * ncols_new, 0.0);
+    if (compact) {
+        for (i = 0; i < maxorder; ++i) {
+            ncols_new += constraint->get_index_bimap(i).size();
+        }
+    } else {
+        ncols_new = ncols;
     }
-    if (bvec.size() != nrows) {
-        bvec.resize(nrows, 0.0);
-    }
 
-    std::vector<double> bvec_orig(nrows, 0.0);
     std::vector<std::vector<double>> u_multi, f_multi;
-
     data_multiplier(u_in, u_multi, symmetry);
     data_multiplier(f_in, f_multi, symmetry);
 
     if (fcs->get_forceconstant_basis() == "Lattice") {
-        apply_basis_converter(u_multi,
-                              fcs->get_basis_conversion_matrix());
+        apply_basis_converter(u_multi, fcs->get_basis_conversion_matrix());
     }
 
-#ifdef _OPENMP
-#pragma omp parallel private(irow, i, j)
-#endif
-    {
-        int *ind;
-        int mm, order, iat, k;
-        size_t im;
-        size_t idata;
-        size_t ishift, iparam;
-        size_t iold, inew;
-        double amat_tmp;
-        double **amat_orig_tmp;
-        double **amat_mod_tmp;
+    std::vector<int> ind_tmp(maxorder + 1);
+    // Precompute the product of gamma and sign,
+    // which does not change durint the iteration over the training data
+    std::vector<std::vector<double>> gamma_precomputed(maxorder);
+    for (auto order = 0; order < maxorder; ++order) {
+        auto ii = 0;
 
-        allocate(ind, maxorder + 1);
-        allocate(amat_orig_tmp, natmin3, ncols);
-        allocate(amat_mod_tmp, natmin3, ncols_new);
+        gamma_precomputed[order].resize(fcs->get_fc_table()[order].size(), 0.0);
 
-#ifdef _OPENMP
-#pragma omp for
-#endif
-        for (irow = 0; irow < ncycle; ++irow) {
-
-            // generate r.h.s vector B
-            for (i = 0; i < natmin; ++i) {
-                iat = symmetry->get_map_p2s()[i][0];
-                for (j = 0; j < 3; ++j) {
-                    im = 3 * i + j + natmin3 * irow;
-                    bvec[im] = f_multi[irow][3 * iat + j];
-                    bvec_orig[im] = f_multi[irow][3 * iat + j];
+        for (const auto &iter: fcs->get_nequiv()[order]) {
+            for (i = 0; i < iter; ++i) {
+                ind_tmp[0] = fcs->get_fc_table()[order][ii].elems[0];
+                for (j = 1; j < order + 2; ++j) {
+                    ind_tmp[j] = fcs->get_fc_table()[order][ii].elems[j];
                 }
+                gamma_precomputed[order][ii] = gamma(order + 2, ind_tmp.data()) * fcs->get_fc_table()[order][ii].sign;
+                ++ii;
+            }
+        }
+    }
+
+    matrix_out->original_forces.resize(nrows, 0.0);
+
+    if (compact) {
+        if (return_ata) {
+            if (sparse) {
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using sparse data type\n";
+                    std::cout << "  This is more memory efficient when the input displacements are sparse\n";
+                    std::cout << "  Directly construct (A^T A) and (A^T b)\n";
+                }
+
+                matrix_out->amat_sparse.resize(ncols_new, ncols_new);
+                matrix_out->bvec.resize(ncols_new, 0.0);
+
+                get_matrix_elements_normal_equation2(maxorder,
+                                                     ncycle,
+                                                     nrows,
+                                                     ncols,
+                                                     ncols_new,
+                                                     matrix_out,
+                                                     u_multi,
+                                                     f_multi,
+                                                     gamma_precomputed,
+                                                     symmetry,
+                                                     fcs,
+                                                     constraint,
+                                                     true);
+            } else {
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using dense data type\n";
+                    std::cout << "  Directly construct (A^T A) and (A^T b)\n";
+                    const auto memory_full =
+                        static_cast<float>(nrows * ncols_new * 8) / static_cast<float>(1024 * 1024 * 1024);
+                    const auto memory_chunk = static_cast<float>(optcontrol.chunk_size * ncols_new * 8) /
+                                              static_cast<float>(1024 * 1024 * 1024);
+                    const auto memory_ata = static_cast<float>(ncols_new * ncols_new * 8) / (1024 * 1024 * 1024);
+                    std::cout << "  At least " << std::fixed << std::setprecision(3)
+                              << std::max(memory_ata, memory_chunk) << " GiB of memory will be allocated.\n";
+                }
+
+                matrix_out->amat_dense.resize(ncols_new * ncols_new, 0.0);
+                matrix_out->bvec.resize(ncols_new, 0.0);
+
+                get_matrix_elements_normal_equation2(maxorder,
+                                                     ncycle,
+                                                     nrows,
+                                                     ncols,
+                                                     ncols_new,
+                                                     matrix_out,
+                                                     u_multi,
+                                                     f_multi,
+                                                     gamma_precomputed,
+                                                     symmetry,
+                                                     fcs,
+                                                     constraint,
+                                                     false);
             }
 
-            for (i = 0; i < natmin3; ++i) {
-                for (j = 0; j < ncols; ++j) {
-                    amat_orig_tmp[i][j] = 0.0;
-                }
-                for (j = 0; j < ncols_new; ++j) {
-                    amat_mod_tmp[i][j] = 0.0;
-                }
-            }
-
-            // generate l.h.s. matrix A
-
-            idata = natmin3 * irow;
-            iparam = 0;
-
-            for (order = 0; order < maxorder; ++order) {
-
-                mm = 0;
-
-                for (const auto &iter: fcs->get_nequiv()[order]) {
-                    for (i = 0; i < iter; ++i) {
-                        ind[0] = fcs->get_fc_table()[order][mm].elems[0];
-                        k = inprim_index(ind[0], symmetry);
-
-                        amat_tmp = 1.0;
-                        for (j = 1; j < order + 2; ++j) {
-                            ind[j] = fcs->get_fc_table()[order][mm].elems[j];
-                            amat_tmp *= u_multi[irow][fcs->get_fc_table()[order][mm].elems[j]];
-                        }
-                        amat_orig_tmp[k][iparam] -= gamma(order + 2, ind)
-                                                    * fcs->get_fc_table()[order][mm].sign * amat_tmp;
-                        ++mm;
-                    }
-                    ++iparam;
-                }
-            }
-
-            // When the force constants are defined in the fractional coordinate,
-            // we need to multiply the basis_conversion_matrix to obtain atomic forces
-            // in the Cartesian coordinate.
-            if (fcs->get_forceconstant_basis() == "Lattice") {
-                apply_basis_converter_amat(natmin3,
-                                           ncols,
-                                           amat_orig_tmp,
-                                           fcs->get_basis_conversion_matrix());
-            }
-
-            // Convert the full matrix and vector into a smaller irreducible form
-            // by using constraint information.
-
-            ishift = 0;
-            iparam = 0;
-
-            for (order = 0; order < maxorder; ++order) {
-
-                for (i = 0; i < constraint->get_const_fix(order).size(); ++i) {
-
-                    for (j = 0; j < natmin3; ++j) {
-                        bvec[j + idata] -= constraint->get_const_fix(order)[i].val_to_fix
-                                           * amat_orig_tmp[j][ishift +
-                                                              constraint->get_const_fix(order)[i].p_index_target];
-                    }
+        } else {
+            // return A and b
+            if (sparse) {
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using sparse data type\n";
+                    std::cout << "  This is more memory efficient when the input displacements are sparse\n";
                 }
 
-                for (const auto &it: constraint->get_index_bimap(order)) {
-                    inew = it.left + iparam;
-                    iold = it.right + ishift;
+                matrix_out->amat_sparse.resize(nrows, ncols_new);
+                matrix_out->bvec.resize(nrows, 0.0);
 
-                    for (j = 0; j < natmin3; ++j) {
-                        amat_mod_tmp[j][inew] = amat_orig_tmp[j][iold];
-                    }
+                get_matrix_elements2(maxorder,
+                                     ncycle,
+                                     nrows,
+                                     ncols,
+                                     ncols_new,
+                                     matrix_out,
+                                     u_multi,
+                                     f_multi,
+                                     gamma_precomputed,
+                                     symmetry,
+                                     fcs,
+                                     constraint,
+                                     true);
+
+
+            } else {
+
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using dense data type\n";
+                    std::cout << "  At least " << std::fixed << std::setprecision(3)
+                              << static_cast<float>(nrows * ncols_new * 8) / static_cast<float>(1024 * 1024 * 1024)
+                              << " GiB of memory will be allocated.\n";
                 }
 
-                for (i = 0; i < constraint->get_const_relate(order).size(); ++i) {
+                matrix_out->amat_dense.resize(nrows * ncols_new, 0.0);
+                matrix_out->bvec.resize(nrows, 0.0);
 
-                    iold = constraint->get_const_relate(order)[i].p_index_target + ishift;
-
-                    for (j = 0; j < constraint->get_const_relate(order)[i].alpha.size(); ++j) {
-
-                        // This part can issue an error when the constraint matrix is deviate from rref.
-                        inew = constraint->get_index_bimap(order).right.at(
-                                constraint->get_const_relate(order)[i].p_index_orig[j]) +
-                               iparam;
-
-                        for (k = 0; k < natmin3; ++k) {
-                            amat_mod_tmp[k][inew] -= amat_orig_tmp[k][iold]
-                                                     * constraint->get_const_relate(order)[i].alpha[j];
-                        }
-                    }
-                }
-
-                ishift += fcs->get_nequiv()[order].size();
-                iparam += constraint->get_index_bimap(order).size();
-            }
-
-            for (i = 0; i < natmin3; ++i) {
-                for (j = 0; j < ncols_new; ++j) {
-                    // Transpose here for later use of lapack without transpose
-                    amat[natmin3 * ncycle * j + i + idata] = amat_mod_tmp[i][j];
-                }
+                get_matrix_elements2(maxorder,
+                                     ncycle,
+                                     nrows,
+                                     ncols,
+                                     ncols_new,
+                                     matrix_out,
+                                     u_multi,
+                                     f_multi,
+                                     gamma_precomputed,
+                                     symmetry,
+                                     fcs,
+                                     constraint,
+                                     false);
             }
         }
 
-        deallocate(ind);
-        deallocate(amat_orig_tmp);
-        deallocate(amat_mod_tmp);
-    }
+    } else {
 
-    fnorm = 0.0;
-    for (i = 0; i < bvec_orig.size(); ++i) {
-        fnorm += bvec_orig[i] * bvec_orig[i];
-    }
-    fnorm = std::sqrt(fnorm);
+        if (return_ata) {
 
-    u_multi.clear();
-    f_multi.clear();
+            if (sparse) {
+
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using sparse data type\n";
+                    std::cout << "  Directly construct (A^T A) and (A^T b)\n";
+                }
+
+                matrix_out->amat_sparse.resize(ncols, ncols);
+                matrix_out->bvec.resize(ncols, 0.0);
+
+                get_matrix_elements_normal_equation2(maxorder,
+                                                     ncycle,
+                                                     nrows,
+                                                     ncols,
+                                                     ncols,
+                                                     matrix_out,
+                                                     u_multi,
+                                                     f_multi,
+                                                     gamma_precomputed,
+                                                     symmetry,
+                                                     fcs,
+                                                     constraint,
+                                                     true);
+
+
+            } else {
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using dense data type\n";
+                    std::cout << "  Directly construct (A^T A) and (A^T b)\n";
+                    const auto memory_full =
+                        static_cast<float>(nrows * ncols * 8) / static_cast<float>(1024 * 1024 * 1024);
+                    const auto memory_chunk =
+                        static_cast<float>(optcontrol.chunk_size * ncols * 8) / static_cast<float>(1024 * 1024 * 1024);
+                    const auto memory_ata = static_cast<float>(ncols * ncols * 8) / (1024 * 1024 * 1024);
+                    std::cout << "  At least " << std::fixed << std::setprecision(3)
+                              << std::max(memory_ata, memory_chunk) << " GiB of memory will be allocated.\n";
+                }
+
+                matrix_out->amat_dense.resize(ncols * ncols, 0.0);
+                matrix_out->bvec.resize(ncols, 0.0);
+
+                get_matrix_elements_normal_equation2(maxorder,
+                                                     ncycle,
+                                                     nrows,
+                                                     ncols,
+                                                     ncols,
+                                                     matrix_out,
+                                                     u_multi,
+                                                     f_multi,
+                                                     gamma_precomputed,
+                                                     symmetry,
+                                                     fcs,
+                                                     constraint,
+                                                     false);
+            }
+
+        } else {
+            if (sparse) {
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using sparse data type\n";
+                    std::cout << "  This is more memory efficient when the input displacements are sparse\n";
+                }
+
+                matrix_out->amat_sparse.resize(nrows, ncols);
+                matrix_out->bvec.resize(nrows, 0.0);
+                get_matrix_elements2(maxorder,
+                                     ncycle,
+                                     nrows,
+                                     ncols,
+                                     ncols_new,
+                                     matrix_out,
+                                     u_multi,
+                                     f_multi,
+                                     gamma_precomputed,
+                                     symmetry,
+                                     fcs,
+                                     constraint,
+                                     true);
+            } else {
+                if (verbosity > 0) {
+                    std::cout << "  Calculate the sensing matrix A using dense data type\n";
+                    std::cout << "  At least " << std::fixed << std::setprecision(3)
+                              << static_cast<float>(nrows * ncols * 8) / static_cast<float>(1024 * 1024 * 1024)
+                              << " GiB of memory will be allocated.\n";
+                }
+
+                matrix_out->amat_dense.resize(nrows * ncols, 0.0);
+                matrix_out->bvec.resize(nrows, 0.0);
+                get_matrix_elements2(maxorder,
+                                     ncycle,
+                                     nrows,
+                                     ncols,
+                                     ncols_new,
+                                     matrix_out,
+                                     u_multi,
+                                     f_multi,
+                                     gamma_precomputed,
+                                     symmetry,
+                                     fcs,
+                                     constraint,
+                                     false);
+            }
+        }
+    }
 }
 
-void Optimize::get_matrix_elements_in_sparse_form(const int maxorder,
-                                                  SpMat &sp_amat,
-                                                  Eigen::VectorXd &sp_bvec,
-                                                  const std::vector<std::vector<double>> &u_in,
-                                                  const std::vector<std::vector<double>> &f_in,
-                                                  double &fnorm,
-                                                  const Symmetry *symmetry,
-                                                  const Fcs *fcs,
-                                                  const Constraint *constraint) const
+
+auto Optimize::get_matrix_elements2(const int maxorder, const size_t ncycle, const size_t nrows, const size_t ncols,
+                                    const size_t ncols_compact, std::unique_ptr<SensingMatrix> &matrix_out,
+                                    const std::vector<std::vector<double>> &u_multi,
+                                    const std::vector<std::vector<double>> &f_multi,
+                                    const std::vector<std::vector<double>> &gamma_precomputed,
+                                    const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Fcs> &fcs,
+                                    const std::unique_ptr<Constraint> &constraint, const bool sparse) const -> void
 {
     size_t i, j;
     long irow;
+    const auto natmin = symmetry->get_nat_trueprim();
+    const auto natmin3 = 3 * natmin;
+
     typedef Eigen::Triplet<double, size_t> T;
     std::vector<T> nonzero_entries;
 
-    if (u_in.size() != f_in.size()) {
-        exit("get_matrix_elements",
-             "The lengths of displacement array and force array are diferent.");
-    }
-
-    const auto ndata_fit = u_in.size();
-    const auto natmin = symmetry->get_nat_prim();
-    const auto natmin3 = 3 * natmin;
-    const auto nrows = u_in.size() * u_in[0].size();
-
-    size_t ncols = 0;
-    size_t ncols_new = 0;
-
-    for (i = 0; i < maxorder; ++i) {
-        ncols += fcs->get_nequiv()[i].size();
-        ncols_new += constraint->get_index_bimap(i).size();
-    }
-
-    const auto ncycle = ndata_fit * symmetry->get_ntran();
-
     std::vector<double> bvec_orig(nrows, 0.0);
-    std::vector<std::vector<double>> u_multi, f_multi;
-
-    data_multiplier(u_in, u_multi, symmetry);
-    data_multiplier(f_in, f_multi, symmetry);
-
-    if (fcs->get_forceconstant_basis() == "Lattice") {
-        apply_basis_converter(u_multi,
-                              fcs->get_basis_conversion_matrix());
-    }
+    std::vector<double> bvec_correction(nrows, 0.0);
 
 #ifdef _OPENMP
 #pragma omp parallel private(irow, i, j)
 #endif
     {
-        int *ind;
-        int mm, order, iat, k;
-        size_t im, iparam;
         size_t idata;
-        size_t ishift;
-        size_t iold, inew;
-        double amat_tmp;
         double **amat_orig_tmp;
-        double **amat_mod_tmp;
-
+        double **amat_mod_tmp = nullptr;
         std::vector<T> nonzero_omp;
 
-        allocate(ind, maxorder + 1);
-        allocate(amat_orig_tmp, natmin3, ncols);
-        allocate(amat_mod_tmp, natmin3, ncols_new);
+        // Parameter-major layout: amat[param][component].
+        allocate(amat_orig_tmp, ncols, natmin3);
+
+        if (constraint->get_constraint_algebraic()) {
+            allocate(amat_mod_tmp, ncols_compact, natmin3);
+        }
 
 #ifdef _OPENMP
 #pragma omp for
@@ -2544,167 +2871,106 @@ void Optimize::get_matrix_elements_in_sparse_form(const int maxorder,
         for (irow = 0; irow < ncycle; ++irow) {
 
             // generate r.h.s vector B
-            for (i = 0; i < natmin; ++i) {
-                iat = symmetry->get_map_p2s()[i][0];
-                for (j = 0; j < 3; ++j) {
-                    im = 3 * i + j + natmin3 * irow;
-                    sp_bvec(im) = f_multi[irow][3 * iat + j];
-                    bvec_orig[im] = f_multi[irow][3 * iat + j];
-                }
-            }
-
-            for (i = 0; i < natmin3; ++i) {
-                for (j = 0; j < ncols; ++j) {
-                    amat_orig_tmp[i][j] = 0.0;
-                }
-                for (j = 0; j < ncols_new; ++j) {
-                    amat_mod_tmp[i][j] = 0.0;
-                }
-            }
+            fill_bvec(natmin, irow, symmetry->get_map_trueprim_to_super(), f_multi[irow], bvec_orig);
 
             // generate l.h.s. matrix A
-
-            idata = natmin3 * irow;
-            iparam = 0;
-
-            for (order = 0; order < maxorder; ++order) {
-
-                mm = 0;
-
-                for (const auto &iter: fcs->get_nequiv()[order]) {
-                    for (i = 0; i < iter; ++i) {
-                        ind[0] = fcs->get_fc_table()[order][mm].elems[0];
-                        k = inprim_index(ind[0], symmetry);
-
-                        amat_tmp = 1.0;
-                        for (j = 1; j < order + 2; ++j) {
-                            ind[j] = fcs->get_fc_table()[order][mm].elems[j];
-                            amat_tmp *= u_multi[irow][fcs->get_fc_table()[order][mm].elems[j]];
-                        }
-                        amat_orig_tmp[k][iparam] -= gamma(order + 2, ind)
-                                                    * fcs->get_fc_table()[order][mm].sign * amat_tmp;
-                        ++mm;
-                    }
-                    ++iparam;
-                }
-            }
+            fill_amat(maxorder, natmin, ncols, u_multi[irow], gamma_precomputed, symmetry, fcs, amat_orig_tmp);
 
             // When the force constants are defined in the fractional coordinate,
-            // we need to multiply the basis_conversion_matrix to obtain atomic forces
+            // we need to multiply the basis_conversion_matrix to get atomic forces
             // in the Cartesian coordinate.
             if (fcs->get_forceconstant_basis() == "Lattice") {
-                apply_basis_converter_amat(natmin3,
-                                           ncols,
-                                           amat_orig_tmp,
-                                           fcs->get_basis_conversion_matrix());
+                apply_basis_converter_amat(natmin3, ncols, amat_orig_tmp, fcs->get_basis_conversion_matrix());
             }
 
-            // Convert the full matrix and vector into a smaller irreducible form
-            // by using constraint information.
+            idata = natmin3 * irow;
 
-            ishift = 0;
-            iparam = 0;
+            if (constraint->get_constraint_algebraic()) {
+                // Project constraints
+                project_constraints(maxorder,
+                                    natmin,
+                                    irow,
+                                    fcs,
+                                    constraint,
+                                    amat_orig_tmp,
+                                    amat_mod_tmp,
+                                    bvec_correction);
 
-            for (order = 0; order < maxorder; ++order) {
-
-                for (i = 0; i < constraint->get_const_fix(order).size(); ++i) {
-
-                    for (j = 0; j < natmin3; ++j) {
-                        sp_bvec(j + idata) -= constraint->get_const_fix(order)[i].val_to_fix
-                                              * amat_orig_tmp[j][ishift +
-                                                                 constraint->get_const_fix(order)[i].p_index_target];
+                if (sparse) {
+                    for (j = 0; j < ncols_compact; ++j) {
+                        for (i = 0; i < natmin3; ++i) {
+                            if (std::abs(amat_mod_tmp[j][i]) > eps) {
+                                nonzero_omp.emplace_back(idata + i, j, amat_mod_tmp[j][i]);
+                            }
+                        }
                     }
-                }
-
-                for (const auto &it: constraint->get_index_bimap(order)) {
-                    inew = it.left + iparam;
-                    iold = it.right + ishift;
-
-                    for (j = 0; j < natmin3; ++j) {
-                        amat_mod_tmp[j][inew] = amat_orig_tmp[j][iold];
-                    }
-                }
-
-                for (i = 0; i < constraint->get_const_relate(order).size(); ++i) {
-
-                    iold = constraint->get_const_relate(order)[i].p_index_target + ishift;
-
-                    for (j = 0; j < constraint->get_const_relate(order)[i].alpha.size(); ++j) {
-
-                        inew = constraint->get_index_bimap(order).right.at(
-                                constraint->get_const_relate(order)[i].p_index_orig[j]) +
-                               iparam;
-
-                        for (k = 0; k < natmin3; ++k) {
-                            amat_mod_tmp[k][inew] -= amat_orig_tmp[k][iold]
-                                                     * constraint->get_const_relate(order)[i].alpha[j];
+                } else {
+                    for (j = 0; j < ncols_compact; ++j) {
+                        for (i = 0; i < natmin3; ++i) {
+                            // Transpose here for later use of lapack without transpose
+                            matrix_out->amat_dense[natmin3 * ncycle * j + i + idata] = amat_mod_tmp[j][i];
                         }
                     }
                 }
 
-                ishift += fcs->get_nequiv()[order].size();
-                iparam += constraint->get_index_bimap(order).size();
-            }
+            } else {
 
-            for (i = 0; i < natmin3; ++i) {
-                for (j = 0; j < ncols_new; ++j) {
-                    if (std::abs(amat_mod_tmp[i][j]) > eps) {
-                        nonzero_omp.emplace_back(T(idata + i, j, amat_mod_tmp[i][j]));
+                if (sparse) {
+                    for (j = 0; j < ncols; ++j) {
+                        for (i = 0; i < natmin3; ++i) {
+                            if (std::abs(amat_orig_tmp[j][i]) > eps) {
+                                nonzero_omp.emplace_back(idata + i, j, amat_orig_tmp[j][i]);
+                            }
+                        }
+                    }
+                } else {
+                    for (j = 0; j < ncols; ++j) {
+                        for (i = 0; i < natmin3; ++i) {
+                            // Transpose here for later use of lapack without transpose
+                            matrix_out->amat_dense[natmin3 * ncycle * j + i + idata] = amat_orig_tmp[j][i];
+                        }
                     }
                 }
             }
         }
-
-        deallocate(ind);
         deallocate(amat_orig_tmp);
-        deallocate(amat_mod_tmp);
+        if (amat_mod_tmp) deallocate(amat_mod_tmp);
 
+        if (sparse) {
 #pragma omp critical
-        {
-            for (const auto &it: nonzero_omp) {
-                nonzero_entries.emplace_back(it);
+            {
+                for (const auto &it: nonzero_omp) {
+                    nonzero_entries.emplace_back(it);
+                }
             }
         }
     }
-
-    fnorm = 0.0;
-    for (i = 0; i < bvec_orig.size(); ++i) {
-        fnorm += bvec_orig[i] * bvec_orig[i];
+    for (i = 0; i < nrows; ++i) {
+        matrix_out->bvec[i] = bvec_orig[i] + bvec_correction[i];
+        matrix_out->original_forces[i] = bvec_orig[i];
     }
-    fnorm = std::sqrt(fnorm);
-    sp_amat.setFromTriplets(nonzero_entries.begin(), nonzero_entries.end());
-    sp_amat.makeCompressed();
+
+    if (sparse) {
+        matrix_out->amat_sparse.setFromTriplets(nonzero_entries.begin(), nonzero_entries.end());
+        matrix_out->amat_sparse.makeCompressed();
+    }
 }
 
-void Optimize::get_matrix_elements_normal_equation(const int maxorder,
-                                                   std::vector<double> &ata_total,
-                                                   std::vector<double> &atb_total,
-                                                   const std::vector<std::vector<double>> &u_in,
-                                                   const std::vector<std::vector<double>> &f_in,
-                                                   double &fnorm,
-                                                   const Symmetry *symmetry,
-                                                   const Fcs *fcs,
-                                                   const Constraint *constraint) const
+auto Optimize::get_matrix_elements_normal_equation2(
+    const int maxorder, const size_t ncycle, const size_t nrows, const size_t ncols, const size_t ncols_compact,
+    std::unique_ptr<SensingMatrix> &matrix_out, const std::vector<std::vector<double>> &u_multi,
+    const std::vector<std::vector<double>> &f_multi, const std::vector<std::vector<double>> &gamma_precomputed,
+    const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Fcs> &fcs,
+    const std::unique_ptr<Constraint> &constraint, const bool sparse) const -> void
 {
+    typedef Eigen::Triplet<double, size_t> T;
+
     long irow;
 
-    if (u_in.size() != f_in.size()) {
-        exit("get_matrix_elements_normal_equation",
-             "The lengths of displacement array and force array are diferent.");
-    }
-
-    const auto ndata_fit = u_in.size();
-    const auto natmin = symmetry->get_nat_prim();
+    const auto ndata_fit = u_multi.size() / symmetry->get_ntran();
+    const auto natmin = symmetry->get_nat_trueprim();
     const auto natmin3 = 3 * natmin;
-    const auto nat3 = u_in[0].size();
-    const auto nrows = ndata_fit * nat3;
-    size_t ncols = 0;
-    size_t ncols_new = 0;
-
-    for (auto i = 0; i < maxorder; ++i) {
-        ncols += fcs->get_nequiv()[i].size();
-        ncols_new += constraint->get_index_bimap(i).size();
-    }
+    const auto nat3 = u_multi[0].size();
 
     auto ndata_subset = optcontrol.chunk_size;
     auto nsubset = ndata_fit / ndata_subset;
@@ -2712,23 +2978,19 @@ void Optimize::get_matrix_elements_normal_equation(const int maxorder,
         ++nsubset;
     }
 
-    ata_total.resize(ncols_new * ncols_new, 0.0);
-    atb_total.resize(ncols_new, 0.0);
+    // std::cout << "nsubset = " << nsubset << '\n';
 
-    std::vector<double> bvec(nrows, 0.0);
     std::vector<double> bvec_orig(nrows, 0.0);
-    std::vector<std::vector<double>> u_multi, f_multi;
+    std::vector<double> bvec_subset;
 
-    data_multiplier(u_in, u_multi, symmetry);
-    data_multiplier(f_in, f_multi, symmetry);
-
-    if (fcs->get_forceconstant_basis() == "Lattice") {
-        apply_basis_converter(u_multi,
-                              fcs->get_basis_conversion_matrix());
+    if (sparse) {
+        matrix_out->amat_sparse.resize(ncols_compact, ncols_compact);
     }
 
-    Eigen::MatrixXd ata_subset(ncols_new, ncols_new);
-    Eigen::VectorXd atb_subset(ncols_new);
+    // std::cout << "sparse = " << sparse << '\n';
+    // std::cout << "size of ata_subset = " << ncols_compact << " x " << ncols_compact << '\n';
+    // std::cout << std::flush;
+
 
     for (size_t isub = 0; isub < nsubset; ++isub) {
 
@@ -2740,403 +3002,379 @@ void Optimize::get_matrix_elements_normal_equation(const int maxorder,
 
         auto nrows_now = (iend - istart) * nat3;
 
+        // std::cout << "istart = " << istart << '\n';
+        // std::cout << "iend = " << iend << '\n';
+
         const long istart_cycle = istart * symmetry->get_ntran();
         const long iend_cycle = iend * symmetry->get_ntran();
 
-        Eigen::MatrixXd amat_subset(nrows_now, ncols_new);
-        Eigen::MatrixXd amat_subset_transpose(ncols_new, nrows_now);
-        Eigen::VectorXd bvec_subset(nrows_now);
+        Eigen::MatrixXd amat_subset(nrows_now, ncols_compact);
+        Eigen::MatrixXd amat_subset_transpose(ncols_compact, nrows_now);
+
+        bvec_subset.resize(nrows_now, 0.0);
+        std::vector<T> nonzero_entries;
 
         amat_subset.setZero();
-        bvec_subset.setZero();
-
-//        std::cout << "nrows_now = " << nrows_now << '\n';
-//        std::cout << "istart = " << istart << " iend = " << iend << '\n';
-//        std::cout << "istart_cycle = " << istart_cycle << " iend_cycle = " << iend_cycle << '\n';
 
 #pragma omp parallel private(irow)
         {
             std::vector<int> ind;
-            int mm, order, iat, k;
             size_t ii, jj;
             size_t idata;
-            size_t ishift, iparam;
-            size_t iold, inew;
-            double amat_tmp;
             double **amat_orig_tmp;
-            std::vector<std::vector<double>> amat_mod_tmp;
+            double **amat_mod_tmp;
+
+            std::vector<T> nonzero_omp;
 
             ind.resize(maxorder + 1, 0);
-            allocate(amat_orig_tmp, natmin3, ncols);
-            amat_mod_tmp.resize(natmin3, std::vector<double>(ncols_new, 0.0));
+            allocate(amat_orig_tmp, ncols, natmin3);
+            allocate(amat_mod_tmp, ncols_compact, natmin3);
+
+            // std::cout << "OK" << std::flush;
+            // std::cout << "istart_cycle = " << istart_cycle << '\n';
+            // std::cout << "iend_cycle = " << iend_cycle << '\n';
 
 #pragma omp for
             for (irow = istart_cycle; irow < iend_cycle; ++irow) {
-
                 idata = natmin3 * (irow - istart_cycle);
 
-                // generate r.h.s vector B
-                for (ii = 0; ii < natmin; ++ii) {
-                    iat = symmetry->get_map_p2s()[ii][0];
-                    for (jj = 0; jj < 3; ++jj) {
-                        bvec_subset[3 * ii + jj + idata] = f_multi[irow][3 * iat + jj];
-                        bvec_orig[3 * ii + jj + natmin3 * irow] = f_multi[irow][3 * iat + jj];
-                    }
-                }
+                // std::cout << "irow = " << irow << '\n';
 
-                for (ii = 0; ii < natmin3; ++ii) {
-                    for (jj = 0; jj < ncols; ++jj) {
-                        amat_orig_tmp[ii][jj] = 0.0;
-                    }
-                    for (jj = 0; jj < ncols_new; ++jj) {
-                        amat_mod_tmp[ii][jj] = 0.0;
-                    }
-                }
+                // generate r.h.s vector B
+                fill_bvec(natmin,
+                          irow,
+                          symmetry->get_map_trueprim_to_super(),
+                          f_multi[irow],
+                          matrix_out->original_forces);
+                fill_bvec(natmin,
+                          irow - istart_cycle,
+                          symmetry->get_map_trueprim_to_super(),
+                          f_multi[irow],
+                          bvec_subset);
 
                 // generate l.h.s. matrix A
+                fill_amat(maxorder, natmin, ncols, u_multi[irow], gamma_precomputed, symmetry, fcs, amat_orig_tmp);
 
-                iparam = 0;
-
-                for (order = 0; order < maxorder; ++order) {
-
-                    mm = 0;
-
-                    for (const auto &iter: fcs->get_nequiv()[order]) {
-                        for (ii = 0; ii < iter; ++ii) {
-                            ind[0] = fcs->get_fc_table()[order][mm].elems[0];
-                            k = inprim_index(ind[0], symmetry);
-
-                            amat_tmp = 1.0;
-                            for (jj = 1; jj < order + 2; ++jj) {
-                                ind[jj] = fcs->get_fc_table()[order][mm].elems[jj];
-                                amat_tmp *= u_multi[irow][fcs->get_fc_table()[order][mm].elems[jj]];
-                            }
-                            amat_orig_tmp[k][iparam] -= gamma(order + 2, ind.data())
-                                                        * fcs->get_fc_table()[order][mm].sign * amat_tmp;
-                            ++mm;
-                        }
-                        ++iparam;
-                    }
-                }
 
                 // When the force constants are defined in the fractional coordinate,
                 // we need to multiply the basis_conversion_matrix to obtain atomic forces
                 // in the Cartesian coordinate.
                 if (fcs->get_forceconstant_basis() == "Lattice") {
-                    apply_basis_converter_amat(natmin3,
-                                               ncols,
-                                               amat_orig_tmp,
-                                               fcs->get_basis_conversion_matrix());
+                    apply_basis_converter_amat(natmin3, ncols, amat_orig_tmp, fcs->get_basis_conversion_matrix());
                 }
 
-                // Convert the full matrix and vector into a smaller irreducible form
-                // by using constraint information.
+                if (constraint->get_constraint_algebraic()) {
 
-                ishift = 0;
-                iparam = 0;
+                    // Project constraints
+                    // This operation increases non-zero entries of the originally sparse matrix.
+                    // The resulting matrix manipulation At * A will be more expensive.
+                    project_constraints(maxorder,
+                                        natmin,
+                                        irow - istart_cycle,
+                                        fcs,
+                                        constraint,
+                                        amat_orig_tmp,
+                                        amat_mod_tmp,
+                                        bvec_subset);
 
-                for (order = 0; order < maxorder; ++order) {
-                    for (ii = 0; ii < constraint->get_const_fix(order).size(); ++ii) {
-                        for (jj = 0; jj < natmin3; ++jj) {
-                            bvec_subset[jj + idata] -= constraint->get_const_fix(order)[ii].val_to_fix
-                                                       * amat_orig_tmp[jj][ishift +
-                                                                           constraint->get_const_fix(
-                                                                                   order)[ii].p_index_target];
+                    if (sparse) {
+                        for (jj = 0; jj < ncols_compact; ++jj) {
+                            for (ii = 0; ii < natmin3; ++ii) {
+                                if (std::abs(amat_mod_tmp[jj][ii]) > eps6) {
+                                    nonzero_omp.emplace_back(idata + ii, jj, amat_mod_tmp[jj][ii]);
+                                }
+                            }
                         }
-                    }
-
-                    for (const auto &it: constraint->get_index_bimap(order)) {
-                        inew = it.left + iparam;
-                        iold = it.right + ishift;
-
-                        for (jj = 0; jj < natmin3; ++jj) {
-                            amat_mod_tmp[jj][inew] = amat_orig_tmp[jj][iold];
-                        }
-                    }
-
-                    for (ii = 0; ii < constraint->get_const_relate(order).size(); ++ii) {
-
-                        iold = constraint->get_const_relate(order)[ii].p_index_target + ishift;
-
-                        for (jj = 0; jj < constraint->get_const_relate(order)[ii].alpha.size(); ++jj) {
-
-                            // This part can issue an error when the constraint matrix is deviate from rref.
-                            inew = constraint->get_index_bimap(order).right.at(
-                                    constraint->get_const_relate(order)[ii].p_index_orig[jj]) +
-                                   iparam;
-
-                            for (k = 0; k < natmin3; ++k) {
-                                amat_mod_tmp[k][inew] -= amat_orig_tmp[k][iold]
-                                                         * constraint->get_const_relate(order)[ii].alpha[jj];
+                    } else {
+                        for (jj = 0; jj < ncols_compact; ++jj) {
+                            for (ii = 0; ii < natmin3; ++ii) {
+                                // Transpose here for later use of lapack without transpose
+                                amat_subset(idata + ii, jj) = amat_mod_tmp[jj][ii];
                             }
                         }
                     }
 
-                    ishift += fcs->get_nequiv()[order].size();
-                    iparam += constraint->get_index_bimap(order).size();
-                }
+                } else {
 
-                for (ii = 0; ii < natmin3; ++ii) {
-                    for (jj = 0; jj < ncols_new; ++jj) {
-                        // Transpose here for later use of lapack without transpose
-                        amat_subset(idata + ii, jj) = amat_mod_tmp[ii][jj];
+                    if (sparse) {
+                        for (jj = 0; jj < ncols; ++jj) {
+                            for (ii = 0; ii < natmin3; ++ii) {
+                                if (std::abs(amat_orig_tmp[jj][ii]) > eps) {
+                                    nonzero_omp.emplace_back(idata + ii, jj, amat_orig_tmp[jj][ii]);
+                                }
+                            }
+                        }
+                    } else {
+                        for (jj = 0; jj < ncols; ++jj) {
+                            for (ii = 0; ii < natmin3; ++ii) {
+                                // Transpose here for later use of lapack without transpose
+                                amat_subset(idata + ii, jj) = amat_orig_tmp[jj][ii];
+                            }
+                        }
                     }
                 }
             }
 
             deallocate(amat_orig_tmp);
-        }
+            deallocate(amat_mod_tmp);
 
-//        std::cout << "OK\n" << std::flush;
-
-        amat_subset_transpose = amat_subset.transpose();
-        ata_subset = amat_subset_transpose * amat_subset;
-        atb_subset = amat_subset_transpose * bvec_subset;
-
-//        std::cout << "OK2\n" << std::flush;
-
-        for (size_t i = 0; i < ncols_new; ++i) {
-            for (size_t j = 0; j < ncols_new; ++j) {
-                ata_total[i * ncols_new + j] += ata_subset(i, j);
+            if (sparse) {
+#pragma omp critical
+                {
+                    for (const auto &it: nonzero_omp) {
+                        nonzero_entries.emplace_back(it);
+                    }
+                }
+                nonzero_omp.clear();
             }
-            atb_total[i] += atb_subset(i);
+            // std::cout << "nonzero_entries.size() = " << nonzero_entries.size() << '\n';
         }
-//        std::cout << "OK3\n" << std::flush;
-    }
 
-//    std::cout << "OK4\n" << std::flush;
+        if (sparse) {
+            SpMat amat_subset_sparse, amat_subset_transpose_sparse, atb_tmp;
+            amat_subset_sparse.resize(nrows_now, ncols_compact);
+            // amat_subset_transpose_sparse.resize(ncols_compact, nrows_now);
 
-    fnorm = 0.0;
-    for (size_t i = 0; i < bvec_orig.size(); ++i) {
-        fnorm += bvec_orig[i] * bvec_orig[i];
+            // std::cout << "Memory allocated for amat_subset_sparse =" << amat_subset_sparse.size() << '\n';
+
+            amat_subset_sparse.setFromTriplets(nonzero_entries.begin(), nonzero_entries.end());
+            amat_subset_sparse.makeCompressed();
+
+            // std::cout << "Elements filled" << amat_subset_sparse.nonZeros() << '\n';
+
+            SpMat At = amat_subset_sparse.transpose();
+
+            // matrix_out->amat_sparse.reserve(matrix_out->amat_sparse.size() + AtA.nonZeros());
+
+            // std::cout << "Computed transpose:\n";
+
+            matrix_out->amat_sparse += At * amat_subset_sparse;
+            // std::cout << "Computed A^T A\n";
+            Eigen::VectorXd bvec_subset2 = Eigen::Map<Eigen::VectorXd>(bvec_subset.data(), bvec_subset.size());
+            Eigen::VectorXd atb_tmp2 = At * bvec_subset2;
+
+            for (size_t i = 0; i < ncols_compact; ++i) {
+                matrix_out->bvec[i] += atb_tmp2[i];
+            }
+
+        } else {
+            amat_subset_transpose = amat_subset.transpose();
+            Eigen::MatrixXd ata_subset = amat_subset_transpose * amat_subset; // This is memory intensive
+            Eigen::VectorXd atb_subset =
+                amat_subset_transpose * Eigen::Map<Eigen::VectorXd>(bvec_subset.data(), bvec_subset.size());
+
+            for (size_t i = 0; i < ncols_compact; ++i) {
+                for (size_t j = 0; j < ncols_compact; ++j) {
+                    matrix_out->amat_dense[i * ncols_compact + j] += ata_subset(i, j);
+                }
+                matrix_out->bvec[i] += atb_subset(i);
+            }
+        }
     }
-    fnorm = std::sqrt(fnorm);
-    u_multi.clear();
-    f_multi.clear();
-//    std::cout << "OK5\n" << std::flush;
 }
 
 
-void Optimize::get_matrix_elements_normal_equation(const int maxorder,
-                                                   std::vector<double> &ata_total,
-                                                   std::vector<double> &atb_total,
-                                                   const std::vector<std::vector<double>> &u_in,
-                                                   const std::vector<std::vector<double>> &f_in,
-                                                   const Symmetry *symmetry,
-                                                   const Fcs *fcs) const
+auto Optimize::fill_bvec(const size_t natmin, const size_t irow, const std::vector<std::vector<int>> &index_mapping,
+                         const std::vector<double> &f_sub, std::vector<double> &bvec) -> void
 {
-    long irow;
+    const auto natmin3 = natmin * 3;
+    for (auto i = 0; i < natmin; ++i) {
+        for (auto j = 0; j < 3; ++j) {
+            bvec[3 * i + j + natmin3 * irow] = f_sub[3 * index_mapping[i][0] + j];
+        }
+    }
+}
 
-    if (u_in.size() != f_in.size()) {
-        exit("get_matrix_elements_normal_equation",
-             "The lengths of displacement array and force array are diferent.");
+auto Optimize::fill_amat(const int maxorder, const size_t natmin, const size_t ncols, const std::vector<double> &u_sub,
+                         const std::vector<std::vector<double>> &gamma_precomputed,
+                         const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Fcs> &fcs,
+                         double **&amat_orig) -> void
+{
+    // Store amat_orig[param][component] so projection and matrix scans
+    // access contiguous force-component vectors.
+    const auto natmin3 = natmin * 3;
+
+    for (size_t i = 0; i < ncols; ++i) {
+        for (size_t j = 0; j < natmin3; ++j) {
+            amat_orig[i][j] = 0.0;
+        }
     }
 
-    const auto ndata_fit = u_in.size();
-    const auto natmin = symmetry->get_nat_prim();
+    size_t iparam = 0;
+
+    double amat_tmp;
+    int k;
+
+    for (int order = 0; order < maxorder; ++order) {
+
+        size_t mm = 0;
+
+        for (const auto &iter: fcs->get_nequiv()[order]) {
+            for (auto i = 0; i < iter; ++i) {
+                amat_tmp = 1.0;
+                for (int j = 1; j < order + 2; ++j) {
+                    amat_tmp *= u_sub[fcs->get_fc_table()[order][mm].elems[j]];
+                }
+                k = inprim_index(fcs->get_fc_table()[order][mm].elems[0], symmetry);
+                amat_orig[iparam][k] -= gamma_precomputed[order][mm] * amat_tmp;
+                ++mm;
+            }
+            ++iparam;
+        }
+    }
+}
+
+auto Optimize::project_constraints(const int maxorder, const size_t natmin, const size_t irow,
+                                   const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Constraint> &constraint,
+                                   double **amat_orig, double **&amat_mod, std::vector<double> &bvec_mod) -> void
+{
+    // Convert the full matrix and vector into a smaller irreducible form
+    // by using constraint information.
+
+    std::vector<size_t> ishift(maxorder, 0), iparam(maxorder, 0);
+    for (int order = 1; order < maxorder; ++order) {
+        ishift[order] = ishift[order - 1] + fcs->get_nequiv()[order - 1].size();
+        iparam[order] = iparam[order - 1] + constraint->get_index_bimap(order - 1).size();
+    }
     const auto natmin3 = 3 * natmin;
-    const auto nat3 = u_in[0].size();
-    const auto nrows = ndata_fit * nat3;
-    size_t ncols = 0;
+    const auto idata = natmin3 * irow;
 
-    for (auto i = 0; i < maxorder; ++i) {
-        ncols += fcs->get_nequiv()[i].size();
-    }
+    // Parameter-major buffers keep copies and AXPYs contiguous.
+    // First pass: fixed and free parameters of all orders. The mapping overwrites every
+    // amat_mod row before the const_relate updates, so the reused buffer needs no clearing.
+    for (int order = 0; order < maxorder; ++order) {
 
-    auto ndata_subset = optcontrol.chunk_size;
-    auto nsubset = ndata_fit / ndata_subset;
-    if (nsubset * ndata_subset < ndata_fit) {
-        ++nsubset;
-    }
+        for (const auto fix: constraint->get_const_fix(order)) {
 
-    ata_total.resize(ncols * ncols, 0.0);
-    atb_total.resize(ncols, 0.0);
-
-    std::vector<double> bvec(nrows, 0.0);
-//    std::vector<double> bvec_orig(nrows, 0.0);
-    std::vector<std::vector<double>> u_multi, f_multi;
-
-    data_multiplier(u_in, u_multi, symmetry);
-    data_multiplier(f_in, f_multi, symmetry);
-
-    if (fcs->get_forceconstant_basis() == "Lattice") {
-        apply_basis_converter(u_multi,
-                              fcs->get_basis_conversion_matrix());
-    }
-
-    Eigen::MatrixXd ata_subset(ncols, ncols);
-    Eigen::VectorXd atb_subset(ncols);
-
-    for (size_t isub = 0; isub < nsubset; ++isub) {
-
-        const size_t istart = isub * ndata_subset;
-        size_t iend = (isub + 1) * ndata_subset;
-        if (iend > ndata_fit) {
-            iend = ndata_fit;
+            const double *afix = amat_orig[ishift[order] + fix.p_index_target];
+            for (size_t j = 0; j < natmin3; ++j) {
+                bvec_mod[j + idata] -= fix.val_to_fix * afix[j];
+            }
         }
 
-        auto nrows_now = (iend - istart) * nat3;
+        for (const auto &it: constraint->get_index_bimap(order)) {
+            // contiguous copy of the natmin3 force components for this free parameter
+            std::copy(amat_orig[it.right + ishift[order]],
+                      amat_orig[it.right + ishift[order]] + natmin3,
+                      amat_mod[it.left + iparam[order]]);
+        }
+    }
 
-        const long istart_cycle = istart * symmetry->get_ntran();
-        const long iend_cycle = iend * symmetry->get_ntran();
-
-        Eigen::MatrixXd amat_subset(nrows_now, ncols);
-        Eigen::MatrixXd amat_subset_transpose(ncols, nrows_now);
-        Eigen::VectorXd bvec_subset(nrows_now);
-
-        amat_subset.setZero();
-        bvec_subset.setZero();
-
-#pragma omp parallel private(irow)
-        {
-            std::vector<int> ind;
-            int mm, order, iat, k;
-            size_t ii, jj;
-            size_t idata;
-            size_t iparam;
-            double amat_tmp;
-            double **amat_orig_tmp;
-
-            ind.resize(maxorder + 1, 0);
-            allocate(amat_orig_tmp, natmin3, ncols);
-
-#pragma omp for
-            for (irow = istart_cycle; irow < iend_cycle; ++irow) {
-
-                idata = natmin3 * (irow - istart_cycle);
-
-                // generate r.h.s vector B
-                for (ii = 0; ii < natmin; ++ii) {
-                    iat = symmetry->get_map_p2s()[ii][0];
-                    for (jj = 0; jj < 3; ++jj) {
-                        bvec_subset[3 * ii + jj + idata] = f_multi[irow][3 * iat + jj];
-                    }
-                }
-
-                for (ii = 0; ii < natmin3; ++ii) {
-                    for (jj = 0; jj < ncols; ++jj) {
-                        amat_orig_tmp[ii][jj] = 0.0;
-                    }
-                }
-
-                // generate l.h.s. matrix A
-
-                iparam = 0;
-
-                for (order = 0; order < maxorder; ++order) {
-
-                    mm = 0;
-
-                    for (const auto &iter: fcs->get_nequiv()[order]) {
-                        for (ii = 0; ii < iter; ++ii) {
-                            ind[0] = fcs->get_fc_table()[order][mm].elems[0];
-                            k = inprim_index(ind[0], symmetry);
-
-                            amat_tmp = 1.0;
-                            for (jj = 1; jj < order + 2; ++jj) {
-                                ind[jj] = fcs->get_fc_table()[order][mm].elems[jj];
-                                amat_tmp *= u_multi[irow][fcs->get_fc_table()[order][mm].elems[jj]];
-                            }
-                            amat_orig_tmp[k][iparam] -= gamma(order + 2, ind.data())
-                                                        * fcs->get_fc_table()[order][mm].sign * amat_tmp;
-                            ++mm;
-                        }
-                        ++iparam;
-                    }
-                }
-
-                // When the force constants are defined in the fractional coordinate,
-                // we need to multiply the basis_conversion_matrix to obtain atomic forces
-                // in the Cartesian coordinate.
-                if (fcs->get_forceconstant_basis() == "Lattice") {
-                    apply_basis_converter_amat(natmin3,
-                                               ncols,
-                                               amat_orig_tmp,
-                                               fcs->get_basis_conversion_matrix());
-                }
-
-                for (ii = 0; ii < natmin3; ++ii) {
-                    for (jj = 0; jj < ncols; ++jj) {
-                        // Transpose here for later use of lapack without transpose
-                        amat_subset(idata + ii, jj) = amat_orig_tmp[ii][jj];
-                    }
+    // Second pass: dependent parameters (references may belong to another order).
+    for (int order = 0; order < maxorder; ++order) {
+        for (const auto &rel: constraint->get_const_relate(order)) {
+            const double *asrc = amat_orig[rel.p_index_target + ishift[order]];
+            if (rel.offset != 0.0) {
+                for (size_t j = 0; j < natmin3; ++j) {
+                    bvec_mod[j + idata] -= rel.offset * asrc[j];
                 }
             }
 
-            deallocate(amat_orig_tmp);
-        }
-
-        amat_subset_transpose = amat_subset.transpose();
-        ata_subset = amat_subset_transpose * amat_subset;
-        atb_subset = amat_subset_transpose * bvec_subset;
-
-        for (size_t i = 0; i < ncols; ++i) {
-            for (size_t j = 0; j < ncols; ++j) {
-                ata_total[i * ncols + j] += ata_subset(i, j);
+            for (size_t j = 0; j < rel.alpha.size(); ++j) {
+                const auto o = rel.order_orig[j];
+                const auto inew = constraint->get_index_bimap(o).right.at(rel.p_index_orig[j]) + iparam[o];
+                const double alpha = rel.alpha[j];
+                double *adst = amat_mod[inew];
+                // contiguous AXPY over the natmin3 force components
+                for (size_t k = 0; k < natmin3; ++k) {
+                    adst[k] -= asrc[k] * alpha;
+                }
             }
-            atb_total[i] += atb_subset(i);
         }
     }
-    u_multi.clear();
-    f_multi.clear();
+}
+
+auto Optimize::project_energy_row(const int maxorder, const std::unique_ptr<Fcs> &fcs,
+                                  const std::unique_ptr<Constraint> &constraint, const std::vector<double> &e_full,
+                                  std::vector<double> &e_compact, double &e_rhs) -> void
+{
+    // Project e_full to the constraint-compacted e_compact, moving fixed
+    // coefficient energy to e_rhs as project_constraints does for forces.
+    std::fill(e_compact.begin(), e_compact.end(), 0.0);
+    e_rhs = 0.0;
+
+    std::vector<size_t> ishift(maxorder, 0), iparam(maxorder, 0);
+    for (int order = 1; order < maxorder; ++order) {
+        ishift[order] = ishift[order - 1] + fcs->get_nequiv()[order - 1].size();
+        iparam[order] = iparam[order - 1] + constraint->get_index_bimap(order - 1).size();
+    }
+
+    for (int order = 0; order < maxorder; ++order) {
+
+        for (const auto fix: constraint->get_const_fix(order)) {
+            e_rhs -= fix.val_to_fix * e_full[ishift[order] + fix.p_index_target];
+        }
+
+        for (const auto &it: constraint->get_index_bimap(order)) {
+            e_compact[it.left + iparam[order]] = e_full[it.right + ishift[order]];
+        }
+    }
+
+    for (int order = 0; order < maxorder; ++order) {
+        for (const auto &rel: constraint->get_const_relate(order)) {
+            const auto iold = rel.p_index_target + ishift[order];
+            e_rhs -= rel.offset * e_full[iold];
+            for (size_t j = 0; j < rel.alpha.size(); ++j) {
+                // Guarded lookup (the force projector uses an unchecked .at() here): a const_relate
+                // origin index that is not a free parameter would otherwise throw std::out_of_range.
+                const auto o = rel.order_orig[j];
+                const auto &bimap_right = constraint->get_index_bimap(o).right;
+                const auto found = bimap_right.find(rel.p_index_orig[j]);
+                if (found == bimap_right.end()) {
+                    exit("project_energy_row",
+                         "const_relate references a parameter index absent from index_bimap "
+                         "(unsupported constraint chain).");
+                }
+                e_compact[found->second + iparam[o]] -= e_full[iold] * rel.alpha[j];
+            }
+        }
+    }
 }
 
 
-void Optimize::recover_original_forceconstants(const int maxorder,
-                                               const std::vector<double> &param_in,
-                                               std::vector<double> &param_out,
-                                               const std::vector<size_t> *nequiv,
-                                               const Constraint *constraint) const
+auto Optimize::recover_original_forceconstants(const int maxorder, const std::vector<double> &param_in,
+                                               std::vector<double> &param_out, const std::vector<size_t> *nequiv,
+                                               const std::unique_ptr<Constraint> &constraint) const -> void
 {
     // Expand the given force constants into the larger sets
     // by using the constraint matrix.
 
-    size_t i, j, k;
-    size_t ishift = 0;
-    size_t iparam = 0;
-    double tmp;
-    size_t inew, iold;
-
-    size_t nparams = 0;
-
-    for (i = 0; i < maxorder; ++i) nparams += nequiv[i].size();
+    std::vector<size_t> ishift(maxorder, 0), iparam(maxorder, 0);
+    for (int order = 1; order < maxorder; ++order) {
+        ishift[order] = ishift[order - 1] + nequiv[order - 1].size();
+        iparam[order] = iparam[order - 1] + constraint->get_index_bimap(order - 1).size();
+    }
+    const auto nparams = maxorder > 0 ? ishift[maxorder - 1] + nequiv[maxorder - 1].size() : 0;
 
     param_out.resize(nparams, 0.0);
 
-    for (i = 0; i < maxorder; ++i) {
-        for (j = 0; j < constraint->get_const_fix(i).size(); ++j) {
-            param_out[constraint->get_const_fix(i)[j].p_index_target + ishift]
-                    = constraint->get_const_fix(i)[j].val_to_fix;
+    // Fixed and free parameters of all orders first, since a relation may refer to another order.
+    for (int order = 0; order < maxorder; ++order) {
+        for (const auto &fix: constraint->get_const_fix(order)) {
+            param_out[fix.p_index_target + ishift[order]] = fix.val_to_fix;
         }
-
-        for (const auto &it: constraint->get_index_bimap(i)) {
-            inew = it.left + iparam;
-            iold = it.right + ishift;
-
-            param_out[iold] = param_in[inew];
+        for (const auto &it: constraint->get_index_bimap(order)) {
+            param_out[it.right + ishift[order]] = param_in[it.left + iparam[order]];
         }
+    }
 
-        for (j = 0; j < constraint->get_const_relate(i).size(); ++j) {
-            tmp = 0.0;
-
-            for (k = 0; k < constraint->get_const_relate(i)[j].alpha.size(); ++k) {
-                tmp += constraint->get_const_relate(i)[j].alpha[k]
-                       * param_out[constraint->get_const_relate(i)[j].p_index_orig[k] + ishift];
+    for (int order = 0; order < maxorder; ++order) {
+        for (const auto &rel: constraint->get_const_relate(order)) {
+            double tmp = 0.0;
+            for (size_t k = 0; k < rel.alpha.size(); ++k) {
+                tmp += rel.alpha[k] * param_out[rel.p_index_orig[k] + ishift[rel.order_orig[k]]];
             }
-            param_out[constraint->get_const_relate(i)[j].p_index_target + ishift] = -tmp;
+            param_out[rel.p_index_target + ishift[order]] = rel.offset - tmp;
         }
-
-        ishift += nequiv[i].size();
-        iparam += constraint->get_index_bimap(i).size();
     }
 }
 
 
-void Optimize::data_multiplier(const std::vector<std::vector<double>> &data_in,
+auto Optimize::data_multiplier(const std::vector<std::vector<double>> &data_in,
                                std::vector<std::vector<double>> &data_out,
-                               const Symmetry *symmetry) const
+                               const std::unique_ptr<Symmetry> &symmetry) const -> void
 {
-    const auto nat = symmetry->get_nat_prim() * symmetry->get_ntran();
+    const auto nat = symmetry->get_nat_trueprim() * symmetry->get_ntran();
     const auto ndata_used = data_in.size();
     const auto ntran = symmetry->get_ntran();
 
@@ -3157,15 +3395,14 @@ void Optimize::data_multiplier(const std::vector<std::vector<double>> &data_in,
     }
 }
 
-int Optimize::inprim_index(const int n,
-                           const Symmetry *symmetry) const
+auto Optimize::inprim_index(const int n, const std::unique_ptr<Symmetry> &symmetry) -> int
 {
     auto in = -1;
     const auto atmn = n / 3;
     const auto crdn = n % 3;
 
-    for (size_t i = 0; i < symmetry->get_nat_prim(); ++i) {
-        if (symmetry->get_map_p2s()[i][0] == atmn) {
+    for (size_t i = 0; i < symmetry->get_nat_trueprim(); ++i) {
+        if (symmetry->get_map_trueprim_to_super()[i][0] == atmn) {
             in = 3 * i + crdn;
             break;
         }
@@ -3173,14 +3410,11 @@ int Optimize::inprim_index(const int n,
     return in;
 }
 
-double Optimize::gamma(const int n,
-                       const int *arr) const
+auto Optimize::gamma(const int n, const int *arr) const -> double
 {
-    int *arr_tmp, *nsame;
+    std::vector<int> arr_tmp(n);
+    std::vector<int> nsame(n);
     int i;
-
-    allocate(arr_tmp, n);
-    allocate(nsame, n);
 
     for (i = 0; i < n; ++i) {
         arr_tmp[i] = arr[i];
@@ -3190,7 +3424,7 @@ double Optimize::gamma(const int n,
     const auto ind_front = arr[0];
     auto nsame_to_front = 1;
 
-    insort(n, arr_tmp);
+    insort(n, arr_tmp.data());
 
     auto nuniq = 1;
     auto iuniq = 0;
@@ -3214,19 +3448,364 @@ double Optimize::gamma(const int n,
         denom *= factorial(nsame[i]);
     }
 
-    deallocate(arr_tmp);
-    deallocate(nsame);
-
     return static_cast<double>(nsame_to_front) / static_cast<double>(denom);
 }
 
 
-double *Optimize::get_params() const
+auto Optimize::gamma_energy(const int n, const int *arr) const -> double
+{
+    // Energy multiplicity is gamma(n, arr) / n (see tools/taylor.py).
+    // The 1/n corrects for fc_table index orderings and gives
+    // E_order = -(1/n) * sum_a u_a F_a.
+    return gamma(n, arr) / static_cast<double>(n);
+}
+
+
+auto Optimize::fill_amat_energy(const int maxorder, const size_t ncols, const std::vector<double> &u_sub,
+                                const std::vector<std::vector<double>> &gamma_energy_precomputed,
+                                const std::unique_ptr<Fcs> &fcs, std::vector<double> &energy_row) -> void
+{
+    // Single energy row for one displacement image, in the full (non-compact) ncols basis.
+    // iparam advances once per symmetry-irreducible group (cf. fill_amat).
+    for (size_t j = 0; j < ncols; ++j) energy_row[j] = 0.0;
+
+    size_t iparam = 0;
+
+    for (int order = 0; order < maxorder; ++order) {
+        size_t mm = 0;
+        for (const auto &iter: fcs->get_nequiv()[order]) {
+            for (size_t i = 0; i < iter; ++i) {
+                double prod = 1.0;
+                // product over ALL order+2 indices (energy), incl. elems[0]
+                for (int j = 0; j < order + 2; ++j) {
+                    prod *= u_sub[fcs->get_fc_table()[order][mm].elems[j]];
+                }
+                energy_row[iparam] += gamma_energy_precomputed[order][mm] * prod;
+                ++mm;
+            }
+            ++iparam;
+        }
+    }
+}
+
+
+auto Optimize::run_energy_selftest(const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Fcs> &fcs,
+                                   const std::unique_ptr<Constraint> &constraint, const int maxorder,
+                                   const int verbosity) const -> bool
+{
+    // Check the per-order Euler identity against the force matrix:
+    //   A_E[c][p] == -(1/n_p) * sum_a u_a * A_F[a][p], n_p = order(p) + 2.
+    // Sum over all supercell atoms using the ntran translation images.
+    std::cout << "\n  [ALM_ENERGY_SELFTEST] Verifying energy-row builder vs force builder (Euler's theorem)\n";
+
+    if (!e_train.empty()) {
+        double emin = e_train[0], emax = e_train[0], esum = 0.0;
+        for (const auto v: e_train) {
+            emin = std::min(emin, v);
+            emax = std::max(emax, v);
+            esum += v;
+        }
+        std::cout << std::scientific << std::setprecision(6) << "  reference energies read (Ry): n = " << e_train.size()
+                  << ", min = " << emin << ", max = " << emax
+                  << ", mean = " << esum / static_cast<double>(e_train.size()) << "\n"
+                  << std::defaultfloat;
+    }
+
+    const auto natmin = symmetry->get_nat_trueprim();
+    const auto natmin3 = 3 * natmin;
+    const auto ntran = symmetry->get_ntran();
+    const auto ndata_fit = u_train.size();
+
+    if (ndata_fit == 0) {
+        std::cout << "  No training data loaded; skipping self-test.\n\n";
+        return false;
+    }
+
+    size_t ncols = 0;
+    for (auto i = 0; i < maxorder; ++i) ncols += fcs->get_nequiv()[i].size();
+
+    // order index for each parameter column (iparam -> order)
+    std::vector<int> order_of_param(ncols);
+    {
+        size_t ip = 0;
+        for (int o = 0; o < maxorder; ++o)
+            for (size_t g = 0; g < fcs->get_nequiv()[o].size(); ++g) order_of_param[ip++] = o;
+    }
+
+    // translation-replicated displacements (same preprocessing as the force matrix builder)
+    std::vector<std::vector<double>> u_multi;
+    data_multiplier(u_train, u_multi, symmetry);
+    if (fcs->get_forceconstant_basis() == "Lattice") {
+        apply_basis_converter(u_multi, fcs->get_basis_conversion_matrix());
+    }
+
+    // gamma tables (force and energy), including the FC-table sign factor
+    std::vector<int> ind_tmp(maxorder + 1);
+    std::vector<std::vector<double>> gamma_precomputed(maxorder), gamma_energy_precomputed(maxorder);
+    for (int order = 0; order < maxorder; ++order) {
+        gamma_precomputed[order].resize(fcs->get_fc_table()[order].size(), 0.0);
+        gamma_energy_precomputed[order].resize(fcs->get_fc_table()[order].size(), 0.0);
+        size_t ii = 0;
+        for (const auto &iter: fcs->get_nequiv()[order]) {
+            for (size_t i = 0; i < iter; ++i) {
+                for (int j = 0; j < order + 2; ++j) ind_tmp[j] = fcs->get_fc_table()[order][ii].elems[j];
+                const double sign = fcs->get_fc_table()[order][ii].sign;
+                gamma_precomputed[order][ii] = gamma(order + 2, ind_tmp.data()) * sign;
+                gamma_energy_precomputed[order][ii] = gamma_energy(order + 2, ind_tmp.data()) * sign;
+                ++ii;
+            }
+        }
+    }
+
+    // Contract with deterministic theta to check the complete per-order force:
+    //   E_order(theta) == -(1/n) * sum_a u_a * F_a^order(theta).
+    // Individual force columns contain only the lead atom contribution.
+    std::vector<double> theta(ncols);
+    for (size_t p = 0; p < ncols; ++p) theta[p] = 1.5 + std::sin(0.3 * static_cast<double>(p) + 1.0);
+
+    // Check projection and fixed-coefficient subtraction for each configuration:
+    //   A_E_full . recover(theta_c) == A_E_compact . theta_c - e_rhs.
+    const bool algebraic = constraint->get_constraint_algebraic();
+    size_t ncols_c = 0;
+    for (int o = 0; o < maxorder; ++o) ncols_c += constraint->get_index_bimap(o).size();
+    std::vector<double> theta_c(ncols_c), theta_full, e_compact_c(ncols_c);
+    for (size_t q = 0; q < ncols_c; ++q) theta_c[q] = 1.3 + std::sin(0.4 * static_cast<double>(q) + 0.5);
+    if (algebraic) {
+        recover_original_forceconstants(maxorder, theta_c, theta_full, fcs->get_nequiv(), constraint);
+    }
+    double max_abs_proj = 0.0, max_rel_proj = 0.0, max_scale_proj = 0.0;
+
+    double **amat_orig;
+    allocate(amat_orig, ncols, natmin3); // parameter-major: amat_orig[param][component]
+    std::vector<double> energy_row(ncols);
+
+    double max_abs = 0.0, max_rel = 0.0, max_scale = 0.0;
+
+    for (size_t c = 0; c < ndata_fit; ++c) {
+        std::vector<double> e_order(maxorder, 0.0);  // energy per order, contracted with theta
+        std::vector<double> fu_order(maxorder, 0.0); // sum_a u_a F_a per order, contracted with theta
+        std::vector<double> e_full_c(ncols, 0.0);    // full-basis energy row for this config (sum over images)
+
+        for (size_t itran = 0; itran < ntran; ++itran) {
+            const size_t irow = c * ntran + itran;
+
+            // energy contribution of this image, accumulated per order and into the full row
+            fill_amat_energy(maxorder, ncols, u_multi[irow], gamma_energy_precomputed, fcs, energy_row);
+            for (size_t p = 0; p < ncols; ++p) {
+                e_order[order_of_param[p]] += energy_row[p] * theta[p];
+                e_full_c[p] += energy_row[p];
+            }
+
+            // complete force F_a(theta) for this image, contracted with u_a, per order
+            fill_amat(maxorder, natmin, ncols, u_multi[irow], gamma_precomputed, symmetry, fcs, amat_orig);
+            for (size_t i = 0; i < natmin; ++i) {
+                const auto sat = symmetry->get_map_trueprim_to_super()[i][0];
+                for (int cc = 0; cc < 3; ++cc) {
+                    const size_t k = 3 * i + cc;
+                    const double uk = u_multi[irow][3 * sat + cc];
+                    for (size_t p = 0; p < ncols; ++p) {
+                        fu_order[order_of_param[p]] += uk * amat_orig[p][k] * theta[p];
+                    }
+                }
+            }
+        }
+
+        for (int o = 0; o < maxorder; ++o) {
+            const double euler = -(1.0 / static_cast<double>(o + 2)) * fu_order[o];
+            const double d = std::abs(e_order[o] - euler);
+            max_abs = std::max(max_abs, d);
+            const double scale = std::max(std::abs(e_order[o]), std::abs(euler));
+            if (scale > 1.0e-14) max_rel = std::max(max_rel, d / scale);
+            max_scale = std::max(max_scale, scale);
+            if (c == 0 && verbosity > 0) {
+                std::cout << std::scientific << std::setprecision(6) << "    [c=0] order " << o << " (n=" << o + 2
+                          << "): E = " << e_order[o] << ", -1/n*sum u.F = " << euler
+                          << ", E/euler = " << (std::abs(euler) > 1e-30 ? e_order[o] / euler : 0.0) << "\n"
+                          << std::defaultfloat;
+            }
+        }
+
+        // compact-projection check: A_E_full . theta_full == A_E_compact . theta_c - e_rhs
+        if (algebraic) {
+            double e_rhs = 0.0;
+            project_energy_row(maxorder, fcs, constraint, e_full_c, e_compact_c, e_rhs);
+            double lhs = 0.0;
+            for (size_t p = 0; p < ncols; ++p) lhs += e_full_c[p] * theta_full[p];
+            double rhs = -e_rhs;
+            for (size_t q = 0; q < ncols_c; ++q) rhs += e_compact_c[q] * theta_c[q];
+            const double d = std::abs(lhs - rhs);
+            max_abs_proj = std::max(max_abs_proj, d);
+            const double sc = std::max(std::abs(lhs), std::abs(rhs));
+            max_scale_proj = std::max(max_scale_proj, sc);
+            if (sc > 1.0e-14) max_rel_proj = std::max(max_rel_proj, d / sc);
+        }
+    }
+
+    deallocate(amat_orig);
+
+    std::cout << "  configs = " << ndata_fit << ", ntran = " << ntran << ", ncols = " << ncols
+              << ", ncols_compact = " << ncols_c << ", maxorder = " << maxorder << "\n";
+    std::cout << std::scientific << std::setprecision(6);
+    std::cout << "  [full-basis Euler]   max |E_order - Euler(A_F.theta)| = " << max_abs << ", max rel = " << max_rel
+              << "\n";
+    // Require non-trivial magnitude so an all-zero/degenerate case fails rather than passing vacuously.
+    const bool euler_ok = (max_rel < 1.0e-10) && (max_scale > 1.0e-8);
+    bool proj_ok = true;
+    if (algebraic) {
+        std::cout << "  [compact projection] max |A_E_full.th_f - (A_E_comp.th_c - e_rhs)| = " << max_abs_proj
+                  << ", max rel = " << max_rel_proj << ", scale = " << max_scale_proj << "\n";
+        proj_ok = (max_rel_proj < 1.0e-10) && (max_scale_proj > 1.0e-8);
+    } else {
+        std::cout << "  [compact projection] skipped (no algebraic constraint; compact basis == full)\n";
+    }
+    const bool passed = euler_ok && proj_ok;
+    std::cout << "  RESULT: " << (passed ? "PASS" : "FAIL") << " (energy row validated vs force builder"
+              << (algebraic ? " and constraint projection" : "") << ")\n\n";
+    std::cout << std::defaultfloat;
+    return passed;
+}
+
+
+auto Optimize::build_energy_block(const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Fcs> &fcs,
+                                  const std::unique_ptr<Constraint> &constraint, const int maxorder,
+                                  const size_t ncols_compact, const std::vector<std::vector<double>> &u_in,
+                                  const std::vector<double> &e_in, const double emin, std::vector<double> &amat_out,
+                                  std::vector<double> &evec_out, double &enorm_out) const -> void
+{
+    // Build the constraint-compacted, weighted-centered, w-scaled energy block.
+    // Requires algebraic constraints; use global training E_min as emin
+    // to keep weights consistent across CV folds.
+    const size_t n_ene = u_in.size();
+    amat_out.clear();
+    evec_out.clear();
+    enorm_out = 0.0;
+    if (n_ene == 0) return; // empty fold/set: emit no energy rows (avoids 1/wsum division by zero)
+    if (e_in.size() != n_ene) {
+        exit("build_energy_block", "Number of reference energies != number of configurations.");
+    }
+
+    size_t ncols = 0;
+    for (auto i = 0; i < maxorder; ++i) ncols += fcs->get_nequiv()[i].size();
+
+    std::vector<std::vector<double>> u_multi;
+    data_multiplier(u_in, u_multi, symmetry);
+    if (fcs->get_forceconstant_basis() == "Lattice") {
+        apply_basis_converter(u_multi, fcs->get_basis_conversion_matrix());
+    }
+
+    std::vector<int> ind_tmp(maxorder + 1);
+    std::vector<std::vector<double>> gamma_energy_precomputed(maxorder);
+    for (int order = 0; order < maxorder; ++order) {
+        gamma_energy_precomputed[order].resize(fcs->get_fc_table()[order].size(), 0.0);
+        size_t ii = 0;
+        for (const auto &iter: fcs->get_nequiv()[order]) {
+            for (size_t i = 0; i < iter; ++i) {
+                for (int j = 0; j < order + 2; ++j) ind_tmp[j] = fcs->get_fc_table()[order][ii].elems[j];
+                gamma_energy_precomputed[order][ii] =
+                    gamma_energy(order + 2, ind_tmp.data()) * fcs->get_fc_table()[order][ii].sign;
+                ++ii;
+            }
+        }
+    }
+
+    const auto ntran = symmetry->get_ntran();
+    amat_out.assign(n_ene * ncols_compact, 0.0);
+    evec_out.assign(n_ene, 0.0);
+
+    std::vector<double> e_full(ncols), e_compact(ncols_compact), energy_row(ncols);
+    for (size_t c = 0; c < n_ene; ++c) {
+        std::fill(e_full.begin(), e_full.end(), 0.0);
+        for (size_t itran = 0; itran < ntran; ++itran) {
+            const size_t irow = c * ntran + itran;
+            fill_amat_energy(maxorder, ncols, u_multi[irow], gamma_energy_precomputed, fcs, energy_row);
+            for (size_t p = 0; p < ncols; ++p) e_full[p] += energy_row[p];
+        }
+        if (energy_row_scale != 1.0) {
+            for (auto &v: e_full) v *= energy_row_scale;
+        }
+        double e_rhs = 0.0;
+        project_energy_row(maxorder, fcs, constraint, e_full, e_compact, e_rhs);
+        for (size_t q = 0; q < ncols_compact; ++q) amat_out[c * ncols_compact + q] = e_compact[q];
+        evec_out[c] = e_in[c] + e_rhs; // A_E_compact . theta_c fits (E_ref + e_rhs)
+    }
+
+    // Per-configuration weights W_c = exp(-(E_c - emin)/escale) (escale in eV); escale<=0 => uniform.
+    std::vector<double> wts(n_ene, 1.0);
+    if (optcontrol.efit_escale > 0.0) {
+        for (size_t c = 0; c < n_ene; ++c) wts[c] = std::exp(-(e_in[c] - emin) * Ryd_in_eV / optcontrol.efit_escale);
+    }
+    double wsum = 0.0;
+    for (size_t c = 0; c < n_ene; ++c) wsum += wts[c];
+    const double inv_wsum = 1.0 / wsum;
+
+    // Weighted Frisch-Waugh centering over THIS config set (offset-invariant; consistent across folds).
+    for (size_t q = 0; q < ncols_compact; ++q) {
+        double colmean = 0.0;
+        for (size_t c = 0; c < n_ene; ++c) colmean += wts[c] * amat_out[c * ncols_compact + q];
+        colmean *= inv_wsum;
+        for (size_t c = 0; c < n_ene; ++c) amat_out[c * ncols_compact + q] -= colmean;
+    }
+    double emean = 0.0;
+    for (size_t c = 0; c < n_ene; ++c) emean += wts[c] * evec_out[c];
+    emean *= inv_wsum;
+    for (size_t c = 0; c < n_ene; ++c) evec_out[c] -= emean;
+
+    // Scale row c by w*sqrt(W_c) so the loss term is w^2 * sum_c W_c (A_E[c]·θ − target[c])^2.
+    const double w = optcontrol.efit_weight;
+    double e2 = 0.0;
+    for (size_t c = 0; c < n_ene; ++c) {
+        const double s = w * std::sqrt(wts[c]);
+        for (size_t q = 0; q < ncols_compact; ++q) amat_out[c * ncols_compact + q] *= s;
+        evec_out[c] *= s;
+        e2 += evec_out[c] * evec_out[c];
+    }
+    enorm_out = std::sqrt(e2); // norm of the w-scaled centered target (for the relative energy error)
+}
+
+auto Optimize::build_energy_matrix(const std::unique_ptr<Symmetry> &symmetry, const std::unique_ptr<Fcs> &fcs,
+                                   const std::unique_ptr<Constraint> &constraint, const int maxorder,
+                                   const size_t ncols_compact, std::vector<double> &amat_energy_out,
+                                   std::vector<double> &evec_out, const int verbosity) const -> void
+{
+    // Production entry: energy block for the full training set, used by optimize_with_given_l1alpha.
+    if (!constraint->get_constraint_algebraic()) {
+        exit("build_energy_matrix", "EFIT_WEIGHT > 0 currently requires an algebraic constraint (ICONST >= 10).");
+    }
+    const size_t n_ene = e_train.size();
+    if (n_ene == 0) exit("build_energy_matrix", "EFIT_WEIGHT > 0 but no reference energies were read.");
+    if (n_ene != u_train.size()) {
+        exit("build_energy_matrix", "Number of reference energies != number of training configurations.");
+    }
+    double emin = e_train[0];
+    for (size_t c = 0; c < n_ene; ++c) emin = std::min(emin, e_train[c]);
+
+    double enorm;
+    build_energy_block(symmetry,
+                       fcs,
+                       constraint,
+                       maxorder,
+                       ncols_compact,
+                       u_train,
+                       e_train,
+                       emin,
+                       amat_energy_out,
+                       evec_out,
+                       enorm);
+
+    if (verbosity > 0) {
+        std::cout << "  Energy term: " << n_ene << " reference energies, weight w = " << optcontrol.efit_weight;
+        if (optcontrol.efit_escale > 0.0) std::cout << ", escale = " << optcontrol.efit_escale << " eV";
+        std::cout << " (weighted-centered, compacted; ncols_compact = " << ncols_compact << ")\n";
+    }
+}
+
+
+auto Optimize::get_params() const -> double *
 {
     return params;
 }
 
-int Optimize::factorial(const int n) const
+auto Optimize::factorial(const int n) const -> int
 {
     if (n == 1 || n == 0) {
         return 1;
@@ -3235,156 +3814,23 @@ int Optimize::factorial(const int n) const
 }
 
 
-int Optimize::rankQRD(const size_t m,
-                      const size_t n,
-                      double *mat,
-                      const double tolerance) const
+auto Optimize::run_eigen_sparse_solver(const SpMat &sp_mat, const Eigen::VectorXd &sp_bvec,
+                                       std::vector<double> &param_out, const double fnorm, const int maxorder,
+                                       const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Constraint> &constraint,
+                                       const std::string &solver_type, const int verbosity) const -> int
 {
-    // Return the rank of matrix mat revealed by the column pivoting QR decomposition
-    // The matrix mat is destroyed.
-
-    auto m_ = static_cast<int>(m);
-    auto n_ = static_cast<int>(n);
-
-    auto LDA = m_;
-
-    auto LWORK = 10 * n_;
-    int INFO;
-    int *JPVT;
-    double *WORK, *TAU;
-
-    const auto nmin = std::min<int>(m_, n_);
-
-    allocate(JPVT, n_);
-    allocate(WORK, LWORK);
-    allocate(TAU, nmin);
-
-    for (auto i = 0; i < n_; ++i) JPVT[i] = 0;
-
-    dgeqp3_(&m_, &n_, mat, &LDA, JPVT, TAU, WORK, &LWORK, &INFO);
-
-    deallocate(JPVT);
-    deallocate(WORK);
-    deallocate(TAU);
-
-    if (std::abs(mat[0]) < eps) return 0;
-
-    double **mat_tmp;
-    allocate(mat_tmp, m_, n_);
-
-    unsigned long k = 0;
-
-    for (auto j = 0; j < n_; ++j) {
-        for (auto i = 0; i < m_; ++i) {
-            mat_tmp[i][j] = mat[k++];
-        }
-    }
-
-    auto nrank = 0;
-    for (auto i = 0; i < nmin; ++i) {
-        if (std::abs(mat_tmp[i][i]) > tolerance * std::abs(mat[0])) ++nrank;
-    }
-
-    deallocate(mat_tmp);
-
-    return nrank;
-}
-
-
-int Optimize::run_eigen_sparse_solver(const SpMat &sp_mat,
-                                      const Eigen::VectorXd &sp_bvec,
-                                      std::vector<double> &param_out,
-                                      const double fnorm,
-                                      const int maxorder,
-                                      const Fcs *fcs,
-                                      const Constraint *constraint,
-                                      const std::string solver_type,
-                                      const int verbosity) const
-{
-    const auto solver_type_lower = boost::algorithm::to_lower_copy(solver_type);
-    Eigen::VectorXd x;
-
     if (verbosity > 0) {
         std::cout << "  Solve least-squares problem by Eigen " + solver_type + ".\n";
     }
 
-    if (solver_type_lower == "simplicialldlt") {
-        SpMat AtA = sp_mat.transpose() * sp_mat;
-        Eigen::VectorXd AtB = sp_mat.transpose() * sp_bvec;
+    Eigen::VectorXd x;
 
-        Eigen::SimplicialLDLT<SpMat> ldlt(AtA);
-        x = ldlt.solve(AtB);
-
-        if (ldlt.info() != Eigen::Success) {
-            std::cerr << "  Fitting by " + solver_type + " failed." << std::endl;
-            std::cerr << ldlt.info() << std::endl;
-            return 1;
-        }
-
-    } else if (solver_type_lower == "sparseqr") {
-
-        Eigen::SparseQR<SpMat, Eigen::COLAMDOrdering<int>> qr(sp_mat);
-        x = qr.solve(sp_bvec);
-
-        if (qr.info() != Eigen::Success) {
-            std::cerr << "  Fitting by " + solver_type + " failed." << std::endl;
-            std::cerr << qr.info() << std::endl;
-            return 1;
-        }
-
-    } else if (solver_type_lower == "conjugategradient") {
-        SpMat AtA = sp_mat.transpose() * sp_mat;
-        Eigen::VectorXd AtB = sp_mat.transpose() * sp_bvec;
-
-        Eigen::ConjugateGradient<SpMat> cg(AtA);
-        cg.setTolerance(optcontrol.tolerance_iteration);
-        cg.setMaxIterations(optcontrol.maxnum_iteration);
-        x.setZero();
-        x = cg.solve(AtB);
-
-        if (cg.info() != Eigen::Success) {
-            std::cerr << "  Fitting by " + solver_type + " failed." << std::endl;
-            std::cerr << cg.info() << std::endl;
-            return 1;
-        }
-
-    } else if (solver_type_lower == "leastsquaresconjugategradient") {
-
-#if EIGEN_VERSION_AT_LEAST(3, 3, 0)
-        Eigen::LeastSquaresConjugateGradient<SpMat> lscg(sp_mat);
-        lscg.setTolerance(optcontrol.tolerance_iteration);
-        lscg.setMaxIterations(optcontrol.maxnum_iteration);
-        x.setZero();
-        x = lscg.solve(sp_bvec);
-
-        if (lscg.info() != Eigen::Success) {
-            std::cerr << "  Fitting by " + solver_type + " failed." << std::endl;
-            std::cerr << lscg.info() << std::endl;
-            return 1;
-        }
-
-#else
-        std::cerr << "The linked Eigen version is too old\n";
-        std::cerr << solver_type + " is available as of 3.3.0\n";
-        return 1;
-#endif
-
-    } else if (solver_type_lower == "bicgstab") {
-        SpMat AtA = sp_mat.transpose() * sp_mat;
-        Eigen::VectorXd AtB = sp_mat.transpose() * sp_bvec;
-
-        Eigen::BiCGSTAB<SpMat> bicg(AtA);
-        bicg.setTolerance(optcontrol.tolerance_iteration);
-        bicg.setMaxIterations(optcontrol.maxnum_iteration);
-        x.setZero();
-        x = bicg.solve(AtB);
-
-        if (bicg.info() != Eigen::Success) {
-            std::cerr << "  Fitting by " + solver_type + " failed." << std::endl;
-            std::cerr << bicg.info() << std::endl;
-            return 1;
-        }
-    }
+    auto info_eigen = least_squares_eigen_sparse_solver(sp_mat,
+                                                        sp_bvec,
+                                                        x,
+                                                        solver_type,
+                                                        optcontrol.tolerance_iteration,
+                                                        optcontrol.maxnum_iteration);
 
     auto res = sp_bvec - sp_mat * x;
     const auto res2norm = res.squaredNorm();
@@ -3397,35 +3843,42 @@ int Optimize::run_eigen_sparse_solver(const SpMat &sp_mat,
 
     // Recover reducible set of force constants
 
-    recover_original_forceconstants(maxorder,
-                                    param_irred,
-                                    param_out,
-                                    fcs->get_nequiv(),
-                                    constraint);
-
-    if (verbosity > 0) {
-        std::cout << "  Residual sum of squares for the solution: "
-                  << sqrt(res2norm) << std::endl;
-        std::cout << "  Fitting error (%) : "
-                  << sqrt(res2norm / (fnorm * fnorm)) * 100.0 << std::endl;
+    if (constraint->get_constraint_algebraic()) {
+        recover_original_forceconstants(maxorder, param_irred, param_out, fcs->get_nequiv(), constraint);
+    } else {
+        param_out.resize(nparams, 0.0);
+        for (size_t i = 0; i < nparams; ++i) {
+            param_out[i] = param_irred[i];
+        }
     }
 
-    return 0;
+    if (verbosity > 0) {
+        std::cout << "  Residual sum of squares for the solution: " << sqrt(res2norm) << '\n';
+        std::cout << "  Fitting error (%) : " << sqrt(res2norm / (fnorm * fnorm)) * 100.0 << '\n';
+    }
+
+    return info_eigen;
 }
 
 
-void Optimize::set_optimizer_control(const OptimizerControl &optcontrol_in)
+auto Optimize::set_optimizer_control(const OptimizerControl &optcontrol_in) -> void
 {
     // Check the validity of the options before copying it.
+
+    if (optcontrol_in.l1_solver < 0 || optcontrol_in.l1_solver > 2) {
+        exit("set_optimizer_control", "L1_SOLVER must be cd, fista, or admm.");
+    }
 
     if (optcontrol_in.cross_validation < -1) {
         exit("set_optimizer_control", "cross_validation must be -1, 0, or larger");
     }
-    if (optcontrol_in.linear_model == 2) {
+    if (optcontrol_in.linear_model == 2 || optcontrol_in.linear_model == 3) {
         if (optcontrol_in.l1_ratio <= eps || optcontrol_in.l1_ratio > 1.0) {
             exit("set_optimizer_control", "L1_RATIO must be 0 < L1_RATIO <= 1.");
         }
+    }
 
+    if (optcontrol_in.linear_model == 2) {
         if (optcontrol_in.cross_validation >= 1 || optcontrol_in.cross_validation == -1) {
             if (optcontrol_in.l1_alpha_max > 0) {
                 if (optcontrol_in.l1_alpha_min >= optcontrol_in.l1_alpha_max) {
@@ -3438,35 +3891,35 @@ void Optimize::set_optimizer_control(const OptimizerControl &optcontrol_in)
     optcontrol = optcontrol_in;
 }
 
-OptimizerControl Optimize::get_optimizer_control() const
+auto Optimize::get_l1_solver_name() const -> std::string
+{
+    if (optcontrol.l1_solver == 0) return "Coordinate descent";
+    if (optcontrol.l1_solver == 1) return "FISTA";
+    return "ADMM";
+}
+
+auto Optimize::get_optimizer_control() const -> OptimizerControl
 {
     return optcontrol;
 }
 
-double Optimize::get_cv_l1_alpha() const
+auto Optimize::get_cv_l1_alpha() const -> double
 {
     return cv_l1_alpha;
 }
 
-void Optimize::coordinate_descent(const int M,
-                                  const int N,
-                                  const double alpha,
-                                  const int warm_start,
-                                  Eigen::VectorXd &x,
-                                  const Eigen::MatrixXd &A,
-                                  const Eigen::VectorXd &b,
-                                  const Eigen::VectorXd &grad0,
-                                  bool *has_prod,
-                                  Eigen::MatrixXd &Prod,
-                                  Eigen::VectorXd &grad,
-                                  const double fnorm,
-                                  const Eigen::VectorXd &scale_beta,
-                                  const int verbosity) const
+auto Optimize::coordinate_descent(const int M, const int N, const double alpha, const int warm_start,
+                                  Eigen::VectorXd &x, const Eigen::MatrixXd &A, const Eigen::VectorXd &b,
+                                  const Eigen::VectorXd &grad0, bool *has_prod, Eigen::MatrixXd &Prod,
+                                  Eigen::VectorXd &grad, const double fnorm, const Eigen::VectorXd &col_scale,
+                                  const Eigen::VectorXd &penalty_scale, const int verbosity) const -> void
 {
     int i, j;
     double diff{0.0};
+    // Below this width the OpenMP fork/join for the lazy Gram-column build costs more than the work.
+    constexpr int cd_parallel_grain = 256;
     Eigen::VectorXd beta(N), delta(N);
-    Eigen::VectorXd res(N);
+    Eigen::VectorXd res(M); // only used for the verbosity>1 diagnostic A*beta - b (length M)
     bool do_print_log;
 
     if (warm_start) {
@@ -3477,154 +3930,394 @@ void Optimize::coordinate_descent(const int M,
     }
 
     if (verbosity > 1) {
-        std::cout << "-----------------------------------------------------------------" << std::endl;
-        std::cout << "  L1_ALPHA = " << std::setw(15) << alpha << std::endl;
+        std::cout << "-----------------------------------------------------------------\n";
+        std::cout << "  L1_ALPHA = " << std::setw(15) << alpha << '\n';
     }
 
     const auto Minv = 1.0 / static_cast<double>(M);
-    const auto alphlambda = alpha * optcontrol.l1_ratio;
+    const auto lambda1 = alpha * optcontrol.l1_ratio;
+    const auto lambda2 = alpha * (1.0 - optcontrol.l1_ratio);
 
     auto iloop = 0;
 
-    if (optcontrol.standardize) {
-        while (iloop < optcontrol.maxnum_iteration) {
-            do_print_log = !((iloop + 1) % optcontrol.output_frequency) && (verbosity > 1);
+    while (iloop < optcontrol.maxnum_iteration) {
+        do_print_log = !((iloop + 1) % optcontrol.output_frequency) && (verbosity > 1);
 
-            if (do_print_log) {
-                std::cout << "   Coordinate Descent : " << std::setw(5) << iloop + 1 << std::endl;
+        if (do_print_log) {
+            std::cout << "   Coordinate Descent : " << std::setw(5) << iloop + 1 << '\n';
+        }
+        delta = beta;
+        for (i = 0; i < N; ++i) {
+            const auto pen = penalty_scale(i);
+            const auto denom = col_scale(i) + lambda2 * pen * pen;
+            if (denom > eps) {
+                beta(i) = shrink(Minv * grad(i) + col_scale(i) * beta(i), lambda1 * pen) / denom;
+            } else {
+                beta(i) = 0.0;
             }
-            delta = beta;
-            for (i = 0; i < N; ++i) {
-                beta(i) = shrink(Minv * grad(i) + beta(i), alphlambda);
-                delta(i) -= beta(i);
-                if (std::abs(delta(i)) > 0.0) {
-                    if (!has_prod[i]) {
-#pragma omp parallel for
-                        for (j = 0; j < N; ++j) {
-                            Prod(j, i) = A.col(j).dot(A.col(i));
-                        }
-                        has_prod[i] = true;
+            delta(i) -= beta(i);
+            if (std::abs(delta(i)) > 0.0) {
+                if (!has_prod[i]) {
+#pragma omp parallel for if (N >= cd_parallel_grain)
+                    for (j = 0; j < N; ++j) {
+                        Prod(j, i) = A.col(j).dot(A.col(i));
                     }
-                    grad = grad + Prod.col(i) * delta(i);
+                    has_prod[i] = true;
                 }
-            }
-            ++iloop;
-            diff = 0.0;
-#pragma omp parallel for reduction(+:diff)
-            for (i = 0; i < N; ++i) {
-                diff += delta(i) * delta(i);
-            }
-            diff = std::sqrt(diff / static_cast<double>(N));
-            //diff = std::sqrt(delta.dot(delta) / static_cast<double>(N));
-
-            if (diff < optcontrol.tolerance_iteration) break;
-
-            if (do_print_log) {
-                std::cout << "    1: ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << diff
-                          << std::setw(15) << diff * std::sqrt(static_cast<double>(N) / beta.dot(beta)) << std::endl;
-                auto tmp = 0.0;
-#ifdef _OPENMP
-#pragma omp parallel for reduction(+:tmp)
-#endif
-                for (i = 0; i < N; ++i) {
-                    tmp += std::abs(beta(i));
-                }
-                std::cout << "    2: ||u_{k}||_1             = " << std::setw(15) << tmp << std::endl;
-                res = A * beta - b;
-                tmp = res.dot(res);
-                std::cout << "    3: ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(tmp)
-                          << std::setw(15) << std::sqrt(tmp / (fnorm * fnorm)) << std::endl;
-                std::cout << std::endl;
+                grad.noalias() += Prod.col(i) * delta(i);
             }
         }
-    } else {
-        // Non-standardized version. Needs additional operations
+        ++iloop;
+        // Use Eigen SIMD for this small sum to avoid OpenMP overhead and
+        // thread-count-dependent reduction order.
+        diff = std::sqrt(delta.squaredNorm() / static_cast<double>(N));
 
-        Eigen::VectorXd inv_scale_beta(N);
+        if (diff < optcontrol.tolerance_iteration) break;
 
-        for (i = 0; i < N; ++i) inv_scale_beta(i) = 1.0 / scale_beta(i);
-
-        while (iloop < optcontrol.maxnum_iteration) {
-            do_print_log = !((iloop + 1) % optcontrol.output_frequency) && (verbosity > 1);
-
-            if (do_print_log) {
-                std::cout << "   Coordinate Descent : " << std::setw(5) << iloop + 1 << std::endl;
-            }
-            delta = beta;
-            for (i = 0; i < N; ++i) {
-                beta(i) = shrink(Minv * grad(i) + beta(i) * inv_scale_beta(i), alphlambda) * scale_beta(i);
-                delta(i) -= beta(i);
-                if (std::abs(delta(i)) > 0.0) {
-                    if (!has_prod[i]) {
-#pragma omp parallel for
-                        for (j = 0; j < N; ++j) {
-                            Prod(j, i) = A.col(j).dot(A.col(i));
-                        }
-                        has_prod[i] = true;
-                    }
-                    grad = grad + Prod.col(i) * delta(i);
-                }
-            }
-            ++iloop;
-            diff = 0.0;
-#pragma omp parallel for reduction(+:diff)
-            for (i = 0; i < N; ++i) {
-                diff += delta(i) * delta(i);
-            }
-            diff = std::sqrt(diff / static_cast<double>(N));
-            //diff = std::sqrt(delta.dot(delta) / static_cast<double>(N));
-
-            if (diff < optcontrol.tolerance_iteration) break;
-
-            if (do_print_log) {
-                std::cout << "    1: ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << diff
-                          << std::setw(15) << diff * std::sqrt(static_cast<double>(N) / beta.dot(beta)) << std::endl;
-                auto tmp = 0.0;
-#ifdef _OPENMP
-#pragma omp parallel for reduction(+:tmp)
-#endif
-                for (i = 0; i < N; ++i) {
-                    tmp += std::abs(beta(i));
-                }
-                std::cout << "    2: ||u_{k}||_1             = " << std::setw(15) << tmp << std::endl;
-                res = A * beta - b;
-                tmp = res.dot(res);
-                std::cout << "    3: ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(tmp)
-                          << std::setw(15) << std::sqrt(tmp / (fnorm * fnorm)) << std::endl;
-                std::cout << std::endl;
-            }
+        if (do_print_log) {
+            const auto param2norm = beta.dot(beta);
+            std::cout << "    1: ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << diff << std::setw(15)
+                      << (param2norm > eps ? diff * std::sqrt(static_cast<double>(N) / param2norm) : 0.0) << '\n';
+            auto tmp = beta.lpNorm<1>();
+            std::cout << "    2: ||u_{k}||_1             = " << std::setw(15) << tmp << '\n';
+            res = A * beta - b;
+            tmp = res.dot(res);
+            std::cout << "    3: ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(tmp) << std::setw(15)
+                      << std::sqrt(tmp / (fnorm * fnorm)) << '\n';
+            std::cout << '\n';
         }
     }
 
     if (verbosity > 1) {
         if (iloop >= optcontrol.maxnum_iteration) {
             std::cout << "WARNING: Convergence NOT achieved within " << optcontrol.maxnum_iteration
-                      << " coordinate descent iterations." << std::endl;
+                      << " coordinate descent iterations.\n";
         } else {
-            std::cout << "  Convergence achieved in " << iloop << " iterations." << std::endl;
+            std::cout << "  Convergence achieved in " << iloop << " iterations.\n";
         }
         const auto param2norm = beta.dot(beta);
         if (std::abs(param2norm) < eps) {
-            std::cout << "    1': ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << 0.0
-                      << std::setw(15) << 0.0 << std::endl;
+            std::cout << "    1': ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << 0.0 << std::setw(15) << 0.0 << '\n';
         } else {
-            std::cout << "    1': ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << diff
-                      << std::setw(15) << diff * std::sqrt(static_cast<double>(N) / param2norm) << std::endl;
+            std::cout << "    1': ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << diff << std::setw(15)
+                      << diff * std::sqrt(static_cast<double>(N) / param2norm) << '\n';
         }
-        double tmp = 0.0;
-#ifdef _OPENMP
-#pragma omp parallel for reduction(+:tmp)
-#endif
-        for (i = 0; i < N; ++i) {
-            tmp += std::abs(beta(i));
-        }
-        std::cout << "    2': ||u_{k}||_1             = " << std::setw(15) << tmp << std::endl;
+        double tmp = beta.lpNorm<1>();
+        std::cout << "    2': ||u_{k}||_1             = " << std::setw(15) << tmp << '\n';
         res = A * beta - b;
         tmp = res.dot(res);
-        std::cout << "    3': ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(tmp)
-                  << std::setw(15) << std::sqrt(tmp / (fnorm * fnorm)) << std::endl;
-        std::cout << std::endl;
+        std::cout << "    3': ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(tmp) << std::setw(15)
+                  << std::sqrt(tmp / (fnorm * fnorm)) << '\n';
+        std::cout << '\n';
     }
 
     for (i = 0; i < N; ++i) x[i] = beta(i);
+}
+
+auto Optimize::estimate_lipschitz_l2(const Eigen::MatrixXd &A) -> double
+{
+    constexpr auto max_iter = 100;
+    constexpr auto tol = 1.0e-6;
+
+    const auto nrows = A.rows();
+    const auto ncols = A.cols();
+    if (nrows == 0 || ncols == 0) return 0.0;
+
+    // The matvecs are parallelized by hand (Eigen/Accelerate run dgemv single-threaded), otherwise
+    // the power iteration would dominate the FISTA cost once the main loop's GEMVs are parallel.
+    const int nthreads = matvec_nthreads(ncols);
+    Eigen::MatrixXd scratch(nrows, nthreads);
+    Eigen::VectorXd v = Eigen::VectorXd::Ones(ncols);
+    v.normalize();
+    Eigen::VectorXd Av(nrows), w(ncols);
+
+    // Floor the power estimate at the largest squared column norm, a lower
+    // bound on lambda_max(A^T A), in case the start lies in A's null space.
+    // FISTA backtracking handles underestimation.
+    double col_floor = 0.0;
+    for (Eigen::Index j = 0; j < ncols; ++j) col_floor = std::max(col_floor, A.col(j).squaredNorm());
+
+    double lambda_old = 0.0;
+    double lambda = col_floor;
+    for (auto iter = 0; iter < max_iter; ++iter) {
+        parallel_Ax(A, v, nthreads, scratch, Av); // Av = A v
+        parallel_Atr(A, Av, nthreads, w);         // w  = A^T (A v)
+        const auto wnorm = w.norm();
+        if (wnorm < eps) break; // v lies in the null space; keep the column-norm floor
+
+        lambda = v.dot(w);
+        v = w / wnorm;
+
+        if (iter > 0) {
+            const auto denom = std::max(1.0, std::abs(lambda));
+            if (std::abs(lambda - lambda_old) / denom < tol) break;
+        }
+        lambda_old = lambda;
+    }
+
+    parallel_Ax(A, v, nthreads, scratch, Av);
+    lambda = std::max(Av.squaredNorm(), col_floor);
+    return 1.001 * lambda / static_cast<double>(nrows);
+}
+
+auto Optimize::fista(const int M, const int N, const double alpha, const int warm_start, Eigen::VectorXd &x,
+                     const Eigen::MatrixXd &A, const Eigen::VectorXd &b, const double fnorm, const double lipschitz_l2,
+                     const Eigen::VectorXd &penalty_scale, const int verbosity) const -> void
+{
+    // Degenerate problems: nothing to solve (also avoids 1/N and 1/M in the metrics below).
+    if (N == 0) return;
+    if (M == 0) {
+        if (!warm_start) x.setZero(N);
+        return;
+    }
+
+    double diff = 0.0;
+    double pgdiff = 0.0;
+    bool do_print_log;
+
+    const int nthreads = matvec_nthreads(N);
+    Eigen::MatrixXd scratch(M, nthreads); // per-thread partial sums for the A*(.) products
+
+    // Iterate buffers, preallocated so the loop allocates no Eigen temporary.
+    Eigen::VectorXd x_cur(N), x_new(N), y(N), grad(N), z(N);
+    Eigen::VectorXd res(M), res_new(M), Ay(M), Ax_cur(M), Ax_new(M);
+
+    if (warm_start) {
+        x_cur = x;
+    } else {
+        x_cur.setZero();
+    }
+    parallel_Ax(A, x_cur, nthreads, scratch, Ax_cur); // A*x_cur (== 0 for a cold start)
+    y = x_cur;
+    Ay = Ax_cur;
+
+    const auto Minv = 1.0 / static_cast<double>(M);
+    const auto lambda1 = alpha * optcontrol.l1_ratio;
+    const auto lambda2 = alpha * (1.0 - optcontrol.l1_ratio);
+
+    // FISTA with backtracking (Beck & Teboulle 2009): grow L by bt_eta until
+    // f(x_new) <= Q_L(x_new, y). Reuse A*x_new for the next extrapolation,
+    // A*y = A*x_new + momentum*(A*x_new - A*x_cur), keeping two matvecs per iteration.
+    auto L = std::max(lipschitz_l2 + lambda2, eps);
+    constexpr auto bt_eta = 2.0; // L growth factor when a step is rejected
+    constexpr auto bt_max = 60;  // hard cap on backtracks per iteration
+
+    auto t = 1.0;
+    auto iloop = 0;
+
+    if (verbosity > 1) {
+        std::cout << "-----------------------------------------------------------------\n";
+        std::cout << "  L1_ALPHA = " << std::setw(15) << alpha << '\n';
+    }
+
+    while (iloop < optcontrol.maxnum_iteration) {
+        do_print_log = !((iloop + 1) % optcontrol.output_frequency) && (verbosity > 1);
+        if (do_print_log) {
+            std::cout << "   FISTA : " << std::setw(5) << iloop + 1 << '\n';
+        }
+
+        // grad f(y) = (1/M) A^T (A y - b) + lambda2 (pw^2 . y), reusing the cached A*y. The per-column
+        // penalty_scale (pw) weights the L2 penalty by pw^2 (all-ones => the usual scalar lambda2).
+        res = Ay - b;
+        parallel_Atr(A, res, nthreads, grad);
+        grad = Minv * grad;
+        grad.array() += lambda2 * penalty_scale.array().square() * y.array();
+        const auto f_y = 0.5 * Minv * res.squaredNorm() +
+                         0.5 * lambda2 * (penalty_scale.array().square() * y.array().square()).sum();
+
+        // Backtracking: grow L until the proximal step from y satisfies sufficient decrease.
+        int bt = 0;
+        while (true) {
+            const auto inv_L = 1.0 / L;
+            const auto thr_base = lambda1 * inv_L; // per-column L1 threshold is thr_base * pw(i)
+            z.noalias() = y - inv_L * grad;
+            for (auto i = 0; i < N; ++i) {
+                x_new(i) = shrink(z(i), thr_base * penalty_scale(i));
+            }
+            parallel_Ax(A, x_new, nthreads, scratch, Ax_new); // matvec; also feeds the next A*y
+            res_new = Ax_new - b;
+            const auto f_xnew = 0.5 * Minv * res_new.squaredNorm() +
+                                0.5 * lambda2 * (penalty_scale.array().square() * x_new.array().square()).sum();
+            const auto dgrad = (x_new - y).dot(grad);
+            const auto dsq = (x_new - y).squaredNorm();
+            const auto Q = f_y + dgrad + 0.5 * L * dsq;
+            // small relative slack so floating-point ties near convergence cannot loop forever
+            if (f_xnew <= Q + 1.0e-12 * (std::abs(f_y) + 1.0) || ++bt > bt_max) break;
+            L *= bt_eta;
+        }
+
+        // Both metrics are on the coefficient scale (no L factor), comparable to CONV_TOL like the CD
+        // stopping test: diff is the RMS coefficient change, pgdiff the RMS proximal step.
+        diff = std::sqrt((x_new - x_cur).squaredNorm() / static_cast<double>(N));
+        pgdiff = std::sqrt((x_new - y).squaredNorm() / static_cast<double>(N));
+        ++iloop;
+
+        if (do_print_log) {
+            const auto param2norm = x_new.dot(x_new);
+            std::cout << "    1: ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << diff << std::setw(15)
+                      << (param2norm > eps ? diff * std::sqrt(static_cast<double>(N) / param2norm) : 0.0) << '\n';
+            auto tmp = x_new.lpNorm<1>();
+            std::cout << "    2: ||u_{k}||_1             = " << std::setw(15) << tmp << '\n';
+            const auto rnorm2 = res_new.squaredNorm();
+            std::cout << "    3: ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(rnorm2) << std::setw(15)
+                      << std::sqrt(rnorm2 / (fnorm * fnorm)) << '\n';
+            std::cout << "    L = " << std::setw(15) << L << "  (backtracks: " << bt << ")\n\n";
+        }
+
+        if (diff < optcontrol.tolerance_iteration && pgdiff < optcontrol.tolerance_iteration) {
+            x_cur = x_new;
+            break;
+        }
+
+        const auto t_new = 0.5 * (1.0 + std::sqrt(1.0 + 4.0 * t * t));
+        const auto momentum = (t - 1.0) / t_new;
+
+        // Gradient-based adaptive restart (O'Donoghue & Candes 2015). Evaluate before y/x_cur change.
+        if ((x_new - x_cur).dot(y - x_new) > 0.0) {
+            y = x_new;
+            Ay = Ax_new;
+            t = 1.0;
+        } else {
+            y = x_new + momentum * (x_new - x_cur);
+            Ay = Ax_new + momentum * (Ax_new - Ax_cur); // A*y via the A*x cache -- no extra matvec
+            t = t_new;
+        }
+        x_cur = x_new;
+        Ax_cur = Ax_new;
+    }
+
+    if (verbosity > 1) {
+        if (iloop >= optcontrol.maxnum_iteration) {
+            std::cout << "WARNING: Convergence NOT achieved within " << optcontrol.maxnum_iteration
+                      << " FISTA iterations.\n";
+        } else {
+            std::cout << "  Convergence achieved in " << iloop << " iterations.\n";
+        }
+        const auto param2norm = x_cur.dot(x_cur);
+        if (std::abs(param2norm) < eps) {
+            std::cout << "    1': ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << 0.0 << std::setw(15) << 0.0 << '\n';
+        } else {
+            std::cout << "    1': ||u_{k}-u_{k-1}||_2     = " << std::setw(15) << diff << std::setw(15)
+                      << diff * std::sqrt(static_cast<double>(N) / param2norm) << '\n';
+        }
+        std::cout << "    1'': RMS proximal step      = " << std::setw(15) << pgdiff << '\n';
+        std::cout << "    1''': final L               = " << std::setw(15) << L << '\n';
+        double tmp = x_cur.lpNorm<1>();
+        std::cout << "    2': ||u_{k}||_1             = " << std::setw(15) << tmp << '\n';
+        parallel_Ax(A, x_cur, nthreads, scratch, res);
+        res -= b;
+        tmp = res.dot(res);
+        std::cout << "    3': ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(tmp) << std::setw(15)
+                  << std::sqrt(tmp / (fnorm * fnorm)) << '\n';
+        std::cout << '\n';
+    }
+
+    x = x_cur;
+}
+
+auto Optimize::admm(const int M, const int N, const double alpha, const int warm_start, Eigen::VectorXd &x,
+                    const Eigen::MatrixXd &A, const Eigen::VectorXd &b, const Eigen::LLT<Eigen::MatrixXd> &llt,
+                    const Eigen::VectorXd &q, const double tau, const Eigen::VectorXd &penalty_scale,
+                    const double fnorm, const int verbosity) const -> void
+{
+    // Degenerate problems: nothing to solve (also avoids 1/N below).
+    if (N == 0) return;
+    if (M == 0) {
+        if (!warm_start) x.setZero(N);
+        return;
+    }
+
+    const auto lambda1 = alpha * optcontrol.l1_ratio;
+    constexpr auto omega = 1.6; // over-relaxation factor (Boyd: 1.5-1.8 accelerates ADMM)
+    const auto inv_tau = 1.0 / tau;
+    const auto tol = optcontrol.tolerance_iteration;
+    const auto sqrtN = std::sqrt(static_cast<double>(N));
+
+    // Warm-start the primal z from x and reset the scaled dual u for each alpha.
+    Eigen::VectorXd z(N), xa(N), xhat(N), z_old(N), rhs(N);
+    Eigen::VectorXd u = Eigen::VectorXd::Zero(N);
+    Eigen::VectorXd res(M); // only used for the verbosity>1 diagnostic A*z - b
+    if (warm_start) {
+        z = x;
+    } else {
+        z.setZero();
+    }
+
+    bool do_print_log;
+    auto iloop = 0;
+    double rnorm = 0.0, snorm = 0.0;
+
+    if (verbosity > 1) {
+        std::cout << "-----------------------------------------------------------------\n";
+        std::cout << "  L1_ALPHA = " << std::setw(15) << alpha << "   (ADMM, tau = " << tau << ")\n";
+    }
+
+    while (iloop < optcontrol.maxnum_iteration) {
+        do_print_log = !((iloop + 1) % optcontrol.output_frequency) && (verbosity > 1);
+        if (do_print_log) {
+            std::cout << "   ADMM : " << std::setw(5) << iloop + 1 << '\n';
+        }
+
+        z_old = z;
+
+        // x-update: solve  G xa = q + tau (z - u)  with the cached Cholesky factor of G.
+        rhs = q + tau * (z - u);
+        xa = llt.solve(rhs);
+
+        // over-relaxation
+        xhat.noalias() = omega * xa + (1.0 - omega) * z;
+
+        // z-update: per-column soft threshold  S_{lambda1 p_j / tau}(xhat + u).
+        for (auto i = 0; i < N; ++i) {
+            z(i) = shrink(xhat(i) + u(i), lambda1 * penalty_scale(i) * inv_tau);
+        }
+
+        // u-update (scaled dual).
+        u += xhat - z;
+
+        // Boyd absolute + relative primal/dual stopping. The dual residual is tau-scaled, so a bare
+        // RMS test against CONV_TOL would not be comparable; the eps below restore comparability.
+        rnorm = (xhat - z).norm();
+        snorm = tau * (z - z_old).norm();
+        const auto eps_pri = sqrtN * tol + tol * std::max(xhat.norm(), z.norm());
+        const auto eps_dual = sqrtN * tol + tol * tau * u.norm();
+        ++iloop;
+
+        if (do_print_log) {
+            const auto dz = std::sqrt((z - z_old).squaredNorm() / static_cast<double>(N));
+            std::cout << "    1: primal ||x-z||_2        = " << std::setw(15) << rnorm << "  (eps " << eps_pri << ")\n";
+            std::cout << "    2: dual  ||tau dz||_2      = " << std::setw(15) << snorm << "  (eps " << eps_dual
+                      << ")\n";
+            std::cout << "    3: RMS ||u_k - u_{k-1}||   = " << std::setw(15) << dz << '\n';
+            res.noalias() = A * z;
+            res -= b;
+            const auto rn2 = res.dot(res);
+            std::cout << "    4: ||Au_{k}-f||_2          = " << std::setw(15) << std::sqrt(rn2) << std::setw(15)
+                      << std::sqrt(rn2 / (fnorm * fnorm)) << '\n';
+            std::cout << '\n';
+        }
+
+        if (rnorm <= eps_pri && snorm <= eps_dual) break;
+    }
+
+    if (verbosity > 1) {
+        if (iloop >= optcontrol.maxnum_iteration) {
+            std::cout << "WARNING: Convergence NOT achieved within " << optcontrol.maxnum_iteration
+                      << " ADMM iterations.\n";
+        } else {
+            std::cout << "  Convergence achieved in " << iloop << " iterations.\n";
+        }
+        std::cout << "    primal ||x-z||_2 = " << std::setw(15) << rnorm << " ,  dual ||tau dz||_2 = " << std::setw(15)
+                  << snorm << '\n';
+        double tmp = z.lpNorm<1>();
+        std::cout << "    ||u_{k}||_1 = " << std::setw(15) << tmp << '\n';
+        res.noalias() = A * z;
+        res -= b;
+        tmp = res.dot(res);
+        std::cout << "    ||Au_{k}-f||_2 = " << std::setw(15) << std::sqrt(tmp) << std::setw(15)
+                  << std::sqrt(tmp / (fnorm * fnorm)) << '\n';
+        std::cout << '\n';
+    }
+
+    x = z;
 }

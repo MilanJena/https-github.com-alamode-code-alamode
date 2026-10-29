@@ -1,5 +1,3 @@
-.. _label_tutorial_bto_ifc:
-
 .. raw:: html
 
     <style> .red {color:red} </style>
@@ -8,8 +6,21 @@
 
 .. |Angstrom|   unicode:: U+00C5 
 
+.. _label_tutorial_bto_ifc:
+
 BaTiO\ :sub:`3` : Anharmonic interatomic force constants (IFCs)
----------------------------------------------------
+--------------------------------------------------------------------
+
+.. admonition:: At a glance
+   :class: tip
+
+   :Goal: Calculate the anharmonic IFCs of the strongly anharmonic cubic BaTiO\ :sub:`3`.
+   :You will learn:
+      - how to generate randomly displaced supercells from an AIMD trajectory with ``displace.py``
+      - how to choose the regularization amplitude :math:`\alpha` by cross validation
+      - how to fit the anharmonic IFCs with the optimal :math:`\alpha`
+   :Prerequisites: Harmonic IFCs (see :ref:`the Si tutorial <label_tutorial_01>`) and VASP (the reference ``vasprun.xml`` files are provided).
+   :Example files: ``example/BaTiO3/anharm_IFCs``
 
 This page explains how to calculate anharmonic interatomic force constants (IFCs) using ALAMODE, especially for strongly anharmonic materials.
 The target material is cubic BaTiO\ :sub:`3`, which exhibits a strong lattice anharmonicity.
@@ -18,20 +29,19 @@ The example input files are provided in **example/BaTiO3/anharm_IFCs**.
 
 Let's move to the example directory.
 
-.. code-block:: bash
+.. code-block:: console
 
   $ cd ${ALAMODE_ROOT}/example/BaTiO3/anharm_IFCs
-
 
 .. _tutorial_BTO_IFC_step1:
 
 1. Generate the randomly displaced supercells
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
   There is a more efficient way to generate supercells with random displacements 
   for weakly anharmonic materials or materials without imaginary harmonic frequencies.
-  Please see :ref:`Tutorial 7.6 <label_tutorial_silicon_ifc>` for details.
+  Please see :ref:`label_tutorial_silicon_ifc` for details.
 
 We use the *ab initio* molecular dynamics (AIMD) calculations to generate the supercells with random displacements.
 
@@ -42,7 +52,7 @@ Prepare the :red:`POTCAR` file by yourself and run the AIMD calculation to obtai
 Next, we generate the supercells with random atomic displacements from the AIMD trajectory.
 First, we move to the **1_configurations** directory and copy :red:`vasprun.xml`
 
-.. code-block:: bash
+.. code-block:: console
 
   $ cd 1_configurations
   $ cp ../1_vasp_md/vasprun.xml ./ # If you have performed the AIMD calculation
@@ -50,11 +60,11 @@ First, we move to the **1_configurations** directory and copy :red:`vasprun.xml`
 
 :red:`POSCAR_ref_supercell` is the structure of the reference supercell for which we want to calculate the IFCs.
 
-.. code-block:: bash
+.. code-block:: console
 
   $ python3 ${ALAMODE_ROOT}/tools/displace.py --VASP POSCAR_ref_supercell -md vasprun.xml -e 1001:5000:50 --random --mag 0.04 --prefix disp_aimd+random_
 
-Here, the option ``-e 1001:5000:50`` means that we sample from the 1001-th snapshot to the 5000-th snapshot with the sampling step of 50 time-steps.
+Here, the option ``-e 1001:5000:50`` means that we sample from the 1001st snapshot to the 5000th snapshot with the sampling step of 50 time-steps.
 Thus, 80 configurations are generated in this case.
 
 The option ``--random --mag 0.04`` adds random displacements of 0.04 |Angstrom| to each atom in the extracted snapshots to reduce correlations between successive snapshots.
@@ -92,7 +102,7 @@ The option ``--random --mag 0.04`` adds random displacements of 0.04 |Angstrom| 
 
 We calculate the atomic forces for each random configuration generated in the previous step.
 
-The other VASP input files (:red:`INCAR` and :red:`KPOINTS`) are provided in **example/BaTiO3/anharm_IFCs/2_vasp_dfset**.
+The other VASP input files (:red:`INCAR` and :red:`KPOINTS`) are provided in **example/BaTiO3/anharm_IFCs/2_vasp_dfset/input**.
 After running the VASP calculations, collect the resultant :red:`vasprun.xml` of 
 each calculation in **example/BaTiO3/anharm_IFCs/2_vasp_dfset**.
 
@@ -101,7 +111,7 @@ files provided in **2_vasp_dfset/reference** to **2_vasp_dfset**.
 
 Generate the displacement-force data with the command
 
-.. code-block:: bash
+.. code-block:: console
 
   $ cd ${ALAMODE_ROOT}/example/BaTiO3/anharm_IFCs/2_vasp_dfset
   $ cp ../1_configurations/POSCAR_ref_supercell ./
@@ -116,37 +126,40 @@ from which we can calculate the anharmonic IFCs.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We assume that the harmonic force constants are already calculated. 
-Please use the method explained in :ref:`Tutorial 7.1 <label_tutorial_01>` for the calculation of harmonic IFCs.
+Please use the method explained in :ref:`label_tutorial_01` for the calculation of harmonic IFCs.
 
 In the cross validation, we determine the optimal amplitude of regularization (:math:`\alpha`) in the elastic-net or adaptive lasso.
-Please see :ref:`the documentation <alm_thoery_enet>` for the notation and the theoretical background.
+Please see :ref:`the documentation <alm_theory_enet>` for the notation and the theoretical background.
 
 You can run the CV calculation with the following commands.
 
-.. code-block:: bash 
+.. code-block:: console
 
-  $ cd ${ALAMODE_ROOT}/example/BaTiO3/3_cv
-  $ ${ALAMODE_ROOT}/alm/alm BTO_alm_cv.in > BTO_alm_cv.log
+  $ cd ${ALAMODE_ROOT}/example/BaTiO3/anharm_IFCs/3_cv
+  $ ${ALAMODE_ROOT}/_build/alm/alm BTO_alm_cv.in > BTO_alm_cv.log
 
-In :red:`BTO_alm_cv.in`, ``FC2XML = ../cBTO222_harmonic.xml`` means that we fix the harmonic IFCs with the values in the given file.
+:download:`Download BTO_alm_cv.in <../../../example/BaTiO3/anharm_IFCs/3_cv/BTO_alm_cv.in>`
+
+In :red:`BTO_alm_cv.in`, ``FC2FIX = ../cBTO222_harmonic.xml`` means that we fix the harmonic IFCs with the values in the given file (both the HDF5 and the legacy XML formats are accepted).
 This is because we would like to capture the stability or the curvature of the potential energy surface at the reference structure accurately.
 
 .. note::
   With ``NBODY = 2 3 3``, we restrict the quartic IFCs to up-to-three-body terms.
   This treatment reduces the computational cost and makes the fitting more robust by reducing the number of degrees of freedom.
-  Although the best choice of ``NBODY``-tag will depend on the materials and on the number of your displacement-force data, 
+  Although the best choice of :alm:`NBODY`-tag will depend on the materials and on the number of your displacement-force data, 
   we recommend restricting the quartic IFCs to up-to-three-body terms and the higher order IFCs to up-to-two-body terms
   since the higher-order IFCs will be more localized in space.
 
 Plotting the generated :red:`cBTO222.cvscore` with 
 
-.. code-block:: bash
+.. code-block:: console
 
   $ gnuplot cv_plot.plt
  
 we get the following plot.
-Note that you need to set ``STOP_CRITERION = 30`` in ``&optimize``-field to get exactly the same plot.
-Otherwise, the calculation is stopped before calculations with small :math:`\alpha` are performed to save the computational cost.
+The input sets ``STOP_CRITERION = 100`` in the ``&optimize``-field, which is larger than ``CV_NALPHA = 30``,
+so that all :math:`\alpha` values are scanned and you get exactly the same plot.
+With the default value (``STOP_CRITERION = 5``), the scan is stopped before calculations with small :math:`\alpha` are performed to save the computational cost.
 
 
 .. figure:: ../../img/BTO_IFC_cv.png
@@ -157,6 +170,7 @@ Otherwise, the calculation is stopped before calculations with small :math:`\alp
 
 We can see that the CV score takes a minimum at the optimal :math:`\alpha`, which can be read from the last line of :red:`cBTO222.cvscore`.
 ::
+
   # Minimum CVSCORE at alpha = 2.51189e-06
 
 .. _tutorial_BTO_IFC_step4:
@@ -166,31 +180,36 @@ We can see that the CV score takes a minimum at the optimal :math:`\alpha`, whic
 
 Finally, we calculate the IFCs of BaTiO\ :sub:`3` in **example/BaTiO3/anharm_IFCs/4_optimize**.
 
-.. code-block:: bash 
+.. code-block:: console
 
-  $ cd ${ALAMODE_ROOT}/example/BaTiO3/4_optimize
+  $ cd ${ALAMODE_ROOT}/example/BaTiO3/anharm_IFCs/4_optimize
 
-To prepare the input file, we copy the input of CV and set ``L1_ALPHA`` with the optimal value 
+To prepare the input file, we copy the input of CV and set :alm:`L1_ALPHA` with the optimal value 
 by adding the new line in ``&optimize``-field.
 ::
-  L1_ALPHA = 2.51189e-06 
+
+  L1_ALPHA = 2.51189e-06
 
 Also, change ``CV=4`` in ``&optimize``-field to
 ::
+
   CV = 0 # switch off CV
 
-You can also use a smaller value for ``CONV_TOL`` to get a more accurate result.
+You can also use a smaller value for :alm:`CONV_TOL` to get a more accurate result.
 
 With the input file prepared, run the calculation with 
 
-.. code-block:: bash
+.. code-block:: console
 
-  $ ${ALAMODE_ROOT}/alm/alm BTO_alm_opt.in > BTO_alm_opt.log
+  $ ${ALAMODE_ROOT}/_build/alm/alm BTO_alm_opt.in > BTO_alm_opt.log
 
-The calculated IFCs are written out in :red:`cBTO222.fcs` and :red:`cBTO222.xml`.
+:download:`Download BTO_alm_opt.in <../../../example/BaTiO3/anharm_IFCs/4_optimize/BTO_alm_opt.in>`
+
+The calculated IFCs are written out in :red:`cBTO222.h5` (add ``FCS_ALAMODE = 1`` to the **&general** field if you also want the :red:`cBTO222.fcs` listing).
 
 Checking :red:`BTO_alm_opt.log`, we can see that the fitting is successful with a small residual error.
 ::
+
   RESIDUAL (%): 3.91121
 
 

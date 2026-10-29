@@ -10,47 +10,98 @@
 
 #pragma once
 
-#include "pointers.h"
+#include <Eigen/Core>
 #include <complex>
 #include <vector>
+#include "fcs_phonon.h"
+#include "ndarray.h"
+#include "phonon.h"
 
-namespace PHON_NS {
-class Dielec : protected Pointers {
+namespace PHON_NS
+{
+class Dynamical;
+class SymmetryOperationWithMapping;
+
+class Dielec
+{
 public:
-    Dielec(class PHON *);
+    Dielec(const RunInfo &run, const System *system);
 
     ~Dielec();
 
-    void init();
+    // DOS energy grid, NONANALYTIC, ZMODE, IRREPS and EFIELD != 0 or POL_REF (use_efield) of the run;
+    // read on rank 0 only.
+    void init(double emin_dos, double emax_dos, double delta_e_dos, unsigned int nonanalytic, bool print_zmode,
+              bool print_irreps, const std::vector<SymmetryOperationWithMapping> &symops, bool use_efield = false,
+              bool relaxing = false);
 
-    void run_dielec_calculation();
+    void run_dielec_calculation(const Dynamical &dynamical, const std::vector<FcsArrayWithCell> &fc2,
+                                const Ewald &ewald);
 
-    double *get_omega_grid(unsigned int &nomega) const;
+    const double *get_omega_grid(unsigned int &nomega) const;
 
-    double ***get_dielectric_func() const;
+    const double *const *const *get_dielectric_func() const;
 
-    void compute_dielectric_function(const unsigned int nomega_in,
-                                     double *omega_grid_in,
-                                     double *eval_in,
-                                     std::complex<double> **evec_in,
-                                     double ***dielec_out);
+    void compute_dielectric_function(const unsigned int nomega_in, const double *omega_grid_in, double *eval_in,
+                                     std::complex<double> **evec_in, double ***dielec_out) const;
 
     int calc_dielectric_constant;
+    unsigned int symmetrize_borncharge{};
+    std::string file_born;
 
-    std::vector<std::vector<double>> get_zstar_mode() const;
+    std::vector<std::vector<double>> get_zstar_mode(const Dynamical &dynamical,
+                                                    const std::vector<FcsArrayWithCell> &fc2, const Ewald &ewald) const;
+
+    // Mode effective charges from caller-supplied Gamma-point eigenvectors
+    // (mass-weighted, [ns][3*natmin]); the eigenvectors are not modified.
+    // The complex overload is invariant under eigenvector phase choices;
+    // the real overload keeps the historical ZMODE convention (real part).
+    void compute_mode_effective_charge(std::vector<std::vector<std::complex<double>>> &zstar_mode,
+                                       const std::complex<double> *const *evec_in) const;
+
+    void compute_mode_effective_charge(std::vector<std::vector<double>> &zstar_mode,
+                                       const std::complex<double> *const *evec_in, const bool do_normalize) const;
+
+    bool has_borncharge() const
+    {
+        return static_cast<bool>(borncharge);
+    }
+
+    const double *const *const *get_borncharge() const;
+
+    Eigen::Matrix3d get_dielec_tensor() const;
+
+    // Replace the processed dielectric tensor and Born charges (eps_inf: 9, row-major;
+    // zstar: 9 * natmin), on every rank. Born charges must have been loaded.
+    void set_born_data(const std::vector<double> &eps_inf, const std::vector<double> &zstar);
 
 private:
+    void dump_born_if_requested() const;
 
     void set_default_variables();
 
     void deallocate_variables();
 
-    void compute_mode_effective_charge(std::vector<std::vector<double>> &zstar_mode,
+    void setup_dielectric(const std::vector<SymmetryOperationWithMapping> &symops, const unsigned int verbosity = 1);
+
+    void compute_mode_effective_charge(const Dynamical &dynamical, const std::vector<FcsArrayWithCell> &fc2,
+                                       const Ewald &ewald, std::vector<std::vector<double>> &zstar_mode,
                                        const bool do_normalize = false) const;
 
-    double *omega_grid;
-    double ***dielec;
+    void load_born(const unsigned int flag_symmborn, const std::vector<SymmetryOperationWithMapping> &symops,
+                   const unsigned int verbosity = 1);
+
+    NDArray<double, 1> omega_grid;
+    NDArray<double, 3> dielec;
     unsigned int nomega;
     double emax, emin, delta_e;
+
+    Eigen::Matrix3d dielec_tensor;
+    NDArray<double, 3> borncharge;
+
+private:
+    // Collaborators (non-owning; owned by PHON, which outlives this object).
+    const RunInfo &run;
+    const System *system;
 };
-}
+} // namespace PHON_NS

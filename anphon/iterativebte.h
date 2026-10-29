@@ -1,0 +1,156 @@
+/*
+ iterativebte.h
+
+ Copyright (c) 2020 Terumasa Tadano, Wenhao Zhang
+
+ This file is distributed under the terms of the MIT license.
+ Please see the file 'LICENCE.txt' in the root directory 
+ or http://opensource.org/licenses/mit-license.php for information.
+*/
+
+#pragma once
+
+#include <fstream>
+#include <memory>
+#include <vector>
+#include "collision_operator.h"
+#include "ndarray.h"
+#include "phonon.h"
+
+namespace PHON_NS
+{
+class KappaResultIOH5;
+
+class Iterativebte
+{
+public:
+    Iterativebte(const RunInfo &run, const System *system, const Symmetry *symmetry, const Fcs_phonon *fcs_phonon,
+                 const Dielec *dielec, const Ewald *ewald, const Dynamical *dynamical, Integration *integration,
+                 const Thermodynamics *thermodynamics, const Dos *dos, const PhononVelocity *phonon_velocity,
+                 AnharmonicCore *anharmonic_core, const Isotope *isotope, const Writes *writes,
+                 Conductivity *conductivity);
+
+    ~Iterativebte();
+
+    void setup_iterative(); // initialize variables
+
+    void do_iterativebte(); // wrapper
+
+    double *Temperature; // non-owning alias of conductivity->temperature
+    unsigned int ntemp;
+
+    int max_cycle;
+    int min_cycle;
+    double mixing_factor;
+    bool use_variational;      // SOLVER = VBTE: conjugate gradients instead of Jacobi
+    bool use_direct;           // SOLVER = DBTE: dense eigendecomposition (diagnostic)
+    bool isotope_inscattering; // include the elastic isotope in-scattering term
+
+    double convergence_criteria; // tolerance on the relative residual |b - A dF| / |b|
+
+    NDArray<double, 3> kappa;
+
+    std::fstream fs_result;
+
+private:
+    void set_default_variables();
+
+    void deallocate_variables();
+
+    int nk_3ph, nklocal, ns, ns2;
+
+    // The distributed 3ph collision operator (L matrices, wedge
+    // distribution, symmetry expansion); this class is the Jacobi solver
+    // on top of it.
+    std::unique_ptr<CollisionOperator> collision_op;
+
+    // Persistent per-temperature state in the /iterativebte group of
+    // PREFIX.kappa.h5 (borrowed from Conductivity; rank 0 and h5 mode
+    // only). t_computed marks temperatures restored from a previous run,
+    // which the solver skips.
+    KappaResultIOH5 *ibte_io = nullptr;
+    std::vector<unsigned char> t_computed;
+    std::vector<unsigned char> t_converged;
+
+    NDArray<double, 3> vel;
+
+    // Intra-block velocity spread at degenerate points, summed over the star
+    // of each irreducible k: sum_p [Tr(P V P V) - d vbar vbar] per branch
+    // ([nk_irred][ns][9], atomic units). vel holds block means, which the
+    // in-scattering cannot distinguish, so the spread enters kappa at the RTA
+    // level through kappa_fluct (raw units of calc_kappa, current temperature).
+    NDArray<double, 3> vel_fluct;
+    double kappa_fluct[9] = {};
+
+    // linear response to deltaT
+    NDArray<double, 3> dFold;
+
+    NDArray<double, 3> damping4; // four phonon selfenergy
+
+    void calc_damping4();
+
+    // Local copy of the operator's wedge distribution (irreducible k
+    // indices handled by this rank).
+    std::vector<int> nk_l;
+
+    void iterative_solver(); // calculate kappa iteratively
+
+    // Shared assembly of the wedge linear system A dF = b: replicated
+    // total diagonal, excluded-mode mask, star multiplicities (the metric)
+    // and the degeneracy-projected right-hand side.
+    void build_wedge_system(int itemp, double beta, double **Qfin_loc, std::vector<double> &qdiag,
+                            std::vector<double> &wrow, std::vector<unsigned char> &mask, std::vector<double> &b) const;
+
+    // Degeneracy averaging + masked-row zeroing of a wedge vector.
+    void project_wedge_vector(std::vector<double> &v, const std::vector<unsigned char> &mask) const;
+
+    // SOLVER = VBTE: preconditioned conjugate gradients on the same linear
+    // system, self-adjoint in the multiplicity-weighted inner product for
+    // fixed-width smearing (with a BiCGSTAB fallback); BiCGSTAB for the
+    // non-symmetric tetrahedron/adaptive kernels.
+    // sqrt_occ is the g = sqrt(n(n+1)) table of this temperature; x0_wedge
+    // (may be nullptr) provides a warm-start iterate.
+    bool solve_variational_cg(int itemp, double beta, double **sqrt_occ, double **Qfin_loc, const double *x0_wedge,
+                              int &iterations_out, double &residual_out);
+
+    // SOLVER = DBTE: assemble the dense operator, transform to the Omega
+    // normalization (eigenvalues = scattering rates), full
+    // eigendecomposition of the symmetrized kernel, spectrum diagnostics and
+    // kappa via a spectral pseudo-inverse. Returns false (not converged) when
+    // the kernel has negative eigenvalues.
+    bool solve_direct_at_temperature(int itemp, double beta, double **sqrt_occ, double **Qfin_loc, int &iterations_out,
+                                     double &residual_out);
+
+    bool cg_symmetry_checked;
+    bool dbte_assembly_checked;
+
+    void calc_kappa(int, NDArray<double, 3> &, NDArray<double, 2> &); // calculate kappa with off equilibrium part
+
+    void calc_boson(int, NDArray<double, 2> &, NDArray<double, 2> &);
+
+    //void write_result_gamma(unsigned int,unsigned int,double ***,double **) const;
+    void write_result();
+
+    void write_Q_dF(int, NDArray<double, 2> &, NDArray<double, 3> &, bool converged);
+
+    void write_kappa_iterative();
+
+private:
+    // Collaborators (non-owning; owned by PHON, which outlives this object).
+    const RunInfo &run;
+    const System *system;
+    const Symmetry *symmetry;
+    const Fcs_phonon *fcs_phonon;
+    const Dielec *dielec;
+    const Ewald *ewald;
+    const Dynamical *dynamical;
+    Integration *integration;
+    const Thermodynamics *thermodynamics;
+    const Dos *dos;
+    const PhononVelocity *phonon_velocity;
+    AnharmonicCore *anharmonic_core;
+    const Isotope *isotope;
+    const Writes *writes;
+    Conductivity *conductivity;
+};
+} // namespace PHON_NS

@@ -1,8 +1,8 @@
 &general
   PREFIX = si222
   MODE = suggest
-  NAT = 64; NKD = 1
   KD = Si
+  PRIMCELL = A  # store the primitive cell in si222.h5 for anphon
 /
 
 &interaction
