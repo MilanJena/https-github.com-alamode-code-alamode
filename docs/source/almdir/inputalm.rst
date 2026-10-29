@@ -4,6 +4,8 @@
 
 .. role:: red
 
+.. |Angstrom|   unicode:: U+00C5
+
 ALM: Input files 
 ----------------
 
@@ -48,21 +50,26 @@ List of supported input variables
    :widths: 20, 20, 20, 20
 
    **&general**
-   :ref:`HESSIAN <alm_hessian>`, :ref:`FC3_SHENGBTE <alm_fc3_shengbte>`, :ref:`FCSYM_BASIS <alm_fcsym_basis>`, :ref:`FC_ZERO_THR <alm_fc_zero_thr>`
-   :ref:`KD <alm_kd>`, :ref:`MAGMOM <alm_magmom>`, :ref:`MODE <alm_mode>`, :ref:`NAT <alm_nat>`
-   :ref:`NKD <alm_nkd>`, :ref:`NMAXSAVE <alm_nmaxsave>`, :ref:`NONCOLLINEAR <alm_noncollinear>`, :ref:`PERIODIC <alm_periodic>`
-   :ref:`PREFIX <alm_prefix>`, :ref:`PRINTSYM <alm_printsym>`, :ref:`TOLERANCE <alm_tolerance>`
+   :ref:`FCS_ALAMODE <alm_fcs_alamode>`, :ref:`FCS_UNIT_OUTPUT <alm_fcs_unit_output>`, :ref:`FORCE_UNIT <alm_force_unit>`, :ref:`FORMAT_PATTERN <alm_format_pattern>`
+   :ref:`HESSIAN <alm_hessian>`, :ref:`FC3_SHENGBTE <alm_fc3_shengbte>`, :ref:`FC4_SHENGBTE <alm_fc4_shengbte>`, :ref:`FCSYM_BASIS <alm_fcsym_basis>`
+   :ref:`FC_ZERO_THR <alm_fc_zero_thr>`, :ref:`KD <alm_kd>`, :ref:`LENGTH_UNIT <alm_length_unit>`, :ref:`MAGMOM <alm_magmom>`
+   :ref:`MODE <alm_mode>`, :ref:`NAT <alm_nat>`, :ref:`NMAXSAVE <alm_nmaxsave>`, :ref:`NONCOLLINEAR <alm_noncollinear>`
+   :ref:`PERIODIC <alm_periodic>`, :ref:`PREFIX <alm_prefix>`, :ref:`PRIMCELL <alm_primcell>`, :ref:`PRINTSYM <alm_printsym>`
+   :ref:`STRUCTURE_FILE <alm_structure_file>`, :ref:`SUPERCELL <alm_supercell>`, :ref:`SYMMETRIZE_STRUCTURE <alm_symmetrize_structure>`, :ref:`TOLERANCE <alm_tolerance>`
+   :ref:`TOL_CONST <alm_tol_const>`
    **&interaction**
    :ref:`NBODY <alm_nbody>`, :ref:`NORDER <alm_norder>`
    **&optimize**
-   :ref:`CONV_TOL <alm_conv_tol>`, :ref:`CV <alm_cv>`, :ref:`CV_MINALPHA <alm_cv_minalpha>`, :ref:`DEBIAS_OLS <alm_debias_ols>`
-   :ref:`DFSET <alm_dfset>`, :ref:`DFSET_CV <alm_dfset_cv>`, :ref:`ENET_DNORM <alm_enet_dnorm>`
-   :ref:`FC2XML <alm_fc2xml>`, :ref:`FC3XML <alm_fc3xml>`, :ref:`ICONST <alm_iconst>`
-   :ref:`L1_ALPHA <alm_l1_alpha>`, :ref:`L1_RATIO <alm_l1_ratio>`, :ref:`LMODEL <alm_lmodel>`, :ref:`MAXITER <alm_maxiter>`
-   :ref:`NDATA <alm_ndata>`, :ref:`NDATA_CV <alm_ndata_cv>`, :ref:`NSTART NEND <alm_nstart>`, :ref:`NSTART_CV NEND_CV <alm_nstart_cv>`
-   :ref:`PERIODIC_IMAGE_CONV<alm_periodic_image_conv>`, :ref:`ROTAXIS <alm_rotaxis>`, :ref:`SKIP <alm_skip>`
-   :ref:`SOLUTION_PATH <alm_solution_path>`, :ref:`SPARSE <alm_sparse>`
+   :ref:`ALGO_REDUCTION <alm_algo_reduction>`, :ref:`CHUNKSIZE <alm_chunksize>`, :ref:`CONV_TOL <alm_conv_tol>`, :ref:`CV <alm_cv>`
+   :ref:`CV_MINALPHA <alm_cv_minalpha>`, :ref:`DEBIAS_OLS <alm_debias_ols>`, :ref:`DFSET <alm_dfset>`, :ref:`DFSET_CV <alm_dfset_cv>`
+   :ref:`ENET_DNORM <alm_enet_dnorm>`, :ref:`FC2FIX <alm_fc2fix>`, :ref:`FC3FIX <alm_fc3fix>`, :ref:`ICONST <alm_iconst>`
+   :ref:`L1_ALPHA <alm_l1_alpha>`, :ref:`L1_RATIO <alm_l1_ratio>`, :ref:`L1_SOLVER <alm_l1_solver>`, :ref:`LMODEL <alm_lmodel>`
+   :ref:`MAXITER <alm_maxiter>`, :ref:`NDATA <alm_ndata>`, :ref:`NDATA_CV <alm_ndata_cv>`, :ref:`NSTART NEND <alm_nstart>`
+   :ref:`NSTART_CV NEND_CV <alm_nstart_cv>`, :ref:`NWRITE <alm_nwrite>`, :ref:`PERIODIC_IMAGE_CONV<alm_periodic_image_conv>`, :ref:`ROTAXIS <alm_rotaxis>`
+   :ref:`SKIP <alm_skip>`, :ref:`SOLUTION_PATH <alm_solution_path>`, :ref:`SPARSE <alm_sparse>`
    :ref:`SPARSESOLVER <alm_sparsesolver>`, :ref:`STANDARDIZE <alm_standardize>`, :ref:`STOP_CRITERION <alm_stop_criterion>`
+   :ref:`STRESS <alm_stress>`
+   :ref:`USE_CHOLESKY <alm_use_cholesky>`
 
 
 Description of input variables
@@ -85,11 +92,11 @@ Description of input variables
 * **MODE**-tag = optimize | suggest 
 
  =================================== ====================================================================
-  optimize (:red:`>= 1.1.0`)         | Estimate harmonic and anharmonic IFCs. 
+  optimize                           | Estimate harmonic and anharmonic IFCs. 
                                      | This mode requires an appropriate &optimize field.
 
-  suggest                            | Suggests the displacement patterns necessary 
-                                     | to estimate harmonic and anharmonic IFCS.
+  suggest                            | Suggests the displacement patterns necessary
+                                     | to estimate harmonic and anharmonic IFCs.
  =================================== ====================================================================
 
  :Default: None
@@ -99,29 +106,69 @@ Description of input variables
 
 .. _alm_nat:
 
-* **NAT**-tag : Number of atoms in the supercell
+* NAT-tag : Number of atoms in the supercell
 
- :Default: None
- :Type: Integer
-
-````
-
-.. _alm_nkd:
-
-* **NKD**-tag : Number of atomic species
-
- :Default: None
+ :Default: The number of entries in the ``&position`` field (or in ``STRUCTURE_FILE``)
  :Type: Integer
 
 ````
 
 .. _alm_kd:
 
-* **KD**-tag = Name[1], ... , Name[``NKD``]
+* **KD**-tag : List of atomic species
 
  :Default: None
  :Type: Array of strings
- :Example: In the case of GaAs with ``NKD = 2``, it should be ``KD = Ga As``.
+ :Example: In the case of GaAs, it should be ``KD = Ga As``.
+
+````
+
+.. _alm_structure_file:
+
+* **STRUCTURE_FILE**-tag : File containing the input structure
+
+ :Default: None
+ :Type: String
+ :Description: When this tag is given, *alm* reads the lattice vectors, atomic species, and atomic coordinates from the specified file in the VASP POSCAR format. In this case, the ``&cell`` and ``&position`` fields are ignored, and ``NAT`` and ``KD`` are inferred from the structure file.
+
+    The POSCAR file may use direct or Cartesian coordinates. A ``Selective dynamics`` line is accepted, but the selective-dynamics flags themselves are ignored.
+
+ .. note::
+    A POSCAR is always interpreted in Angstrom (the VASP convention), independent of the :ref:`LENGTH_UNIT <alm_length_unit>` tag.
+
+````
+
+.. _alm_supercell:
+
+* **SUPERCELL**-tag : Transformation matrix from the input cell to the supercell
+
+ :Default: 1
+ :Type: Integer matrix
+ :Description: This tag specifies the target supercell as
+               :math:`(\boldsymbol{a}_{s}, \boldsymbol{b}_{s}, \boldsymbol{c}_{s})^{T}
+               = M (\boldsymbol{a}_{\mathrm{in}}, \boldsymbol{b}_{\mathrm{in}}, \boldsymbol{c}_{\mathrm{in}})^{T}`.
+               If the input structure is already the supercell used for the force calculations, keep the default value.
+
+               The matrix can be written as one, three, or nine entries. One entry ``n`` means ``n n n``; three entries ``n1 n2 n3`` mean a diagonal matrix; nine entries give the full matrix in row-major order. The determinant must be a nonzero integer.
+
+ :Example: ``SUPERCELL = 2 2 2`` creates a 2x2x2 supercell from the input cell. ``SUPERCELL = 2 0 0 0 2 0 0 0 1`` creates a 2x2x1 supercell.
+
+````
+
+.. _alm_primcell:
+
+* **PRIMCELL**-tag : Transformation matrix from the input cell to the primitive cell
+
+ :Default: 1
+ :Type: Matrix or ``Auto``
+ :Description: This tag specifies the primitive cell as
+               :math:`(\boldsymbol{a}_{p}, \boldsymbol{b}_{p}, \boldsymbol{c}_{p})^{T}
+               = M (\boldsymbol{a}_{\mathrm{in}}, \boldsymbol{b}_{\mathrm{in}}, \boldsymbol{c}_{\mathrm{in}})^{T}`.
+               The matrix can be written as one, three, or nine entries, using the same convention as ``SUPERCELL``. Fractional entries such as ``1/2`` are accepted. The determinant of the inverse matrix must be a nonzero integer.
+
+               ``PRIMCELL = Auto`` uses spglib to detect the primitive cell from the input structure. This is useful when the input structure is a conventional cell or a supercell and the primitive-cell transformation is not obvious.
+
+ :Example: ``PRIMCELL = 1/2 0 0 0 1/2 0 0 0 1/2`` defines a primitive cell whose lattice vectors are one half of the corresponding input-cell lattice vectors.
 
 ````
 
@@ -131,6 +178,51 @@ Description of input variables
   
  :Default: 1.0e-3
  :Type: Double
+
+````
+
+.. _alm_tol_const:
+
+* TOL_CONST-tag : Tolerance used when reducing the constraints between force constants
+
+ :Default: 1.0e-6
+ :Type: Double
+ :Description: Numerical tolerance used to detect linearly dependent constraints (the rank of the
+               constraint matrix) when the constraints of ``ICONST`` and the symmetry relations
+               are reduced. The default value is usually sufficient; see also the note on the
+               input precision under :ref:`ICONST <alm_iconst>`.
+
+````
+
+.. _alm_symmetrize_structure:
+
+* SYMMETRIZE_STRUCTURE-tag = 0 | 1
+
+ ===== =============================================================================================
+   0    Use the input structure as given.
+   1   | Symmetrize the lattice vectors and atomic positions to the space group that spglib detects
+       | within ``TOLERANCE``. The structure is not standardized: the cell choice, atom order, and
+       | orientation are kept, the lattice changes only by a symmetric (rotation-free) strain, and
+       | the atoms are not shifted as a whole. The symmetrized structure is used for all later steps
+       | and written to the output files.
+ ===== =============================================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: Useful when the input coordinates are given with only a few digits, e.g. ``0.3333333333``
+               instead of 1/3. The changes of the lattice vectors and atomic positions are printed
+               to the standard output. The input displacements in ``DFSET`` are not modified.
+               Not available with ``NONCOLLINEAR = 1`` or with ``PERIODIC = 0`` in any direction.
+
+               The symmetrization is applied to the input cell, i.e., the structure given by ``&cell`` and
+               ``&position`` or by ``STRUCTURE_FILE``, right after it is read. The supercell (``SUPERCELL``)
+               and the primitive cell (``PRIMCELL``, including ``PRIMCELL = Auto``) are then built from the
+               symmetrized input cell, so they are symmetric as well.
+
+               When ``SYMMETRIZE_STRUCTURE = 0``, ALM checks how far the input structure deviates from
+               the ideal structure of its space group and prints a warning recommending
+               ``SYMMETRIZE_STRUCTURE = 1`` if a lattice-vector component or an atomic position
+               deviates by more than :math:`10^{-6}` bohr.
 
 ````
 
@@ -158,11 +250,11 @@ Description of input variables
   Lattice, L     Symmetry reduction of force constant is performed in the :math:`\boldsymbol{a}_1, \boldsymbol{a}_2, \boldsymbol{a}_3` basis
  ============== ===========================================================================
 
- :Default: Lattice
+ :Default: Cartesian (changed from Lattice in version 2.0)
  :type: String
  :Description: The calculation results should not depend on the choice of ``FCSYM_BASIS`` when ``LMODEL = ols``. For other regression methods (enet, adaptive LASSO), an optimal value of the ``L1_ALPHA`` changes when you change the ``FCSYM_BASIS`` option.  
  
-    In some cases, ``FCSYM_BASIS = Lattice`` is more stable and efficient. In particular, we recommend setting ``FCSYM_BASIS = Lattice`` for hexagonal systems. If a calculation with ``FCSYM_BASIS = Lattice`` is slow, please switch to ``FCSYM_BASIS = Cartesian``.
+    ``FCSYM_BASIS = Cartesian`` is the default because it is required for the rotational invariance constraints. ``FCSYM_BASIS = Lattice`` can be more robust when the input structure is given with only a few digits, e.g., hexagonal cells with :math:`\sqrt{3}/2` written as 0.866025. In such cases, setting ``SYMMETRIZE_STRUCTURE = 1`` is recommended instead of, or in addition to, ``FCSYM_BASIS = Lattice``.
     
     For more details about the symmetry reduction of force constants, please see :ref:`here <IFC_crystal_symmetry>`.
 
@@ -180,7 +272,7 @@ Description of input variables
 
  :Default: 0 ... 0 (``NAT`` entries when ``NONCOLLINEAR = 0``, 3x\ ``NAT`` entries when ``NONCOLLINEAR = 1``.)
  :type: Array of double
- :Example: When a supercell containts 64 atoms and the local magnetic moments of the first 32 atoms are up and those of the last 32 atoms are down, please set the ``MAGMOM`` tag as ``MAGMOM = 32*1 32*-1``. The wildcard (``*``) is available when ``NONCOLLINEAR = 0``. For the noncollinear case (``NONCOLLINEAR = 1``), the wildcard is not supported. So, please give the magnetic moment explicitly as ``MAGMOM = 0 0 1 0 0 1 0 0 1 ... 0 0 -1 0 0 -1 ...`` (3\ :math:`\times`\ ``NAT`` entries in *one line*).
+ :Example: When a supercell contains 64 atoms and the local magnetic moments of the first 32 atoms are up and those of the last 32 atoms are down, please set the ``MAGMOM`` tag as ``MAGMOM = 32*1 32*-1``. The wildcard (``*``) is available when ``NONCOLLINEAR = 0``. For the noncollinear case (``NONCOLLINEAR = 1``), the wildcard is not supported. So, please give the magnetic moment explicitly as ``MAGMOM = 0 0 1 0 0 1 0 0 1 ... 0 0 -1 0 0 -1 ...`` (3\ :math:`\times`\ ``NAT`` entries in *one line*).
 
  .. note::
 
@@ -222,11 +314,31 @@ Description of input variables
 
 .. _alm_nmaxsave:
 
-* NMAXSAVE-tag : The maximum order of anharmonic force constants printed out in ``PREFIX``.xml
+* NMAXSAVE-tag : The maximum order of anharmonic force constants written to the force-constant files (``PREFIX``.h5 and ``PREFIX``.xml)
 
  :Default: min(5, ``NORDER``) 
  :Type: Integer
- :Example: If your model includes anharmonic terms up to the sixth-order (``NORDER = 5``), but you want to avoid printing out the fifth-order and sixth-order IFCs in ``PREFIX``.xml, please set ``NMAXSAVE = 3``.
+ :Example: If your model includes anharmonic terms up to the sixth-order (``NORDER = 5``), but you want to avoid printing out the fifth-order and sixth-order IFCs, please set ``NMAXSAVE = 3``.
+
+````
+
+.. _alm_fcs_alamode:
+
+* FCS_ALAMODE-tag = 0 | 1
+
+ ===== =====================================================================
+   0    Write the force constants to ``PREFIX``.h5 only
+   1    Additionally write the legacy ``PREFIX``.xml file and the
+        plain-text ``PREFIX``.fcs listing
+ ===== =====================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: The HDF5 file ``PREFIX``.h5 is the standard force-constant
+               output and is always written. Set ``FCS_ALAMODE = 1`` to also
+               produce the legacy XML file and the human-readable
+               ``PREFIX``.fcs listing, e.g. for external tools that have not
+               migrated to the HDF5 format yet. *anphon* reads both formats.
 
 ````
 
@@ -263,26 +375,98 @@ Description of input variables
 
 * FC3_SHENGBTE-tag = 0 | 1
 
- ===== ==========================================================================================
-   0   | Do not save the third-order force constants for ShengBTE code
-   1   | Save the third-order force constants for the ShengBTE code in PREFIX.FORCE_CONSTANT_3RD.
- ===== ==========================================================================================
+ ===== ===========================================================================================
+   0   | Do not save the third-order force constants for the ShengBTE code
+   1   | Save the third-order force constants for the ShengBTE code in PREFIX.FORCE_CONSTANTS_3RD.
+ ===== ===========================================================================================
 
  :Default: 0
  :type: Integer
+ :Description: The file has the layout of ShengBTE's ``FORCE_CONSTANTS_3RD``: the force constants in eV/|Angstrom|\ :sup:`3`
+               and the lattice vectors of the periodic images in |Angstrom|, independent of ``FCS_UNIT_OUTPUT``.
+               It is written only when ``NORDER >= 2``; otherwise a warning is printed and no file is written.
+               ShengBTE reads a file named ``FORCE_CONSTANTS_3RD``, so remove the ``PREFIX.`` part or link the file.
+               To convert existing force constants instead, see :ref:`label_fc_conversion`.
+
+````
+
+.. _alm_fc4_shengbte:
+
+* FC4_SHENGBTE-tag = 0 | 1
+
+ ===== ===========================================================================================
+   0   | Do not save the fourth-order force constants for the FourPhonon code
+   1   | Save the fourth-order force constants for the FourPhonon code in PREFIX.FORCE_CONSTANTS_4TH.
+ ===== ===========================================================================================
+
+ :Default: 0
+ :type: Integer
+ :Description: The file has the layout of ``FORCE_CONSTANTS_4TH`` read by FourPhonon, the four-phonon extension of ShengBTE:
+               the force constants in eV/|Angstrom|\ :sup:`4` and the lattice vectors of the periodic images in |Angstrom|,
+               independent of ``FCS_UNIT_OUTPUT``.
+               It is written only when ``NORDER >= 3``; otherwise a warning is printed and no file is written.
+               Remove the ``PREFIX.`` part or link the file to ``FORCE_CONSTANTS_4TH``.
 
 ````
 
 .. _alm_fc_zero_thr:
 
-* FC_ZERO_THR-tag : Threshold value used when trimming force constants when creating PREFIX.xml
+* FC_ZERO_THR-tag : Threshold value used when trimming force constants written to the force-constant files
   
  :Default: 1.0e-12
  :Type: Double
- :Description: ``FC_ZERO_THR`` defines the threshold of force constants to be saved in an XML file. If the absolute value of force constant is smaller than ``FC_ZERO_THR``, it will NOT be printed out. 
+ :Description: ``FC_ZERO_THR`` defines the threshold of force constants to be saved in ``PREFIX``.h5 (and ``PREFIX``.xml). If the absolute value of a force constant is smaller than ``FC_ZERO_THR``, it will NOT be printed out.
 
  .. note::
-    If the harmonic force constants are calculated using a model potential (e.g., classical FF) where the interaction becomes zero beyond a certain cutoff raius, the default value of ``FC_ZERO_THR`` may raise a warning when creating a renormalize harmonic FCSXML using ``tools/dfc2``. This issue may be resolved by using a smaller ``FC_ZERO_THR``, say ``FC_ZERO_THR = 1.0e-15``. The force constants that become exactly zero due to symmetry and acoustic sum rule constraints will not be printed even when setting ``FC_ZERO_THR = 0``.
+    If the harmonic force constants are calculated using a model potential (e.g., classical FF) where the interaction becomes zero beyond a certain cutoff radius, the default value of ``FC_ZERO_THR`` may drop small but nonzero force constants. This issue may be resolved by using a smaller ``FC_ZERO_THR``, say ``FC_ZERO_THR = 1.0e-15``. The force constants that become exactly zero due to symmetry and acoustic sum rule constraints will not be printed even when setting ``FC_ZERO_THR = 0``.
+
+````
+
+.. _alm_format_pattern:
+
+* FORMAT_PATTERN-tag = yaml | old
+
+ ===== =====================================================================
+  yaml  Write the displacement-pattern files in the YAML format
+  old   Write them in the plain-text format of ALAMODE 1.x
+ ===== =====================================================================
+
+ :Default: yaml
+ :Type: String
+ :Description: Format of the displacement-pattern files ``PREFIX``.pattern_HARMONIC,
+               ``PREFIX``.pattern_ANHARM3, ... written with ``MODE = suggest``.
+               ``displace.py --pattern_file`` reads both formats; ``old`` is
+               kept for external scripts written for the 1.x format.
+
+````
+
+.. _alm_length_unit:
+
+* LENGTH_UNIT-tag = bohr | angstrom
+
+ :Default: bohr
+ :Type: String
+ :Description: Unit of the length-type input data: the ``&cell`` lattice vectors, the displacements in the ``DFSET`` file, and the ``&cutoff`` radii. The data are converted to Bohr internally, so the internal model and all outputs are unaffected. A ``STRUCTURE_FILE`` (POSCAR) is always interpreted in Angstrom, independent of this tag.
+
+````
+
+.. _alm_force_unit:
+
+* FORCE_UNIT-tag = Ry/bohr | eV/angstrom | Ha/bohr
+
+ :Default: Ry/bohr
+ :Type: String
+ :Description: Unit of the forces in the ``DFSET`` file, converted to Ry/bohr internally.
+
+````
+
+.. _alm_fcs_unit_output:
+
+* FCS_UNIT_OUTPUT-tag = Ry/bohr | eV/angstrom
+
+ :Default: Ry/bohr
+ :Type: String
+ :Description: Unit system of the force constants written to the HDF5 file (``PREFIX``.h5). With ``eV/angstrom``, the force constant values (eV/angstrom\ :sup:`n`\ ), the lattice vectors, and the shift vectors (angstrom) are converted consistently, and the ``unit`` attributes stored in the file are updated accordingly; *anphon* reads these attributes and converts the data back internally. The XML (``PREFIX``.xml) and ``PREFIX``.fcs outputs always stay in Rydberg atomic units.
 
 ````
 
@@ -296,7 +480,7 @@ Description of input variables
 
  :Default: None
  :Type: Integer
- :Example: ``NORDER = 1`` for calculate harmonic terms only, ``NORDER = 2`` to include cubic terms as well, and so on.
+ :Example: ``NORDER = 1`` to calculate harmonic terms only, ``NORDER = 2`` to include cubic terms as well, and so on.
 
 ````
 
@@ -327,9 +511,9 @@ Description of input variables
 "&cutoff"-field
 +++++++++++++++
 
-In this entry field, one needs to specify cutoff radii of interaction for each order in units of bohr. 
+In this entry field, one needs to specify cutoff radii of interaction for each order in units of bohr (or of :ref:`LENGTH_UNIT <alm_length_unit>` if given).
 In the current implementation, cutoff radii should be defined for every possible pair of atomic elements. 
-For example, the cutoff entry for a harmonic calculation (``NORDER = 1``) of Si (``NKD = 1``) should be like
+For example, the cutoff entry for a harmonic calculation (``NORDER = 1``) of Si should be like
 ::
 
  &cutoff
@@ -359,7 +543,7 @@ which means that all possible harmonic terms between Si-Si atoms will be include
 
   Setting 'None' for anharmonic terms can greatly increase the number of parameters and thereby increase the computational cost.
 
-When there are more than two atomic elements, please specify the cutoff radii between every possible pair of atomic elements. In the case of MgO (``NKD = 2``), the cutoff entry should be like
+When there are more than two atomic elements, please specify the cutoff radii between every possible pair of atomic elements. In the case of MgO, the cutoff entry should be like
 ::
  
  &cutoff
@@ -391,7 +575,7 @@ In the case of cubic terms, force constants :math:`\Phi_{ijk}^{\mu\nu\lambda}` s
 "&cell"-field
 +++++++++++++
 
-Please give the cell parameters in this entry in units of bohr as the following::
+Please give the cell parameters in this entry in units of bohr (or of :ref:`LENGTH_UNIT <alm_length_unit>` if given) as the following::
 
  &cell
   a
@@ -414,7 +598,7 @@ Each line should be
 
   ikd xf[1] xf[2] xf[3]
 
-where `ikd` is an integer specifying the atomic element (`ikd` = 1, ..., ``NKD``) and `xf[i]` is the
+where `ikd` is an integer specifying the atomic element in the order of the ``KD`` tag and `xf[i]` is the
 fractional coordinate of an atom. There should be ``NAT`` such lines in the &position entry field.
 
 
@@ -439,15 +623,13 @@ This field is necessary when ``MODE = optimize``.
  :Type: String
  :Description: When ``LMODEL = ols``, the force constants are estimated from the displacement-force datasets via the ordinary least-squares (OLS), which is usually sufficient to calculate harmonic and third-order force constants. 
 
-               The elastic net (``LMODEL = enet``) or adaptive LASSO (``LMODEL = adaptive-lasso``) are useful for calculating fourth-order (and higher-order) force constants. When the elastic net or adaptive LASSO is selected, the users have to set the following related tags: ``CV``, ``L1_RATIO``, ``L1_ALPHA``, ``CV_MAXALPHA``, ``CV_MINALPHA``, ``CV_NALPHA``, ``STANDARDIZE``, ``ENET_DNORM``, ``MAXITER``, ``CONV_TOL``, ``NWRITE``, ``SOLUTION_PATH``, ``DEBIAS_OLS``, ``STOP_CRITERION``. Please be noted that ``STANDARDIZE`` will be effective only for the elastic net.
+               The elastic net (``LMODEL = enet``) or adaptive LASSO (``LMODEL = adaptive-lasso``) are useful for calculating fourth-order (and higher-order) force constants. When the elastic net or adaptive LASSO is selected, the users have to set the following related tags: ``CV``, ``L1_RATIO``, ``L1_ALPHA``, ``CV_MAXALPHA``, ``CV_MINALPHA``, ``CV_NALPHA``, ``STANDARDIZE``, ``ENET_DNORM``, ``MAXITER``, ``CONV_TOL``, ``NWRITE``, ``SOLUTION_PATH``, ``DEBIAS_OLS``, ``STOP_CRITERION``.
 
 ````
 
 .. _alm_dfset:
 
 * **DFSET**-tag: File name containing displacement-force datasets for training
-
- .. versionadded:: 1.1.0
 
  :Default: None
  :Type: String
@@ -487,20 +669,57 @@ This field is necessary when ``MODE = optimize``.
 
 .. _alm_iconst:
 
-* ICONST-tag = 0 | 1 | 2 | 3 | 11
+* ICONST-tag = 0 | 1 | 2 | 3 | 4 | 11 | 12 | 13 | 14
 
  ===== =============================================================================================
    0    No constraints
    1   | Constraint for translational invariance is imposed between IFCs.
        | Available only when ``LMODEL = ols``.
   11   | Same as ``ICONST = 1`` but the constraint is imposed *algebraically* rather than numerically.
-       | Select this option when ``LMODEL = enet``.
-   2   | In addition to ``ICONST = 1``, constraints for rotational invariance will be 
+       | Select this option when ``LMODEL = enet`` or ``adaptive-lasso``.
+   2   | In addition to ``ICONST = 1``, constraints for rotational invariance will be
        | imposed up to (``NORDER`` + 1)th order. Available only when ``LMODEL = ols``.
-   3   | In addition to ``ICONST = 2``, constraints for rotational invariance between (``NORDER`` + 1)th order 
-       | and (``NORDER`` + 2)th order, which are zero, will be considered. 
+   3   | In addition to ``ICONST = 2``, constraints for rotational invariance between (``NORDER`` + 1)th order
+       | and (``NORDER`` + 2)th order, which are zero, will be considered.
        | Available only when ``LMODEL = ols``.
+   4   | In addition to ``ICONST = 2``, constraints for the Huang invariance will be imposed.
+       | Available only when ``LMODEL = ols``. For a stressed reference structure, see ``STRESS``.
+  12   | Same as ``ICONST = 2`` but imposed algebraically. Usable with any ``LMODEL``.
+  13   | Same as ``ICONST = 3`` but imposed algebraically. Usable with any ``LMODEL``.
+  14   | Same as ``ICONST = 4`` but imposed algebraically. Usable with any ``LMODEL``.
  ===== =============================================================================================
+
+ .. note::
+
+     When ``LMODEL = enet`` or ``adaptive-lasso``, ``ICONST = 1, 2, 3, 4`` are not rejected but are
+     treated as ``ICONST = 11, 12, 13, 14``, respectively, i.e., the constraints are imposed algebraically.
+
+ .. note::
+
+     With ``ICONST = 12, 13, 14``, the inter-order rotational constraints make some higher-order IFCs
+     linear functions of lower-order ones. These dependent IFCs are eliminated before the fit, so they
+     are not penalized by the L1 term of ``LMODEL = enet`` or ``adaptive-lasso``.
+     As in ``ICONST = 2, 3, 4``, inter-order constraints involving an order fixed by ``FC2FIX`` or
+     ``FC3FIX`` are not imposed.
+
+ .. note::
+
+     The rotational constraints (``ICONST = 2, 3, 4, 12, 13, 14``) are built from the Cartesian
+     atomic positions, so the input structure must be symmetric to nearly machine precision.
+     If the lattice vectors or positions are given with only about 10 digits, the inter-order
+     constraints have no clear rank, and the number of free parameters and the resulting IFCs
+     may depend on ``ICONST``, ``ALGO_REDUCTION``, and ``TOL_CONST``.
+     Give the structure with full double precision or set ``SYMMETRIZE_STRUCTURE = 1``.
+
+     Even with an exact structure, a structure with internal relaxation (atoms off high-symmetry
+     positions) combined with a short cutoff of the highest order can give nearly dependent
+     rotational constraints. ``ICONST = 2, 3, 4`` and, with the default ``ALGO_REDUCTION = 3``,
+     ``ICONST = 12, 13, 14`` drop those weaker than ``TOL_CONST`` (relative, row by row). The other
+     ``ALGO_REDUCTION`` options, and ``ALGO_REDUCTION = 3`` for constraint blocks too large for the
+     dense QR in ALM built without ``USE_SUITESPARSE_BACKEND``, decide the rank in several Gauss-Jordan
+     stages and may keep some of them, which shows up as a fitting error larger than with
+     ``ICONST = 2, 3, 4``. In that case, use ``ICONST = 2, 3, 4`` (with ``LMODEL = ols``), or increase
+     ``TOL_CONST`` or the cutoff radius.
 
  :Default: 11
  :Type: Integer
@@ -529,39 +748,102 @@ This field is necessary when ``MODE = optimize``.
 .. _alm_rotaxis:
 
 
-* ROTAXIS-tag : Rotation axis used to estimate constraints for rotational invariance. This entry is necessary when ``ICONST = 2, 3``.
+* ROTAXIS-tag : Rotation axis used to estimate constraints for rotational invariance. This entry is necessary when ``ICONST = 2, 3, 4, 12, 13, 14``.
 
  :Default: None
  :Type: String
- :Example: When one wants to consider the rotational invariance around the :math:`x`\ -axis, one should give ``ROTAXIS = x``. If one needs additional constraints for the rotation around the :math:`y`\ -axis, ``ROTAXIS`` should be ``ROTAXIS = xy``. 
+ :Example: When one wants to consider the rotational invariance around the :math:`x`\ -axis, one should give ``ROTAXIS = x``. If one needs additional constraints for the rotation around the :math:`y`\ -axis, ``ROTAXIS`` should be ``ROTAXIS = xy``.
 
 ````
 
-.. _alm_fc2xml:
+.. _alm_stress:
 
-* FC2XML-tag : XML file to which the harmonic terms are fixed upon training
+* STRESS-tag : Cauchy stress :math:`\sigma` of the reference structure (in GPa) used to generalize the Huang invariance
 
- :Default: None
- :Type: String
- :Description: When ``FC2XML``-tag is given, harmonic force constants are fixed to the values stored in the ``FC2XML`` file. This may be useful for optimizing cubic and higher-order terms without changing the harmonic terms. Please make sure that the number of harmonic terms in the new computational condition is the same as that in the ``FC2XML`` file.
+ :Default: None (stress-free Huang invariance)
+ :Type: Array of double (6 or 9 values)
+ :Description: The Huang invariance imposed with ``ICONST = 4`` or ``14`` assumes a stress-free
+               reference structure. When the reference structure is under a stress :math:`\sigma`, the
+               long-wavelength condition becomes
 
- .. important::
+               .. math::
 
-     The ``FCSYM_BASIS`` option must be the same as the one used when creating the reference harmonic force constant file (``FC2XML``). The code raises an error when they are inconsistent.
+                  [\alpha\beta,\gamma\delta] - [\gamma\delta,\alpha\beta] = \sigma_{\gamma\delta}\delta_{\alpha\beta} - \sigma_{\alpha\beta}\delta_{\gamma\delta},
+                  \quad
+                  [\alpha\beta,\gamma\delta] = -\frac{1}{2\Omega}\sum_{\kappa,\ell\kappa'} \Phi_{\alpha\beta}(0\kappa;\ell\kappa')\, x_{\gamma} x_{\delta},
+
+               where :math:`\boldsymbol{x} = \boldsymbol{r}(\ell\kappa') - \boldsymbol{r}(0\kappa)` and
+               :math:`\Omega` is the volume of the primitive cell. ``STRESS`` gives :math:`\sigma` either
+               as 9 values (the :math:`3\times 3` tensor, row by row) or as 6 Voigt values in the order
+               ``xx yy zz yz xz xy``, in the Cartesian frame of the input lattice vectors.
+
+               The sign convention is **tension positive**. Note that the stress printed by VASP
+               (``in kB`` line of OUTCAR) is positive under compression: convert it as
+               :math:`\sigma = -0.1 \times` (VASP value) GPa. ASE's ``get_stress()`` is already tension
+               positive (in eV/Å\ :sup:`3`). LAMMPS reports the pressure tensor, so :math:`\sigma = -p`.
+
+               The input tensor is symmetrized, :math:`(\sigma + \sigma^{T})/2`, and averaged over the
+               point group of the structure; the input and symmetrized tensors are printed, and a warning
+               is shown when the removed part exceeds 1% of :math:`|\sigma|`.
+               A hydrostatic stress does not change the Huang conditions.
+               ``STRESS`` is ignored (with a warning) unless ``ICONST = 4`` or ``14``.
+ :Example: ``STRESS = 1.2 0.1 0.7 0 0 0.2`` (Voigt, GPa)
 
 ````
 
-.. _alm_fc3xml:
+.. _alm_algo_reduction:
 
-* FC3XML-tag : XML file to which the cubic terms are fixed upon training
+* ALGO_REDUCTION-tag = 0 | 1 | 2 | 3 | 4
+
+ ===== =============================================================================================
+   0    | No separate reduction step; the elimination map is built by sparse
+        | Gauss-Jordan elimination, i.e., the same result as ``ALGO_REDUCTION = 1``
+   1    Sparse Gauss-Jordan elimination (legacy)
+   2    Rank-revealing QR row selection followed by sparse Gauss-Jordan elimination
+   3    | Rank-revealing QR row selection with the scale-free ``TOL_CONST`` test, followed by sparse
+        | Gauss-Jordan elimination with threshold pivoting. Higher-order IFCs are expressed through
+        | lower-order ones where the pivot size allows; the log reports how many relations go the other
+        | way. Without ``USE_SUITESPARSE_BACKEND``, blocks above 5e7 matrix elements use the Gauss-Jordan
+        | elimination with partial pivoting of earlier versions.
+   4    | Reduced echelon form from a sparse Householder QR (SuiteSparseQR) with scale-aware rank
+        | detection. Requires ALM built with ``USE_SUITESPARSE_BACKEND``.
+ ===== =============================================================================================
+
+ :Default: 3
+ :Type: Integer
+ :Description: Algorithm used to reduce the constraints to an elimination map when ``ICONST >= 11``. All options keep the independent parameters as individual IFCs; ``ICONST = 1, 2, 3, 4`` always use a rank-revealing QR.
+
+````
+
+.. _alm_fc2fix:
+
+* FC2FIX-tag : File to which the harmonic terms are fixed upon training
 
  :Default: None
  :Type: String
- :Description: Same as the ``FC2XML``-tag, but ``FC3XML`` is to fix cubic force constants. 
+ :Description: When the ``FC2FIX``-tag is given, harmonic force constants are fixed to the values stored in the ``FC2FIX`` file. This may be useful for optimizing cubic and higher-order terms without changing the harmonic terms. Please make sure that the number of harmonic terms in the new computational condition is the same as that in the ``FC2FIX`` file.
+
+ .. note::
+
+     ``FC2XML`` is a deprecated alias of ``FC2FIX`` kept for backward compatibility. It will be removed in a future release, so please use ``FC2FIX`` instead.
 
  .. important::
- 
-     The ``FCSYM_BASIS`` option must be the same as the one used when creating the reference cubic force constant file (``FC3XML``). The code raises an error when they are inconsistent.
+
+     When ``FC2FIX`` is an XML file, the ``FCSYM_BASIS`` option must be the same as the one used when creating it. If ``FCSYM_BASIS`` is not given, the basis recorded in the XML file is used, so files created with the old default (Lattice, before version 2.0) still work. An explicitly given ``FCSYM_BASIS`` that differs from the file raises an error. An HDF5 (``.h5``) file can be used with either basis.
+
+````
+
+.. _alm_fc3fix:
+
+* FC3FIX-tag : File to which the cubic terms are fixed upon training
+
+ :Default: None
+ :Type: String
+ :Description: Same as the ``FC2FIX``-tag, but ``FC3FIX`` is used to fix cubic force constants. (``FC3XML`` is a deprecated alias of ``FC3FIX``.)
+
+ .. important::
+
+     When ``FC3FIX`` is an XML file, the ``FCSYM_BASIS`` option must be the same as the one used when creating it. If ``FCSYM_BASIS`` is not given, the basis recorded in the XML file is used, so files created with the old default (Lattice, before version 2.0) still work. An explicitly given ``FCSYM_BASIS`` that differs from the file raises an error. An HDF5 (``.h5``) file can be used with either basis.
 
 ````
 
@@ -577,7 +859,27 @@ This field is necessary when ``MODE = optimize``.
 
  :Default: 0
  :Type: Integer
- :Description: When you want to calculate force constants of a large system and generate training datasets by displacing only a few atoms from equilibrium positions, the resulting sensing matrix becomes large but sparse. For such matrices, a sparse solver is expected to be more efficient than SVD or QRD in terms of both memory usage and computational time. When ``SPARSE = 1`` is set, the code uses a sparse solver implemented in Eigen3 library. You can change the solver type via ``SPARSESOLVER``. Effective when ``LMODEL = ols``.
+ :Description: When you want to calculate force constants of a large system and generate training datasets by displacing only a few atoms from equilibrium positions, the resulting sensing matrix becomes large but sparse. For such matrices, a sparse solver is expected to be more efficient than SVD or QRD in terms of both memory usage and computational time. Effective when ``LMODEL = ols``.
+
+              **When to use:** prefer ``SPARSE = 1`` for large systems whose sensing matrix is genuinely sparse (only a handful of atoms displaced per configuration). For small or dense problems the default direct solvers (``SPARSE = 0``) are usually faster, and the sparse factorization can even use more memory because of fill-in. When the sensing matrix is dense but large, consider :ref:`USE_CHOLESKY <alm_use_cholesky>` instead.
+
+ .. note::
+
+     The sparse path has two different solver routes. With algebraic constraints
+     (``ICONST >= 10``; the default is ``ICONST = 11``), the reduced sparse
+     least-squares problem is solved by the ``SPARSESOLVER`` selected below.
+     With constraints imposed numerically (``ICONST = 1, 2, 3, 4``), the sparse
+     path instead assembles the symmetric-indefinite KKT system. The merged
+     constraint matrix is first reduced to full row rank by a rank-revealing QR
+     (essential: a rank-deficient constraint matrix makes the KKT singular and
+     the fitted IFCs violate the acoustic-sum-rule / rotational invariance). The
+     KKT solver is then chosen by build: Intel MKL **PARDISO**
+     (``-DUSE_MKL_BACKEND=yes``) or Apple **Accelerate**
+     (``-DUSE_ACCEL_BACKEND=yes``) use a symmetric-indefinite ``LDLT``;
+     **SuiteSparse** (``-DUSE_SUITESPARSE_BACKEND=yes``) adds the multithreaded
+     **SuiteSparseQR** fallback; otherwise Eigen's serial ``SparseLU`` and
+     ``SparseQR`` fallbacks are used. See :ref:`Optional linear-algebra backends
+     <install_backends>` on the installation page.
 
 ````
 
@@ -587,11 +889,79 @@ This field is necessary when ``MODE = optimize``.
 
  :Default: SimplicialLDLT
  :Type: String
- :Description: Currently, only the sparse solvers of Eigen3 library can be used. Available options are `SimplicialLDLT`, `SparseQR`, `ConjugateGradient`, `LeastSquaresConjugateGradient`, and `BiCGSTAB`. When an iterative algorithm (conjugate gradient) is selected, a stopping criterion can be specified by the ``CONV_TOL`` and ``MAXITER`` tags. Effective when ``LMODEL = ols`` and ``SPARSE = 1``.
+ :Description: Selects the sparse solver used for the unconstrained or algebraically constrained sparse OLS fit (``LMODEL = ols``, ``SPARSE = 1``, and ``ICONST >= 10``). Available options are `SimplicialLDLT` (sparse Cholesky on the normal matrix, direct), `SparseQR` (direct sparse QR), and the iterative Krylov solvers `ConjugateGradient`, `LeastSquaresConjugateGradient`, and `BiCGSTAB`. When an iterative solver is selected, the stopping criterion is controlled by the ``CONV_TOL`` and ``MAXITER`` tags. As a rule of thumb, use `SimplicialLDLT` (the default) for well-conditioned problems, `SparseQR` when the direct factorization fails or the matrix is poorly conditioned, and the iterative solvers when even the sparse factorization is too large to store.
+
+              Two additional high-performance solvers are available when ALM is built with the SuiteSparse backend (``-DUSE_SUITESPARSE_BACKEND=yes``; see :ref:`Optional linear-algebra backends <install_backends>`): `SuiteSparseQR`, a multithreaded rank-revealing multifrontal sparse QR that factorizes the rectangular sensing matrix directly (a faster, parallel alternative to `SparseQR` for large or ill-conditioned problems), and `CHOLMOD`, a supernodal sparse Cholesky on the normal matrix :math:`A^{\mathsf T}A` (a faster alternative to `SimplicialLDLT` for well-conditioned problems). Selecting either of these without building the SuiteSparse backend stops with an error.
+
+              With numerically imposed constraints (``ICONST = 1, 2, 3, 4``), most values of ``SPARSESOLVER`` do **not** select the KKT direct solver. The code first tries the KKT backend compiled into the executable (MKL/PARDISO or Apple/Accelerate LDLT), then SuiteSparseQR if the SuiteSparse backend is enabled, then Eigen's built-in sparse fallbacks. `MINRES` is the special exception (experimental): selecting ``SPARSESOLVER = MINRES`` chooses an iterative solver for this KKT path. It never forms the dense factor used by direct solvers, so it can be the memory-feasible choice when direct KKT factorizations exhaust memory because the constraint matrix has dense rows (the rotational-invariance constraints of ``ICONST = 2, 3``). It is preconditioned by a block-diagonal SPD preconditioner (Jacobi on :math:`A^{\mathsf T}A` plus the dense constraint Schur complement); ``CONV_TOL`` and ``MAXITER`` control the stopping criterion. After the solve it checks the *true* KKT residual and ``\|C x - d\|`` and **aborts** if they are not met, rather than returning a solution that would violate the sum rules. On badly-scaled or extremely ill-conditioned KKT systems the simple block-diagonal preconditioner may be insufficient and `MINRES` will report non-convergence -- in that case raise ``MAXITER`` / loosen ``CONV_TOL``, or use a direct LDLT backend on a reduced problem.
+
+              ``SPARSESOLVER`` is ignored by ``USE_CHOLESKY = 1``. In that mode the code forms :math:`A^{\mathsf T}A` directly and uses a sparse Cholesky factorization (`CHOLMOD` when the SuiteSparse backend is available, otherwise `SimplicialLDLT`).
 
 
  .. seealso::
     Eigen documentation page: `Solving Sparse Linear Systems <https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html>`__
+
+````
+
+.. _alm_use_cholesky:
+
+* USE_CHOLESKY-tag = 0 | 1
+
+ ===== ==============================================================
+   0    Use a direct solver (SVD or QRD) to estimate force constants
+   1    Solve the normal equations by Cholesky decomposition
+ ===== ==============================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``USE_CHOLESKY = 1``, the ordinary least-squares fit is obtained by forming the
+              normal equations :math:`A^{\mathsf{T}} A\,\boldsymbol{\Phi} = A^{\mathsf{T}} \boldsymbol{b}`
+              and factorizing :math:`A^{\mathsf{T}} A` with a Cholesky decomposition (a dense ``LLT``,
+              or a sparse Cholesky factorization when ``SPARSE = 1``: ``CHOLMOD`` with the SuiteSparse backend, otherwise ``SimplicialLDLT``). This is typically about twice as fast
+              and uses noticeably less memory than the default SVD/QRD direct solvers, which makes it
+              attractive for large, **well-conditioned** overdetermined fits (many more rows than
+              columns). The trade-off is accuracy: forming :math:`A^{\mathsf{T}} A` squares the
+              condition number of :math:`A`, so the solution degrades when the sensing matrix is
+              ill-conditioned. Keep the default ``USE_CHOLESKY = 0`` (SVD/QRD) when robustness matters
+              or the fit is close to rank-deficient. Effective when ``LMODEL = ols``.
+
+ .. important::
+
+     ``USE_CHOLESKY = 1`` cannot be combined with the numerically imposed constraints
+     ``ICONST = 1, 2, 3, 4``. When constraints are required, impose them algebraically with
+     ``ICONST = 11, 12, 13, 14`` instead; otherwise the code stops with an error.
+
+````
+
+.. _alm_chunksize:
+
+* CHUNKSIZE-tag : Number of configurations processed per pass when building :math:`A^{\mathsf{T}} A`
+
+ :Default: 100
+ :Type: Integer
+ :Description: Relevant only when ``USE_CHOLESKY = 1``. Instead of forming the full dense sensing
+              matrix :math:`A` (size :math:`N_{\mathrm{rows}} \times N_{\mathrm{cols}}`) at once, the
+              normal-equations matrix :math:`A^{\mathsf{T}} A` is accumulated in chunks of
+              ``CHUNKSIZE`` training configurations: for each chunk only a small block of :math:`A` is
+              built and added into :math:`A^{\mathsf{T}} A`. This caps the peak memory at roughly the
+              larger of :math:`A^{\mathsf{T}} A` itself and one chunk's block (proportional to
+              ``CHUNKSIZE`` :math:`\times\, N_{\mathrm{cols}}`), rather than the full :math:`A`.
+              A smaller ``CHUNKSIZE`` lowers the peak memory but uses more passes with smaller, less
+              efficient matrix products; a larger ``CHUNKSIZE`` is faster but needs more memory.
+              Lowering it below the point where one chunk is already smaller than
+              :math:`A^{\mathsf{T}} A` gives no further savings, since :math:`A^{\mathsf{T}} A` sets
+              the memory floor. The default (100) is a reasonable balance; reduce it if the chunk
+              block does not fit in memory.
+
+````
+
+.. _alm_nwrite:
+
+* NWRITE-tag : Interval of the progress output of iterative L1 solvers
+
+ :Default: 1000
+ :Type: Integer
+ :Description: The progress of the L1 solver iteration (``LMODEL = enet | adaptive-lasso``) is printed every ``NWRITE`` iterations when ``VERBOSITY >= 2`` is set in the ``&general`` field.
 
 ````
 
@@ -612,7 +982,7 @@ This field is necessary when ``MODE = optimize``.
  :Default: 1.0e-8
  :Type: Double
  :Description: When ``LMODEL = ols`` and an iterative solver is selected via ``SPARSESOLVER``, ``CONV_TOL`` value is passed to the Eigen3 function via `setTolerance()`.
-               When ``LMODEL = enet | adaptive-lasso``, the coordinate descent iteration stops at :math:`i`\ th iteration if :math:`\sqrt{\frac{1}{N}|\boldsymbol{\Phi}_{i} - \boldsymbol{\Phi}_{i-1}|_{2}^{2}} <` ``CONV_TOL`` is satisfied, where :math:`N` is the length of the vector :math:`\boldsymbol{\Phi}`.
+               When ``LMODEL = enet | adaptive-lasso``, the L1 solver iteration stops at :math:`i`\ th iteration if :math:`\sqrt{\frac{1}{N}|\boldsymbol{\Phi}_{i} - \boldsymbol{\Phi}_{i-1}|_{2}^{2}} <` ``CONV_TOL`` is satisfied, where :math:`N` is the length of the vector :math:`\boldsymbol{\Phi}`.
 
 
  .. seealso::
@@ -627,6 +997,30 @@ This field is necessary when ``MODE = optimize``.
  :Default: 1.0 (LASSO)
  :Type: Double
  :Description: The ``L1_RATIO`` changes the regularization term as ``L1_ALPHA`` :math:`\times` [``L1_RATIO`` :math:`|\boldsymbol{\Phi}|_{1}` + :math:`\frac{1}{2}` (1-``L1_RATIO``) :math:`|\boldsymbol{\Phi}|_{2}^{2}`]. Therefore, ``L1_RATIO = 1`` corresponds to LASSO. ``L1_RATIO`` must be ``0 < L1_ratio <= 1``. Effective when ``LMODEL = enet``. See also :ref:`here <alm_theory_enet>`.
+
+````
+
+.. _alm_l1_solver:
+
+* L1_SOLVER-tag = cd | fista | admm
+
+ ====== =============================================================================================
+  cd     Use the coordinate descent solver.
+  fista  Use the fast iterative shrinkage-thresholding algorithm.
+  admm   Use the alternating direction method of multipliers (experimental).
+ ====== =============================================================================================
+
+ :Default: cd
+ :Type: String
+ :Description: Selects the iterative solver used when ``LMODEL = enet | adaptive-lasso``. All three
+               solvers target the same elastic-net or adaptive-LASSO objective and are
+               interchangeable. The ``cd`` solver is the coordinate descent method; it warm-starts
+               along the cross-validation alpha path and is the fastest choice for that path, so it
+               is the recommended default. The ``fista`` solver avoids forming the dense
+               :math:`N \times N` Gram matrix and can reduce memory usage for large dense
+               L1-regularized problems. The ``admm`` solver is provided mainly for research and
+               cross-checking; on warm-started alpha paths it is generally slower than ``cd`` and
+               offers no advantage for the typical problem sizes here.
 
 ````
 
@@ -647,7 +1041,7 @@ This field is necessary when ``MODE = optimize``.
  ===== ===================================================================================================================
    0   | Cross-validation mode is off. 
        | The elastic net optimization is solved with the given ``L1_ALPHA`` value. 
-       | The force constants are written to ``PREFIX``.fcs and ``PREFIX``.xml.
+       | The force constants are written to ``PREFIX``.h5 (and ``PREFIX``.xml / ``PREFIX``.fcs with ``FCS_ALAMODE = 1``).
 
   >= 2 | ``CV``-fold cross-validation is performed *automatically*. 
        | ``NDATA`` training datasets are divided into ``CV`` subsets, and ``CV`` different combinations of 
@@ -659,7 +1053,7 @@ This field is necessary when ``MODE = optimize``.
   -1   | The cross-validation is performed *manually*.
        | The Taylor expansion potential is trained by using the training datasets in ``DFSET``, and 
        | the validation score is calculated by using the data in ``DFSET_CV`` for various ``L1_ALPHA`` values
-       | defined the ``CV_MINALPHA``, ``CV_MAXALPHA``, and ``CV_NALPHA`` tags.
+       | defined by the ``CV_MINALPHA``, ``CV_MAXALPHA``, and ``CV_NALPHA`` tags.
        | After the calculation, the fitting and validation errors are stored in ``PREFIX``.cvset.
        | This option may be convenient for a large-scale problem since multiple optimization tasks with
        | different training-validation datasets can be done in parallel.
@@ -698,7 +1092,7 @@ This field is necessary when ``MODE = optimize``.
 
  :Default: ``NSTART_CV = 1``, ``NEND_CV = NDATA_CV``
  :Type: Integer
- :Example: This tag is used when ``LMODEL = enet | adaptive-lasso`` and ``CV = -1``.
+ :Description: This tag is used when ``LMODEL = enet | adaptive-lasso`` and ``CV = -1``.
 
 ````
 
@@ -729,7 +1123,7 @@ This field is necessary when ``MODE = optimize``.
 
  :Default: 1
  :Type: Integer
- :Description: This option influences the optimal ``L1_ALPHA`` value. So, if you change the ``STANDARDIZE`` option, you have to rerun the cross-validation. Effective only when ``LMODEL = enet``.
+ :Description: This option influences the optimal ``L1_ALPHA`` value. So, if you change the ``STANDARDIZE`` option, you have to rerun the cross-validation. Effective when ``LMODEL = enet | adaptive-lasso``.
 
 
 ````
@@ -752,7 +1146,8 @@ This field is necessary when ``MODE = optimize``.
 
  ===== =============================================================================================
    0    Do not save the solution path.
-   1    Save the solution path of each cross-validation combination in ``PREFIX``.solution_path.
+   1   | Save the solution path in ``PREFIX``.solution_path (``CV = -1``) or, for each
+       | cross-validation subset, in ``PREFIX``.solution_path1, ..., ``PREFIX``.solution_path\ *N* (``CV >= 2``).
  ===== =============================================================================================
 
  :Default: 0
@@ -766,16 +1161,16 @@ This field is necessary when ``MODE = optimize``.
 * DEBIAS_OLS-tag = 0 | 1
 
  ===== =============================================================================================
-   0    Save the solution of the elastic net problem to ``PREFIX``.fcs and ``PREFIX``.xml.
-   1    | After the solution of the elastic net optimization problem is obtained, 
-        | only non-zero coefficients are collected, and the ordinary least-squares fitting is 
-        | solved again with the non-zero coefficients before saving the results to ``PREFIX``.fcs and
-        | ``PREFIX``.xml. This might be useful to reduce the bias of the elastic net solution.
+   0    Save the solution of the L1-regularized problem to the force-constant files.
+   1    | After the solution of the elastic net or adaptive LASSO optimization problem is obtained,
+        | only non-zero coefficients are collected, and the ordinary least-squares fitting is
+        | solved again with the non-zero coefficients before saving the results to the force-constant
+        | files. This might be useful to reduce the bias of the L1-regularized solution.
  ===== =============================================================================================
 
  :Default: 0
  :Type: Integer
- :Description: Effective when ``LMODEL = enet`` and ``CV = 0``.
+ :Description: Effective when ``LMODEL = enet | adaptive-lasso`` and ``CV = 0``.
 
 
 ````
@@ -804,23 +1199,20 @@ The displacement-force data sets obtained by first-principles (or classical forc
 have to be saved to a file, say *DFSET*. Then, the force constants are estimated by setting ``DFSET =`` *DFSET* and with ``MODE = optimize``.
 
 The *DFSET* file must contain the atomic displacements and corresponding forces in Cartesian coordinate for at least ``NDATA`` structures (displacement patterns)
-in the following format: 
+in the following format (one line per atom, blocks separated by an optional
+comment line beginning with ``#``)::
 
-.. math::
-  :nowrap:
+   # Structure number 1 (this is just a comment line)
+   u_x(1)     u_y(1)     u_z(1)     f_x(1)     f_y(1)     f_z(1)
+   u_x(2)     u_y(2)     u_z(2)     f_x(2)     f_y(2)     f_z(2)
+    ...        ...        ...        ...        ...        ...
+   u_x(NAT)   u_y(NAT)   u_z(NAT)   f_x(NAT)   f_y(NAT)   f_z(NAT)
+   # Structure number 2
+   u_x(1)     u_y(1)     u_z(1)     f_x(1)     f_y(1)     f_z(1)
+    ...        ...        ...        ...        ...        ...
 
-    # Structure number 1 (this is just a comment line)
-    \begin{eqnarray*}
-     u_{x}(1) & u_{y}(1) & u_{z}(1) & f_{x}(1) & f_{y}(1) & f_{z}(1) \\
-     u_{x}(2) & u_{y}(2) & u_{z}(2) & f_{x}(2) & f_{y}(2) & f_{z}(2) \\
-              & \vdots   &          &          & \vdots   &          \\
-     u_{x}(\mathrm{NAT}) & u_{y}(\mathrm{NAT}) & u_{z}(\mathrm{NAT}) & f_{x}(\mathrm{NAT}) & f_{y}(\mathrm{NAT}) & f_{z}(\mathrm{NAT})
-    \end{eqnarray*}
-    # Structure number 2
-    \begin{eqnarray*}
-     u_{x}(1) & u_{y}(1) & u_{z}(1) & f_{x}(1) & f_{y}(1) & f_{z}(1) \\
-              & \vdots   &          &          & \vdots   &          
-    \end{eqnarray*}
-
-Here, ``NAT`` is the number of atoms in the supercell. 
-The unit of displacements and forces must be **bohr** and **Ryd/bohr**, respectively.
+Here, ``NAT`` is the number of atoms in the supercell.
+The unit of displacements and forces must be **bohr** and **Ry/bohr**, respectively,
+unless other units are declared with the :ref:`LENGTH_UNIT <alm_length_unit>` and
+:ref:`FORCE_UNIT <alm_force_unit>` tags (e.g., ``LENGTH_UNIT = angstrom; FORCE_UNIT = eV/angstrom``
+for data taken directly from VASP output).

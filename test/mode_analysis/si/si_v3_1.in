@@ -1,0 +1,19 @@
+&general
+ PREFIX = si_v3_1; MODE = kappa; FCSFILE = si222_cubic.h5; KD = Si
+ TMIN = 100; TMAX = 300; DT = 100
+ ISMEAR = 0; EPSILON = 2.0
+/
+&cell
+  10.203
+  0.0 0.5 0.5
+  0.5 0.0 0.5
+  0.5 0.5 0.0
+/
+&kpoint
+  2
+  10 10 10
+/
+&analysis
+ KS_INPUT = KS_INPUT
+ SELF_ENERGY = 1; REALPART = 1; PRINTV3 = 1
+/

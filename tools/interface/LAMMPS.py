@@ -13,10 +13,10 @@
 import math
 
 import numpy as np
+from alamode_constants import BOHR_IN_ANGSTROM, RYD_IN_EV
 
 
 class LammpsParser(object):
-
     def __init__(self):
         self._prefix = None
         self._lattice_vector = None
@@ -37,13 +37,12 @@ class LammpsParser(object):
         self._print_force = True
         self._print_energy = False
         self._print_born = False
-        self._BOHR_TO_ANGSTROM = 0.5291772108
-        self._RYDBERG_TO_EV = 13.60569253
+        self._BOHR_TO_ANGSTROM = BOHR_IN_ANGSTROM
+        self._RYDBERG_TO_EV = RYD_IN_EV
 
     def load_initial_structure(self, file_in):
-
         lammps_box_params = {}
-        f = open(file_in, 'r')
+        f = open(file_in, "r")
         f.readline()
 
         common_settings = []
@@ -51,10 +50,12 @@ class LammpsParser(object):
             if "Atoms" in line:
                 break
 
-            split_line = line.strip().split()
+            split_line = line.split("#")[0].split()
             if len(split_line) % 2 == 0:
                 for i in range(len(split_line) // 2):
-                    lammps_box_params[split_line[i + len(split_line) // 2]] = float(split_line[i])
+                    lammps_box_params[split_line[i + len(split_line) // 2]] = float(
+                        split_line[i]
+                    )
             common_settings.append(line.rstrip())
 
         atoms = []
@@ -76,26 +77,105 @@ class LammpsParser(object):
             charges = np.array(atoms[:, 2], dtype=np.float64)
 
         self._common_settings = common_settings
-        self._lattice_vector = self._compute_lattice_vector_from_boxparams(lammps_box_params)
+        self._lattice_vector = self._compute_lattice_vector_from_boxparams(
+            lammps_box_params
+        )
         self._inverse_lattice_vector = np.linalg.inv(self._lattice_vector)
         self._nat = nat
         self._x_cartesian = x
-        self._x_fractional = self._get_fractional_coordinate(x, self._inverse_lattice_vector)
+        self._x_fractional = self._get_fractional_coordinate(
+            x, self._inverse_lattice_vector
+        )
         self._kd = kd
         self._charges = charges
         self._initial_structure_loaded = True
 
-    def generate_structures(self, prefix, header_list, disp_list):
-
+    def generate_structures(
+        self, prefix, header_list, disp_list, updated_structure=None
+    ):
         self._set_number_of_zerofill(len(disp_list))
         self._prefix = prefix
+
+        if updated_structure:
+            self._switch_to_supercell(updated_structure)
 
         for header, disp in zip(header_list, disp_list):
             self._generate_input(header, disp)
 
-    def parse(self, initial_lammps, dump_files, dump_file_offset, str_unit,
-              output_flags, filter_emin=None, filter_emax=None):
+        if updated_structure:
+            self._generate_input(
+                "Supercell without displacements",
+                np.zeros((self._nat, 3)),
+                filename="supercell0.lammps",
+            )
+            print(
+                " The supercell built by alm is used. The undisplaced supercell is"
+                " written to supercell0.lammps;\n give it to extract.py --LAMMPS."
+            )
 
+    def _switch_to_supercell(self, structure):
+        """Replace the loaded unit cell by the supercell from the pattern file."""
+        lavec = structure["lattice_vector"] * self._BOHR_TO_ANGSTROM
+        # A LAMMPS box has a along x and b in the xy plane. Rotating the cell
+        # would put the forces in a frame different from alm's, so refuse.
+        if (
+            max(abs(lavec[1, 0]), abs(lavec[2, 0]), abs(lavec[2, 1])) > 1.0e-6
+            or min(np.diag(lavec)) <= 0.0
+        ):
+            raise RuntimeError(
+                "The supercell in the pattern file cannot be written as a LAMMPS box "
+                "without rotation (a along +x, b in the xy plane). Use a diagonal "
+                "SUPERCELL with the unit cell of the LAMMPS file, or give a supercell "
+                "structure file with the same atom order as the pattern file."
+            )
+
+        map_p = structure["map_p"]
+        self._kd = self._kd[map_p]
+        if self._charges is not None:
+            self._charges = self._charges[map_p]
+        self._nat = structure["nat"]
+        self._lattice_vector = lavec
+        self._inverse_lattice_vector = np.linalg.inv(lavec)
+        self._x_fractional = np.array(structure["x_fractional"])
+        self._x_cartesian = self._x_fractional @ lavec.T
+
+        lo = {}
+        for line in self._common_settings:
+            for ax in "xyz":
+                if "%slo %shi" % (ax, ax) in line:
+                    lo[ax] = float(line.split()[0])
+        tilt = (lavec[0, 1], lavec[0, 2], lavec[1, 2])
+        settings = []
+        for line in self._common_settings:
+            words = line.split("#")[0].split()
+            if words[1:] == ["atoms"]:
+                line = "%d atoms" % self._nat
+            elif words[2:] == ["xy", "xz", "yz"] or words[3:] == ["xy", "xz", "yz"]:
+                continue
+            else:
+                for i, ax in enumerate("xyz"):
+                    if words[2:] == ["%slo" % ax, "%shi" % ax]:
+                        line = "%.10f %.10f %slo %shi" % (
+                            lo[ax],
+                            lo[ax] + lavec[i, i],
+                            ax,
+                            ax,
+                        )
+                        if ax == "z":
+                            line += "\n%.10f %.10f %.10f xy xz yz" % tilt
+            settings.append(line)
+        self._common_settings = settings
+
+    def parse(
+        self,
+        initial_lammps,
+        dump_files,
+        dump_file_offset,
+        str_unit,
+        output_flags,
+        filter_emin=None,
+        filter_emax=None,
+    ):
         if not self._initial_structure_loaded:
             self.load_initial_structure(initial_lammps)
 
@@ -103,17 +183,18 @@ class LammpsParser(object):
         self._set_output_flags(output_flags)
 
         if self._print_disp and self._print_force:
-            self._print_displacements_and_forces(dump_files,
-                                                 dump_file_offset)
+            self._print_displacements_and_forces(dump_files, dump_file_offset)
         elif self._print_disp:
             self._print_displacements(dump_files, dump_file_offset)
         elif self._print_force:
             self._print_atomicforces(dump_files, dump_file_offset)
 
-    def _generate_input(self, header, disp):
-
-        filename = self._prefix + str(self._counter).zfill(self._nzerofills) + ".lammps"
-        f = open(filename, 'w')
+    def _generate_input(self, header, disp, filename=None):
+        if filename is None:
+            filename = (
+                self._prefix + str(self._counter).zfill(self._nzerofills) + ".lammps"
+            )
+        f = open(filename, "w")
         f.write("%s\n" % header)
 
         for line in self._common_settings:
@@ -142,7 +223,6 @@ class LammpsParser(object):
         self._counter += 1
 
     def _print_displacements_and_forces(self, lammps_files, file_offset):
-
         if file_offset is None:
             disp_offset = np.zeros((self._nat, 3))
             force_offset = np.zeros((self._nat, 3))
@@ -151,15 +231,17 @@ class LammpsParser(object):
             try:
                 x0_offset = np.reshape(x0_offset, (self._nat, 3))
                 force_offset = np.reshape(force_offset, (self._nat, 3))
-            except:
-                raise RuntimeError("File %s contains too many/few entries" % file_offset)
+            except Exception as err:
+                raise RuntimeError(
+                    "File %s contains too many/few entries" % file_offset
+                ) from err
 
             disp_offset = x0_offset - self._x_cartesian
 
         # Automatic detection of the input format
 
         is_dumped_file = False
-        f = open(lammps_files[0], 'r')
+        f = open(lammps_files[0], "r")
         for line in f:
             if "ITEM: TIMESTEP" in line:
                 is_dumped_file = True
@@ -180,47 +262,49 @@ class LammpsParser(object):
                     f = force[idata, :, :] - force_offset
                     f *= self._force_conversion_factor
 
-                    print("# Filename: %s, Snapshot: %d" %
-                          (search_target, idata + 1))
+                    print("# Filename: %s, Snapshot: %d" % (search_target, idata + 1))
 
                     for i in range(self._nat):
-                        print("%20.14f %20.14f %20.14f %20.8E %15.8E %15.8E" % (disp[i, 0],
-                                                                                disp[i, 1],
-                                                                                disp[i, 2],
-                                                                                f[i, 0],
-                                                                                f[i, 1],
-                                                                                f[i, 2]))
+                        print(
+                            "%20.14f %20.14f %20.14f %20.8E %15.8E %15.8E"
+                            % (
+                                disp[i, 0],
+                                disp[i, 1],
+                                disp[i, 2],
+                                f[i, 0],
+                                f[i, 1],
+                                f[i, 2],
+                            )
+                        )
         else:
-            raise RuntimeError("Could not find ITEM: "
-                               "TIMESTEP keyword in the dump file %s" % lammps_files[0])
+            raise RuntimeError(
+                "Could not find ITEM: "
+                "TIMESTEP keyword in the dump file %s" % lammps_files[0]
+            )
 
     @staticmethod
     def _compute_lattice_vector_from_boxparams(box_params):
-
-        xlo = box_params['xlo']
-        xhi = box_params['xhi']
-        ylo = box_params['ylo']
-        yhi = box_params['yhi']
-        zlo = box_params['zlo']
-        zhi = box_params['zhi']
-        if 'xy' in box_params.keys():
-            xy = box_params['xy']
-        if 'xz' in box_params.keys():
-            xz = box_params['xz']
-        if 'yz' in box_params.keys():
-            yz = box_params['yz']
+        xlo = box_params["xlo"]
+        xhi = box_params["xhi"]
+        ylo = box_params["ylo"]
+        yhi = box_params["yhi"]
+        zlo = box_params["zlo"]
+        zhi = box_params["zhi"]
+        xy = box_params.get("xy", 0.0)
+        xz = box_params.get("xz", 0.0)
+        yz = box_params.get("yz", 0.0)
 
         lx = xhi - xlo
         ly = yhi - ylo
         lz = zhi - zlo
         a = lx
-        b = math.sqrt(ly ** 2 + xy ** 2)
-        c = math.sqrt(lz ** 2 + xz ** 2 + yz ** 2)
+        b = math.sqrt(ly**2 + xy**2)
+        c = math.sqrt(lz**2 + xz**2 + yz**2)
         cosalpha = (xy * xz + ly * yz) / (b * c)
         cosbeta = xz / c
         cosgamma = xy / b
 
-        singamma = math.sqrt(1.0 - cosgamma ** 2)
+        singamma = math.sqrt(1.0 - cosgamma**2)
 
         lavec = np.zeros((3, 3))
 
@@ -229,13 +313,14 @@ class LammpsParser(object):
         lavec[1, 1] = b * singamma
         lavec[0, 2] = c * cosbeta
         lavec[1, 2] = c * (cosalpha - cosbeta * cosgamma) / singamma
-        lavec[2, 2] = c * math.sqrt(1.0 - cosbeta ** 2 - ((cosalpha - cosbeta * cosgamma) / singamma) ** 2)
+        lavec[2, 2] = c * math.sqrt(
+            1.0 - cosbeta**2 - ((cosalpha - cosbeta * cosgamma) / singamma) ** 2
+        )
 
         return lavec
 
     @staticmethod
     def _get_fractional_coordinate(xc, aa_inv):
-
         if aa_inv is None:
             return None
 
@@ -249,7 +334,6 @@ class LammpsParser(object):
         return xf
 
     def _print_displacements(self, lammps_files, file_offset):
-
         if file_offset is None:
             disp_offset = np.zeros((self._nat, 3))
         else:
@@ -259,14 +343,16 @@ class LammpsParser(object):
             if nentries == 3 * self._nat:
                 x0_offset = np.reshape(x0_offset, (self._nat, 3))
             else:
-                raise RuntimeError("File %s contains too many/few entries" % file_offset)
+                raise RuntimeError(
+                    "File %s contains too many/few entries" % file_offset
+                )
 
             disp_offset = x0_offset - self._x_cartesian
 
         # Automatic detection of the input format
 
         is_dumped_file = False
-        f = open(lammps_files[0], 'r')
+        f = open(lammps_files[0], "r")
         for line in f:
             if "ITEM: TIMESTEP" in line:
                 is_dumped_file = True
@@ -284,20 +370,21 @@ class LammpsParser(object):
                     disp = x[idata, :, :] - self._x_cartesian - disp_offset
                     disp *= self._disp_conversion_factor
 
-                    print("# Filename: %s, Snapshot: %d" %
-                          (search_target, idata + 1))
+                    print("# Filename: %s, Snapshot: %d" % (search_target, idata + 1))
 
                     for i in range(self._nat):
-                        print("%20.14f %20.14f %20.14f" % (disp[i, 0],
-                                                           disp[i, 1],
-                                                           disp[i, 2]))
+                        print(
+                            "%20.14f %20.14f %20.14f"
+                            % (disp[i, 0], disp[i, 1], disp[i, 2])
+                        )
 
         else:
-            raise RuntimeError("Could not find ITEM: "
-                               "TIMESTEP keyword in the dump file %s" % lammps_files[0])
+            raise RuntimeError(
+                "Could not find ITEM: "
+                "TIMESTEP keyword in the dump file %s" % lammps_files[0]
+            )
 
     def _print_atomicforces(self, lammps_files, file_offset):
-
         if file_offset is None:
             force_offset = np.zeros((self._nat, 3))
         else:
@@ -305,11 +392,12 @@ class LammpsParser(object):
 
             try:
                 force_offset = np.reshape(force_offset, (self._nat, 3))
-            except:
-                raise RuntimeError("File %s contains too many position entries" % file_offset)
+            except Exception as err:
+                raise RuntimeError(
+                    "File %s contains too many position entries" % file_offset
+                ) from err
 
         for search_target in lammps_files:
-
             _, force = self._get_coordinate_and_force_lammps(search_target)
             ndata = len(force) // (3 * self._nat)
             force = np.reshape(force, (ndata, self._nat, 3))
@@ -318,14 +406,12 @@ class LammpsParser(object):
                 f = force[idata, :, :] - force_offset
                 f *= self._force_conversion_factor
 
-                print("# Filename: %s, Snapshot: %d" %
-                      (search_target, idata + 1))
+                print("# Filename: %s, Snapshot: %d" % (search_target, idata + 1))
 
                 for i in range(self._nat):
                     print("%19.11E %19.11E %19.11E" % (f[i][0], f[i][1], f[i][2]))
 
     def _set_unit_conversion_factor(self, str_unit):
-
         if str_unit == "ev":
             self._disp_conversion_factor = 1.0
             self._energy_conversion_factor = 1.0
@@ -341,15 +427,16 @@ class LammpsParser(object):
         else:
             raise RuntimeError("This cannot happen")
 
-        self._force_conversion_factor \
-            = self._energy_conversion_factor / self._disp_conversion_factor
+        self._force_conversion_factor = (
+            self._energy_conversion_factor / self._disp_conversion_factor
+        )
 
     def _set_output_flags(self, output_flags):
-        self._print_disp, self._print_force, \
-            self._print_energy, self._print_born = output_flags
+        self._print_disp, self._print_force, self._print_energy, self._print_born = (
+            output_flags
+        )
 
     def _set_number_of_zerofill(self, npattern):
-
         nzero = 1
 
         while True:
@@ -382,7 +469,6 @@ class LammpsParser(object):
 
     @staticmethod
     def _get_coordinate_and_force_lammps(lammps_dump_file):
-
         add_flag = None
         ret = []
 
@@ -404,18 +490,22 @@ class LammpsParser(object):
                     if add_flag == "id.xu":
                         if line.strip():
                             entries = line.strip().split()
-                            data_atom = [int(entries[0]),
-                                         [float(t) for t in entries[1:4]],
-                                         [float(t) for t in entries[4:]]]
+                            data_atom = [
+                                int(entries[0]),
+                                [float(t) for t in entries[1:4]],
+                                [float(t) for t in entries[4:]],
+                            ]
                             ret.append(data_atom)
 
                     elif add_flag == "element.xu":
                         if line.strip():
                             entries = line.strip().split()
                             id_ += 1
-                            data_atom = [int(id_),
-                                         [float(t) for t in entries[1:4]],
-                                         [float(t) for t in entries[4:]]]
+                            data_atom = [
+                                int(id_),
+                                [float(t) for t in entries[1:4]],
+                                [float(t) for t in entries[4:]],
+                            ]
                             ret.append(data_atom)
 
         # This sort is necessary since the order atoms of LAMMPS dump files

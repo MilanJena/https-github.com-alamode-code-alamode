@@ -10,76 +10,194 @@
 
 #pragma once
 
-#include "pointers.h"
-#include "kpoint.h"
-#include <vector>
-#include <set>
 #include <complex>
+#include <fstream>
+#include <memory>
+#include <set>
+#include <vector>
+#include "anharmonic_core.h"
+#include "dynamical.h"
+#include "kappa_result_io.h"
+#include "kpoint.h"
+#include "ndarray.h"
+#include "phonon.h"
 
-namespace PHON_NS {
-class Conductivity : protected Pointers {
+namespace PHON_NS
+{
+class Conductivity
+{
+
 public:
-    Conductivity(class PHON *);
+    Conductivity(const RunInfo &run, const System *system, const Symmetry *symmetry, const Fcs_phonon *fcs_phonon,
+                 const Dielec *dielec, const Ewald *ewald, const Dynamical *dynamical, Integration *integration,
+                 const Thermodynamics *thermodynamics, const Dos *dos, const PhononVelocity *phonon_velocity,
+                 AnharmonicCore *anharmonic_core, const Isotope *isotope);
 
     ~Conductivity();
 
+    void run_kappa();
+
     void setup_kappa();
 
-    void prepare_restart();
+    void init_temperature_grid();
 
     void calc_anharmonic_imagself();
 
     void compute_kappa();
 
+    void compute_damping4_interpolated(const KpointMeshUniform *kmesh_dense_in, double **damping4_dense_out);
+
+    // SOLVER = IBTE: open PREFIX.kappa.h5 with the /iterativebte group and
+    // return the IO object for per-temperature commits (rank 0; nullptr on
+    // other ranks, under FILE_FORMAT = text, or in the unsupported
+    // temperature-resolved layout).
+    KappaResultIOH5 *setup_ibte_io(const unsigned int nk_i[3], unsigned int nk_irred_in, unsigned int ns_in,
+                                   const std::string &solver, double threshold, bool reset);
+
+    bool get_use_h5_io() const
+    {
+        return use_h5_io;
+    }
+
     int calc_kappa_spec;
     unsigned int ntemp;
-    double **damping3;
-    double ***kappa;
-    double ***kappa_spec;
-    double ***kappa_coherent;
-    double *temperature;
+    NDArray<double, 2> damping3;
+    NDArray<double, 2> damping4;
+    NDArray<double, 3> kappa;
+    NDArray<double, 3> kappa_3only;
+    NDArray<double, 3> kappa_spec;
+    NDArray<double, 3> kappa_coherent;
+    NDArray<double, 1> temperature;
     int calc_coherent;
+    int write_interpolation;
+
+    int fph_rta;
+    bool solver_ibte;
+    double len_boundary;
+
+    void set_kmesh_coarse(const unsigned int nk_in[3]);
+
+    KpointMeshUniform *get_kmesh_coarse() const;
+
+    void set_conductivity_params(const std::string &file_result3_in, const std::string &file_result4_in,
+                                 const std::string &file_kappa_h5_in, const bool restart_3ph_in,
+                                 const bool restart_4ph_in, const bool use_h5_io_in);
+
+    bool get_restart_conductivity(const int order) const;
+
+    void set_restart_flag(const int order, const bool flag_in);
+
+    std::string get_filename_results(const int order) const;
+
+    const unsigned int *get_nk_coarse() const
+    {
+        return nk_coarse;
+    }
+
+    const std::string &get_interpolator() const
+    {
+        return interpolator;
+    }
+
+    void set_interpolator(const std::string interpolator_in)
+    {
+        interpolator = interpolator_in;
+    };
 
 private:
     void set_default_variables();
 
     void deallocate_variables();
 
-    double ***vel;
-    std::complex<double> ****velmat;
-    unsigned int nk, ns;
-    int nshift_restart;
-    std::vector<int> vks_l, vks_done;
-    std::set<int> vks_job;
+    NDArray<double, 3> vel, vel_4ph;
+    NDArray<std::complex<double>, 4> velmat;
+    // Per-branch block-summed velocity diad [nk][ns][3][3]; see calc_phonon_velmat_mesh.
+    NDArray<double, 4> velblock;
+    unsigned int nk_3ph, ns;
+    int nshift_restart, nshift_restart4;
+    // Rows already written to the result file (write_result_gamma flushes whole k points).
+    unsigned int nrows_flushed3 = 0, nrows_flushed4 = 0;
+    std::vector<const double *> flush_rows;
+    std::vector<int> vks_l, vks_done, vks_done4;
+    std::set<int> vks_job, vks_job4;
     std::string file_coherent_elems;
 
-    void write_result_gamma(unsigned int,
-                            unsigned int,
-                            double ***,
-                            double **) const;
+    unsigned int nk_coarse[3] = {};
+    std::unique_ptr<KpointMeshUniform> kmesh_4ph;
+    std::unique_ptr<DymatEigenValue> dymat_4ph;
 
-    void average_self_energy_at_degenerate_point(const int n,
-                                                 const int m,
-                                                 const KpointMeshUniform *kmesh_in,
-                                                 const double *const *eval_in,
-                                                 double **damping) const;
+    std::fstream fs_result3, fs_result4;
+    std::string file_result3, file_result4;
+    bool restart_flag_3ph;
+    bool restart_flag_4ph;
 
-    void compute_frequency_resolved_kappa(const int ntemp,
-                                          const int smearing_method,
-                                          const KpointMeshUniform *kmesh_in,
-                                          const double *const *eval_in,
-                                          const double *const *const *const *kappa_mode,
+    // HDF5 result file (FILE_FORMAT = h5, the default). The legacy text
+    // machinery below is kept for FILE_FORMAT = text and for the one-way
+    // import of old .result files.
+    std::unique_ptr<KappaResultIOH5> result_io_h5;
+    std::string file_kappa_h5;
+    bool use_h5_io;
+
+    std::string interpolator{};
+
+    void setup_result_io(const int mode);
+
+    void prepare_restart(const int mode);
+
+    KappaFileMetaH5 build_kappa_file_meta() const;
+
+    KappaChannelMetaH5 build_kappa_channel_meta(const int mode) const;
+
+    void import_legacy_result_text(const int mode);
+
+    void load_computed_modes_h5(const std::string &tag, double **damping, std::vector<int> &vks_done_out) const;
+
+    void calc_anharmonic_imagself3();
+
+    void calc_anharmonic_imagself4();
+
+    void setup_kappa_4ph();
+
+    void lifetime_from_gamma(NDArray<double, 2> &, NDArray<double, 2> &);
+
+    void write_result_gamma(unsigned int, double ***, double **, int);
+
+    void average_self_energy_at_degenerate_point(const int m, const KpointMeshUniform *kmesh_in,
+                                                 const double *const *eval_in, double **damping) const;
+
+    void compute_frequency_resolved_kappa(const int ntemp, const int smearing_method, const KpointMeshUniform *kmesh_in,
+                                          const double *const *eval_in, const double *const *const *const *kappa_mode,
                                           double ***kappa_spec_out) const;
 
-    void compute_kappa_intraband(const KpointMeshUniform *kmesh_in,
-                                 const double *const *eval_in,
-                                 const double *const *lifetime,
-                                 double ***kappa_intra,
-                                 double ***kappa_spec_out) const;
+    void compute_kappa_intraband(const KpointMeshUniform *kmesh_in, const double *const *eval_in,
+                                 const double *const *lifetime, double ***kappa_intra, double ***kappa_spec_out) const;
 
-    void compute_kappa_coherent(const KpointMeshUniform *kmesh_in,
-                                const double *const *eval_in,
-                                const double *const *gamma_total,
-                                double ***kappa_coherent_out) const;
+    void compute_kappa_coherent(const KpointMeshUniform *kmesh_in, const double *const *eval_in,
+                                const double *const *gamma_total, double ***kappa_coherent_out) const;
+
+
+    void check_velocity_matrix_consistency(const KpointMeshUniform *kmesh_in, const double *const *eval_in) const;
+
+    void report_unresolved_degenerate_blocks(const KpointMeshUniform *kmesh_in, const double *const *eval_in,
+                                             const double *const *gamma_in) const;
+
+    void interpolate_data(const KpointMeshUniform *kmesh_coarse_in, const KpointMeshUniform *kmesh_dense_in,
+                          const double *const *val_coarse_in, double **val_dense_out) const;
+
+private:
+    // Collaborators (non-owning; owned by PHON, which outlives this object).
+    const RunInfo &run;
+    const System *system;
+    const Symmetry *symmetry;
+    const Fcs_phonon *fcs_phonon;
+    const Dielec *dielec;
+    const Ewald *ewald;
+    const Dynamical *dynamical;
+    Integration *integration;
+    const Thermodynamics *thermodynamics;
+    const Dos *dos;
+    const PhononVelocity *phonon_velocity;
+    AnharmonicCore *anharmonic_core;
+    const Isotope *isotope;
 };
-}
+} // namespace PHON_NS

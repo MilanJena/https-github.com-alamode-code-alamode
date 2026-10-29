@@ -10,7 +10,7 @@ Format of input files
 Each input file should consist of entry fields.
 Available entry fields are 
 
-**&general**, **&cell**, **&scph**, **&qha**, **&relax**, **&kpoint**, **&strain**, and **&displace**.
+**&general**, **&cell**, **&scph**, **&qha**, **&relax**, **&kpoint**, **&strain**, **&displace**, **&analysis**, **&kappa**, and **&selfenergy**.
 
 The format of the input file is the same as that of *alm* which can be found :ref:`here <reference_input_alm>`.
 
@@ -24,29 +24,59 @@ List of supported input variables
    :widths: 25, 25, 25, 25
 
    **&general**
-   :ref:`BCONNECT <anphon_bconnect>`, :ref:`BORNINFO <anphon_borninfo>`, :ref:`BORNSYM <anphon_bornsym>`, :ref:`CLASSICAL <anphon_classical>`
-   :ref:`EMIN <anphon_emin>`, :ref:`EPSILON <anphon_epsilon>`, :ref:`FC2XML <anphon_fc2xml>`, :ref:`FCSXML <anphon_fcsxml>`
-   :ref:`ISMEAR <anphon_ismear>`, :ref:`KD <anphon_kd>`, :ref:`MASS <anphon_mass>`, :ref:`MODE <anphon_mode>`
-   :ref:`NA_SIGMA <anphon_na_sigma>`, :ref:`NKD <anphon_nkd>`, :ref:`NONANALYTIC <anphon_nonanalytic>`, :ref:`PREFIX <anphon_prefix>`
-   :ref:`PRINTSYM <anphon_printsym>`, :ref:`RESTART <anphon_restart>`, :ref:`TMIN <anphon_tmin>`, :ref:`TOLERANCE <anphon_tolerance>`
-   :ref:`TRISYM <anphon_trisym>`
+   :ref:`ALLOW_UNCONVERGED <anphon_allow_unconverged>`, :ref:`BCONNECT <anphon_bconnect>`, :ref:`BORNINFO <anphon_borninfo>`, :ref:`BORNSYM <anphon_bornsym>`
+   :ref:`CLASSICAL <anphon_classical>`, :ref:`DELTA_E <anphon_emin>`, :ref:`DFC2FILE <anphon_dfc2file>`, :ref:`DT <anphon_tmin>`
+   :ref:`EMAX <anphon_emin>`, :ref:`EMIN <anphon_emin>`, :ref:`EPSILON <anphon_epsilon>`, :ref:`FC2FILE <anphon_fc2file>`
+   :ref:`FC2_TEMPERATURE <anphon_fc2_temperature>`, :ref:`FC3FILE <anphon_fc2file>`, :ref:`FC4FILE <anphon_fc2file>`, :ref:`FCSFILE <anphon_fcsfile>`
+   :ref:`FILE_FORMAT <anphon_file_format>`, :ref:`ISMEAR <anphon_ismear>`, :ref:`KD <anphon_kd>`, :ref:`MASS <anphon_mass>`
+   :ref:`MODE <anphon_mode>`, :ref:`NA_SIGMA <anphon_na_sigma>`, :ref:`NBANDS <anphon_nbands>`, :ref:`NONANALYTIC <anphon_nonanalytic>`
+   :ref:`PREC_EWALD <anphon_prec_ewald>`, :ref:`PREFIX <anphon_prefix>`, :ref:`PRINTSYM <anphon_printsym>`, :ref:`RELAXED_STRUCTURE <anphon_relaxed_structure>`
+   :ref:`TMAX <anphon_tmin>`, :ref:`TMIN <anphon_tmin>`, :ref:`TOLERANCE <anphon_tolerance>`, :ref:`TREVSYM <anphon_trevsym>`
+   :ref:`TRISYM <anphon_trisym>`, :ref:`VERBOSITY <anphon_verbosity>`
+   **&cell**
+   :ref:`Lattice vectors <anphon_cell_field>`
+   **&kpoint**
+   :ref:`KPMODE <anphon_kpoint_field>`
+   **&kappa**
+   :ref:`ADAPTIVE_FACTOR <anphon_adaptive_factor>`, :ref:`EPSILON_4PH <anphon_epsilon_4ph>`, :ref:`IBTE_MIXING <anphon_ibte_mixing>`, :ref:`INCLUDE_4PH <anphon_include_4ph>`
+   :ref:`INTERPOLATOR <anphon_interpolator>`, :ref:`ISMEAR_4PH <anphon_ismear_4ph>`, :ref:`ISOFACT <anphon_isofact>`, :ref:`ISOTOPE <anphon_isotope>`
+   :ref:`ISOTOPE_INSCATTERING <anphon_isotope_inscattering>`, :ref:`ITER_THRESHOLD <anphon_iter_threshold>`, :ref:`KAPPA_COHERENT <anphon_kappa_coherent>`, :ref:`KAPPA_SPEC <anphon_kappa_spec>`
+   :ref:`KMESH_COARSE <anphon_kmesh_coarse>`, :ref:`LEN_BOUNDARY <anphon_len_boundary>`, :ref:`MAX_CYCLE <anphon_max_cycle>`, :ref:`MIN_CYCLE <anphon_min_cycle>`
+   :ref:`RESTART <anphon_restart>`, :ref:`RESTART_4PH <anphon_restart_4ph>`, :ref:`SOLVER <anphon_solver>`, :ref:`WRITE_INTERPOL <anphon_write_interpol>`
+   **&selfenergy**
+   :ref:`BRANCHES <anphon_selfenergy_field>`, :ref:`FSTATE_W <anphon_selfenergy_field>`, :ref:`INTERPOLATE <anphon_selfenergy_field>`, :ref:`KMESH <anphon_selfenergy_field>`
+   :ref:`KMESH_COARSE <anphon_selfenergy_field>`, :ref:`LINEWIDTH <anphon_selfenergy_field>`, :ref:`OMEGA_RANGE <anphon_selfenergy_field>`, :ref:`PRINTV3 <anphon_selfenergy_field>`
+   :ref:`PRINTV4 <anphon_selfenergy_field>`, :ref:`SELF_W <anphon_selfenergy_field>`, :ref:`SHIFT <anphon_selfenergy_field>`
    **&scph**
-   :ref:`BUBBLE <anphon_bubble>`, :ref:`IALGO <anphon_ialgo>`, :ref:`KMESH_INTERPOLATE <anphon_kmesh_interpolate>`, :ref:`KMESH_SCPH <anphon_kmesh_scph>`
+   :ref:`BUBBLE <anphon_bubble>`, :ref:`BUBBLE_TOL <anphon_bubble_tol>`, :ref:`CV_ANHARM <anphon_cv_anharm>`, :ref:`IALGO <anphon_ialgo>`
+   :ref:`IMIX <anphon_imix>`, :ref:`KMESH_BUBBLE <anphon_kmesh_bubble>`, :ref:`KMESH_INTERPOLATE <anphon_kmesh_interpolate>`, :ref:`KMESH_SCPH <anphon_kmesh_scph>`
    :ref:`LOWER_TEMP <anphon_lower_temp>`, :ref:`MAXITER <anphon_maxiter>`, :ref:`MIXALPHA <anphon_mixalpha>`, :ref:`RELAX_STR <anphon_relax_str>`
-   :ref:`RESTART_SCPH <anphon_restart_scph>`, :ref:`SELF_OFFDIAG <anphon_self_offdiag>`, :ref:`TOL_SCPH <anphon_tol_scph>`, :ref:`WARMSTART <anphon_warmstart>`
+   :ref:`RESTART_SCPH <anphon_restart_scph>`, :ref:`SELF_OFFDIAG <anphon_self_offdiag>`, :ref:`TOL_SCPH <anphon_tol_scph>`, :ref:`V4_REAL_SPACE <anphon_v4_real_space>`
+   :ref:`WARMSTART <anphon_warmstart>`
    **&qha**
-   :ref:`KMESH_INTERPOLATE <anphon_qha_kmesh_interpolate>`, :ref:`KMESH_QHA <anphon_qha_kmesh_qha>`, :ref:`LOWER_TEMP <anphon_qha_lower_temp>`, :ref:`QHA_SCHEME <anphon_qha_scheme>`
-   :ref:`RELAX_STR <anphon_qha_relax_str>`
+   :ref:`IALGO <anphon_ialgo>`, :ref:`KMESH_INTERPOLATE <anphon_qha_kmesh_interpolate>`, :ref:`KMESH_QHA <anphon_qha_kmesh_qha>`, :ref:`LOWER_TEMP <anphon_qha_lower_temp>`
+   :ref:`QHA_SCHEME <anphon_qha_scheme>`, :ref:`RELAX_STR <anphon_qha_relax_str>`, :ref:`RESTART_QHA <anphon_restart_qha>`, :ref:`SELF_OFFDIAG <anphon_self_offdiag>`
    **&relax**
-   :ref:`ADD_HESS_DIAG <anphon_add_hess_diag>`, :ref:`ALPHA_STDECENT <anphon_alpha_stdecent>`, :ref:`CELL_CONV_TOL <anphon_cell_conv_tol>`, :ref:`COOLING_U0_INDEX <anphon_cooling_u0_index>`
-   :ref:`COOLING_U0_THR <anphon_cooling_u0_thr>`, :ref:`COORD_CONV_TOL <anphon_coord_conv_tol>`, :ref:`MAX_STR_ITER <anphon_max_str_iter>`, :ref:`MIXBETA_CELL <anphon_mixbeta_cell>`
-   :ref:`MIXBETA_COORD <anphon_mixbeta_coord>`,  :ref:`RELAX_ALGO <anphon_relax_algo>`, :ref:`RENORM_2TO1ST <anphon_renorm_2to1st>`, :ref:`RENORM_34TO1ST <anphon_renorm_34to1st>`
-   :ref:`RENORM_3TO2ND <anphon_renorm_3to2nd>`, :ref:`SET_INIT_STR <anphon_set_init_str>`, :ref:`STAT_PRESSURE <anphon_stat_pressure>`, :ref:`STRAIN_IFC_DIR <anphon_strain_ifc_dir>`
+   :ref:`ADD_HESS_DIAG <anphon_add_hess_diag>`, :ref:`ALPHA_STDECENT <anphon_alpha_stdecent>`, :ref:`BUBBLE_HESS <anphon_bubble_hess>`, :ref:`CELL_CONV_TOL <anphon_cell_conv_tol>`
+   :ref:`CELL_GRADIENT_CONV_TOL <anphon_cell_gradient_conv_tol>`, :ref:`COORD_CONV_TOL <anphon_coord_conv_tol>`, :ref:`GDIIS_PLAIN <anphon_gdiis_plain>`
+   :ref:`GRADIENT_CONV_TOL <anphon_gradient_conv_tol>`, :ref:`MAX_STR_ITER <anphon_max_str_iter>`, :ref:`MIXBETA_CELL <anphon_mixbeta_cell>`, :ref:`MIXBETA_COORD <anphon_mixbeta_coord>`
+   :ref:`RELAX_ALGO <anphon_relax_algo>`, :ref:`SET_INIT_STR <anphon_set_init_str>`, :ref:`STAT_PRESSURE <anphon_stat_pressure>`
+   :ref:`STRAIN_COUPLING <anphon_strain_coupling>`, :ref:`STRAIN_FC5 <anphon_strain_fc5>`, :ref:`STRAIN_FC5_CHANNELS <anphon_strain_fc5_channels>`, :ref:`STRAINFILE <anphon_strainfile>`
+   :ref:`STRAIN_IFC_DIR <anphon_strain_ifc_dir>`
+   :ref:`ELASTIC_CONST (deprecated) <anphon_elastic_const>`, :ref:`RENORM_2TO1ST (deprecated) <anphon_renorm_2to1st>`, :ref:`RENORM_34TO1ST (deprecated) <anphon_renorm_34to1st>`, :ref:`RENORM_3TO2ND (deprecated) <anphon_renorm_3to2nd>`
+   **&strain**
+   :ref:`Strain tensor <anphon_strain_field>`
+   **&displace**
+   :ref:`DISPMODE <anphon_displace_field>`
    **&analysis**
-   :ref:`ANIME <anphon_anime>`, :ref:`ANIME_FRAMES <anphon_anime_frames>`, :ref:`ANIME_CELLSIZE <anphon_anime_cellsize>`, :ref:`GRUNEISEN <anphon_gruneisen>`
-   :ref:`ISOFACT <anphon_isofact>`, :ref:`ISOTOPE <anphon_isotope>`, :ref:`KAPPA_COHERENT <anphon_kappa_coherent>`, :ref:`KAPPA_SPEC <anphon_kappa_spec>`
-   :ref:`PDOS <anphon_pdos>`, :ref:`PRINTEVEC <anphon_printevec>`, :ref:`PRINTMSD <anphon_printmsd>`, :ref:`PRINTPR <anphon_printpr>`
-   :ref:`PRINTVEL <anphon_printvel>`, :ref:`PRINTXSF <anphon_printxsf>`, :ref:`SPS <anphon_sps>`, :ref:`TDOS <anphon_tdos>`
+   :ref:`ANIME <anphon_anime>`, :ref:`ANIME_CELLSIZE <anphon_anime_cellsize>`, :ref:`ANIME_FORMAT <anphon_anime_format>`, :ref:`ANIME_FRAMES <anphon_anime_frames>`
+   :ref:`DELTA_A <anphon_delta_a>`, :ref:`DIELEC <anphon_dielec>`, :ref:`DOS <anphon_dos>`, :ref:`FC2_EWALD <anphon_fc2_ewald>`
+   :ref:`FE_BUBBLE <anphon_fe_bubble>`, :ref:`GRUNEISEN <anphon_gruneisen>`, :ref:`IRREPS <anphon_irreps>`, :ref:`KS_INPUT <anphon_ks_input>`
+   :ref:`LONGITUDINAL_DOS <anphon_longitudinal_dos>`, :ref:`NEWFCS <anphon_newfcs>`, :ref:`PDOS <anphon_pdos>`, :ref:`PRINTEVAL <anphon_printeval>`
+   :ref:`PRINTEVEC <anphon_printevec>`, :ref:`PRINTMSD <anphon_printmsd>`, :ref:`PRINTPR <anphon_printpr>`, :ref:`PRINTV3 <anphon_printv3>`
+   :ref:`PRINTV4 <anphon_printv4>`, :ref:`PRINTVEL <anphon_printvel>`, :ref:`PRINTXSF <anphon_printxsf>`, :ref:`PROJECTION_AXES <anphon_projection_axes>`
+   :ref:`QUARTIC <anphon_quartic>`, :ref:`REALPART <anphon_realpart>`, :ref:`SELF_ENERGY <anphon_self_energy>`, :ref:`SELF_W <anphon_self_w>`
+   :ref:`SHIFT_UCORR <anphon_shift_ucorr>`, :ref:`SPS <anphon_sps>`, :ref:`SUBLATTICE_RELAX <anphon_sublattice_relax>`, :ref:`TDOS <anphon_tdos>`
    :ref:`UCORR <anphon_ucorr>`, :ref:`ZMODE <anphon_zmode>`
 
 
@@ -69,78 +99,133 @@ Description of input variables
 
 .. _anphon_mode:
 
-* **MODE**-tag = phonons | RTA
+* **MODE**-tag = phonons | kappa | selfenergy | SCPH | QHA
 
- ========= ==============================================================
-  phonons  | Calculate phonon dispersion relation, phonon DOS, 
-           | Gr\ |umulaut_u|\ neisen parameters etc.
+ ============ ==============================================================
+  phonons     | Calculate phonon dispersion relation, phonon DOS,
+              | Gr\ |umulaut_u|\ neisen parameters etc.
 
-    RTA    | Calculate phonon lifetimes and lattice thermal conductivity 
-           | based on the Boltzmann transport equation (BTE) 
-           | with the relaxation time approximation (RTA).
+  kappa       | Calculate phonon lifetimes and lattice thermal conductivity
+              | based on the Boltzmann transport equation (BTE). The solver
+              | level (RTA, IBTE, ...) is chosen by the :ref:`SOLVER <anphon_solver>`
+              | tag of the &kappa field. ``MODE = RTA`` is a deprecated alias.
 
-   SCPH    | Calculate temperature dependent phonon dispersion curves
-           | by the self-consistent phonon method.
- ========= ==============================================================
+  selfenergy  | Calculate the anharmonic self-energy (linewidth, frequency
+              | shift, spectral function) of selected phonon modes at
+              | arbitrary wave vectors. See the
+              | :ref:`&selfenergy field <anphon_selfenergy_field>`.
+
+  SCPH        | Calculate temperature dependent phonon dispersion curves
+              | by the self-consistent phonon method. With
+              | :ref:`RELAX_STR <anphon_relax_str>` the crystal structure at
+              | each temperature is optimized as well.
+
+  QHA         | Calculate the crystal structure and phonons at finite
+              | temperatures within the quasi-harmonic approximation.
+ ============ ==============================================================
 
  :Default: None
  :Type: String
-
-````
-
-.. _anphon_nkd:
-
-* **NKD**-tag : Number of atomic species
-
- :Default: None
- :Type: Integer
 
 ````
 
 .. _anphon_kd:
 
-* **KD**-tag = Name[1], ... , Name[``NKD``]
+* KD-tag : List of the atomic species
 
- :Default: None
+ :Default: The element names stored in ``FCSFILE`` (or ``FC2FILE``)
  :Type: Array of strings
- :Example: In the case of GaAs with ``NKD = 2``, it should be ``KD = Ga As``.
+ :Description: When given, the number of entries must match the number of species in ``FCSFILE``, and they are assigned to the species in the order stored in that file.
+               The ``NKD`` tag of version 1.x is no longer accepted; remove it from old input files.
+ :Example: In the case of GaAs, it should be ``KD = Ga As``.
 
 ````
 
 .. _anphon_mass:
 
-* MASS-tag = mass[1], ... , mass[``NKD``]
+* MASS-tag : List of atomic masses, one value per atomic species (in the order of the ``KD``-tag)
 
  :Default: Standard atomic weight of elements given by the ``KD``-tag
- :Type: Array of double
- :Example: In the case of Bi\ :sub:`2`\ Te\ :sub:`3` with ``NKD = 2``, ``MASS`` should be ``MASS = 208.98 127.60``.
+ :Type: Array of doubles
+ :Example: In the case of Bi\ :sub:`2`\ Te\ :sub:`3`, ``MASS`` should be ``MASS = 208.98 127.60``.
 
 ````
 
-.. _anphon_fcsxml:
+.. _anphon_fcsfile:
 
-* **FCSXML**-tag : XML file containing force constants generated by the program *alm*
+* **FCSFILE**-tag : File (XML or HDF5) containing force constants generated by the program *alm*
 
  :Default: None
  :Type: String
+ :Description: Either ``FCSFILE`` or ``FC2FILE`` must be given to start a phonon calculation.
+
+ .. note::
+
+     ``FCSFILE`` and ``FC2FILE`` replace the former ``FCSXML`` and ``FC2XML`` tags, which are no longer accepted.
+
+ .. note::
+
+     For HDF5 files, the ``unit`` attributes stored in the file (e.g. by *alm* with ``FCS_UNIT_OUTPUT = eV/angstrom``) are honored: the lattice vectors, shift vectors, and force constant values are converted to the internal Rydberg atomic units automatically. Files without unit attributes are assumed to be in bohr and Ry/bohr\ :sup:`n`. XML files are always in Rydberg atomic units.
 
 ````
 
-.. _anphon_fc2xml:
+.. _anphon_fc2file:
 
-* FC2XML-tag : XML file containing harmonic force constants for different size of supercell
+* FC2FILE-tag : File containing harmonic force constants for a different supercell size
 
  :Default: None
  :Type: String
- :Description: When ``FC2XML`` is given, the harmonic force constants in this file are used for calculating dynamical matrices. It is possible to use different size of supercell for harmonic and anharmonic terms, which are specified by ``FC2XML`` and ``FCSXML`` respectively.
+ :Description: When ``FC2FILE`` is given, the harmonic force constants in this file are used for calculating dynamical matrices. It is possible to use supercells of different sizes for harmonic and anharmonic terms, which are specified by ``FC2FILE`` and ``FCSFILE`` respectively. Analogously, ``FC3FILE`` and ``FC4FILE`` can be used to supply the cubic and quartic force constants from separate files; when they are not given, the corresponding terms are read from ``FCSFILE``.
+
+               Each order is thus read from exactly one file:
+
+               .. list-table::
+                  :header-rows: 1
+                  :widths: 20 80
+
+                  * - Order
+                    - Source
+                  * - FC2
+                    - ``FC2FILE`` if given, otherwise ``FCSFILE``
+                  * - FC3
+                    - ``FC3FILE`` if given, otherwise ``FCSFILE`` (only when the mode needs FC3)
+                  * - FC4
+                    - ``FC4FILE`` if given, otherwise ``FCSFILE`` (only when the mode needs FC4)
+
+ .. note::
+
+     **FC2FILE vs. DFC2FILE.** ``FC2FILE`` *replaces* the source of the FC2: the FC2 is
+     read from it instead of from ``FCSFILE``. :ref:`DFC2FILE <anphon_dfc2file>` replaces
+     nothing: it *adds* the anharmonic correction :math:`\Delta\Phi(T)` of an SCPH/QHA
+     run on top of the FC2 read from ``FC2FILE`` (or ``FCSFILE``).
+
+     When ``FC2FILE`` (or ``FCSFILE``) is itself an SCPH/QHA state file
+     (``PREFIX``.scph.h5 / ``PREFIX``.qha.h5), which FC2 is used depends on
+     :ref:`FC2_TEMPERATURE <anphon_fc2_temperature>`:
+
+     * without ``FC2_TEMPERATURE``, the *base* (harmonic) FC2 stored in the file is used and the
+       renormalized FC2 is ignored;
+     * with ``FC2_TEMPERATURE`` and without ``DFC2FILE``, the *renormalized* FC2 at that
+       temperature is used (with ``DFC2FILE``, the base FC2 is used as above and the
+       correction comes from ``DFC2FILE``).
+
+     To use a renormalized FC2, therefore, either give the state file as ``FC2FILE`` together
+     with ``FC2_TEMPERATURE``, or keep the original harmonic FC2 as ``FC2FILE``/``FCSFILE`` and
+     give the state file as ``DFC2FILE`` together with ``FC2_TEMPERATURE``. The latter is needed
+     when the harmonic FC2 comes from a larger supercell than the SCPH/QHA cell. See the table
+     under :ref:`DFC2FILE <anphon_dfc2file>` for all combinations.
+
+     The FC2 actually used is printed in the standard output (the ``Order 2`` line of the list
+     of force-constant files) and, in ``MODE = kappa``, stored as ``/metadata/fc2_source`` and
+     ``/metadata/fc2_description`` in ``PREFIX``.kappa.h5.
 
 ````
 
 .. _anphon_tolerance:
 
 * TOLERANCE-tag : Tolerance for finding symmetry operations
-  
- :Default: 1.0e-6
+
+ :Default: 1.0e-3
  :Type: Double
 
 ````
@@ -182,8 +267,8 @@ Description of input variables
 .. _anphon_na_sigma:
 
 * NA_SIGMA-tag : Damping factor for the non-analytic term
- 
- :Default: 0.0
+
+ :Default: 0.1
  :Type: Double
  :Description: Used when ``NONANALYTIC = 1``. The definition of ``NA_SIGMA`` is described in the formalism section.
 
@@ -213,6 +298,16 @@ Description of input variables
 
 ````
 
+.. _anphon_prec_ewald:
+
+* PREC_EWALD-tag : Accuracy of the Ewald summation used for ``NONANALYTIC = 3``
+
+ :Default: 1.0e-12
+ :Type: Double
+ :Description: Read only when ``NONANALYTIC = 3``. The convergence parameter and the real- and reciprocal-space cutoffs of the Ewald summation of the dipole-dipole interaction are chosen automatically so that the neglected terms are of the order of ``PREC_EWALD``. The value must satisfy 0 < ``PREC_EWALD`` < 1.
+
+````
+
 .. _anphon_tmin:
 
 * TMIN, TMAX, DT-tags : Temperature range and its stride in units of Kelvin
@@ -224,26 +319,43 @@ Description of input variables
 
 .. _anphon_emin:
 
-* EMIN, EMAX, DELTA_E-tags : Energy range and its stride in units of kayser (cm\ :sup:`-1`)
+* EMIN, EMAX, DELTA_E-tags : Energy range and its stride in units of Kayser (cm\ :sup:`-1`)
 
- :Default: ``EMIN`` and ``EMAX`` are set automatically from the eigenfrequencies as of ver. 1.5.0. The default value for ``DELTA_E`` is 10.0.
+ :Default: ``EMIN`` and ``EMAX`` are set automatically from the eigenfrequencies. The default value for ``DELTA_E`` is 10.0.
  :Type: Double
 
 ````
 
 .. _anphon_ismear:
 
-* ISMEAR-tag = -1 | 0 | 1
+* ISMEAR-tag = -1 | 0 | 1 | 2
 
  === =======================================================
   -1  Tetrahedron method
   0   Lorentzian smearing with width of ``EPSILON``
   1   Gaussian smearing with width of ``EPSILON``
+  2   Adaptive Gaussian smearing
  === =======================================================
 
  :Default: -1
  :Type: Integer
  :Description: ``ISMEAR`` specifies the method for Brillouin zone integration
+               (DOS and three-phonon scattering rates). With ``ISMEAR = 2``, the
+               Gaussian width is chosen automatically for each pair of phonon
+               modes from the group-velocity difference and the :math:`k`-mesh
+               spacing,
+
+               .. math::
+                  \sigma_{jj'}(\boldsymbol{q}) = \alpha \sqrt{\frac{1}{12} \sum_{u=1}^{3}
+                  \left[ \left( \boldsymbol{v}_{j} - \boldsymbol{v}_{j'} \right) \cdot
+                  \frac{\boldsymbol{G}_{u}}{N_{u}} \right]^{2} },
+
+               following the adaptive-broadening scheme of Yates *et al.*
+               [Phys. Rev. B **75**, 195121 (2007)], where
+               :math:`\boldsymbol{G}_{u}/N_{u}` are the mesh steps along the three
+               reciprocal lattice vectors and the prefactor :math:`\alpha` is set by
+               :ref:`ADAPTIVE_FACTOR <anphon_adaptive_factor>`. ``EPSILON`` is not
+               used in this case, and no manual width convergence test is needed.
 
 ````
 
@@ -253,7 +365,7 @@ Description of input variables
 
  :Default: 10.0
  :Type: Double
- :Description: This variable is neglected when ``ISMEAR = -1``
+ :Description: This variable is neglected when ``ISMEAR = -1`` or ``ISMEAR = 2``.
 
 ````
 
@@ -264,17 +376,34 @@ Description of input variables
  === ===================================================================================
   0   | Phonon band is saved without change (sorted in order of energy)
 
-  1   | Phonon band is connected by using the similarity of eigenvectors.
+  1   | Phonon band is connected by using the similarity of eigenvectors
+      | and the continuity of frequencies.
 
-  2   | Same as ``BCONNECT=1``. In addition, information about the connectivity is 
-      | saved as ``PREFIX.connection``.
+  2   | Same as ``BCONNECT=1``. In addition, information about the connectivity is
+      | saved as ``PREFIX.connection`` (harmonic bands only).
  === ===================================================================================
 
  :Default: 0
  :Type: Integer
- :Description: The algorithm for connecting a band structure is described here_.
+ :Description: Between neighboring k points, each band is connected to the partner that
+               combines a large eigenvector overlap (summed over degenerate modes) with a
+               frequency close to the value extrapolated along the band.
+               At a break of the k path (a segment that does not start where the previous one ends),
+               the bands are connected by frequency only.
+               The connection is also applied to the ``PREFIX.scph_bands`` and ``PREFIX.qha_bands`` files.
+               The eigenvector-based approach follows the algorithm described here_.
 
  .. _here : https://www.slideshare.net/TakeshiNishimatsu/two-efficient-algorithms-for-drawing-accurate-and-beautiful-phonon-dispersion
+
+````
+
+.. _anphon_nbands:
+
+* NBANDS-tag : Number of phonon branches to be written in output files
+
+ :Default: :math:`3N`, where :math:`N` is the number of atoms in the primitive cell
+ :Type: Integer
+ :Description: When ``NBANDS`` is given, only the lowest ``NBANDS`` phonon branches are written in the frequency output files, such as ``PREFIX``.bands and the eigenvalue files created with :ref:`PRINTEVAL <anphon_printeval>`.
 
 ````
 
@@ -312,6 +441,30 @@ Description of input variables
 
 ````
 
+.. _anphon_trevsym:
+
+* TREVSYM-tag = 0 | 1
+
+ :Default: 1
+ :Type: Integer
+ :Description: Uses time-reversal symmetry (k and -k are equivalent) in addition to the spatial
+               symmetry when reducing the uniform k-point meshes (DOS/transport, four-phonon and
+               SCPH/QHA meshes). It reduces the irreducible k-point count only in
+               non-centrosymmetric crystals, by up to a factor of two. It is ignored for magnetic
+               systems whose force-constant file was generated without time-reversal symmetry
+               (``TREVSYM = 0`` in alm). ``TREVSYM = 0`` restores the behavior of
+               version 1.x, which used the spatial symmetry only.
+
+               Changing ``TREVSYM`` changes the irreducible k-point set, so restart files written
+               with the other setting are rejected; use a new ``PREFIX`` or set ``TREVSYM = 0`` to
+               continue an old run. For non-centrosymmetric crystals the computed linewidths at k
+               and -k are not numerically identical with the adaptive (``ISMEAR = 2``) and
+               tetrahedron (``ISMEAR = -1``) methods, so the thermal conductivity can shift
+               slightly (within the k-mesh convergence error); fixed Gaussian smearing
+               (``ISMEAR = 1``) gives identical results.
+
+````
+
 .. _anphon_trisym:
 
 * TRISYM-tag : Flag to use symmetry operations to reduce the number of triples of :math:`k` points for self-energy calculations
@@ -323,27 +476,313 @@ Description of input variables
  
  :Default: 1
  :Type: Integer
- :Description: This variable is used only when ``MODE = RTA``.
+ :Description: This variable is used only when ``MODE = kappa``. It applies to the
+               linewidth calculation and to the collision operator of the iterative,
+               variational and direct BTE solvers (``SOLVER = IBTE``, ``VBTE``, ``DBTE``).
 
  .. Note::
 
-  ``TRISYM = 1`` can reduce the computational cost, but phonon linewidth stored to the file
-  ``PREFIX``.result needs to be averaged at points of degeneracy. 
-  For that purpose, a subsidiary program *analyze_phonons.py** should be used.
+  ``TRISYM = 1`` reduces the computational cost. The linewidths stored in ``PREFIX``.kappa.h5
+  and ``PREFIX``.result are averaged over degenerate modes, so they do not depend on this
+  choice. With the tetrahedron method (``ISMEAR = -1``), the weights of the reduced triplets
+  are averaged over each symmetry-equivalent group, so the result agrees with the
+  ``TRISYM = 0`` one up to a small residual. With the adaptive smearing (``ISMEAR = 2``),
+  whose widths depend on mode-resolved group velocities, ``TRISYM`` is ignored for the
+  linewidth calculation and the full k mesh is always used.
+
+  The linear tetrahedron method itself is not invariant under the point-group operations of
+  the crystal: the linewidth computed at an irreducible k point depends slightly on which
+  member of its star represents it. The difference vanishes as the k mesh is refined.
 
 ````
 
-.. _anphon_restart:
+.. _anphon_file_format:
 
-* RESTART-tag : Flag to restart the calculation when ``MODE = RTA``
+* FILE_FORMAT-tag : Format of the restart/state files
 
- === =======================================================
-  0   Calculate from scratch
-  1   Restart from the existing file
- === =======================================================
+ ====== =========================================================================
+  h5     Unified crash-safe HDF5 files (``PREFIX``.kappa.h5 for ``MODE = kappa``;
+         ``PREFIX``.scph.h5 / ``PREFIX``.qha.h5 for ``MODE = SCPH`` / ``QHA``)
+  text   Legacy text files (``PREFIX``.result, ``PREFIX``.scph_dymat, etc.)
+ ====== =========================================================================
 
- :Default: 1 if there is a file named ``PREFIX``.result; 0 otherwise
+ :Default: h5
+ :Type: String
+ :Description: The text format is deprecated. Human-readable
+               outputs (``PREFIX``.kl, ``PREFIX``.scph_thermo, ``PREFIX``.scph_dfc2,
+               ``PREFIX``.V0, ...) are written in both modes. The
+               eigenvalue/eigenvector outputs of :ref:`PRINTEVAL <anphon_printeval>`
+               and :ref:`PRINTEVEC <anphon_printevec>` also follow this tag: ``h5``
+               writes the schema-stamped \*.eval.h5 / \*.evec.h5 files, ``text``
+               the plain-text variants.
+
+````
+
+.. _anphon_fc2_temperature:
+
+* FC2_TEMPERATURE-tag : Temperature (K) at which the renormalized FC2 is loaded
+
+ :Default: None
+ :Type: Double
+ :Description: When ``FCSFILE`` or ``FC2FILE`` points at a ``PREFIX``.scph.h5 /
+               ``PREFIX``.qha.h5 file produced by an SCPH/QHA run, the effective
+               (temperature-renormalized) harmonic force constants at this
+               temperature are loaded directly — no ``dfc2`` round-trip is
+               needed. Note that this self-contained route folds the harmonic
+               FC2 onto the ``KMESH_INTERPOLATE`` cell; to combine the
+               correction with a harmonic FC2 of a larger supercell, use
+               :ref:`DFC2FILE <anphon_dfc2file>` instead. The temperature must
+               be one of the values on the file's temperature grid. The stored FC2
+               must be read with the ``NONANALYTIC`` of the run that wrote it (2 and
+               3 may read each other's files, a ``NONANALYTIC = 0`` file may be read
+               with a nonanalytic term with a warning; other combinations stop with an error):
+               the nonanalytic term is then added from ``BORNINFO`` as usual, and the
+               frequencies of the SCPH/QHA run are reproduced exactly at the
+               :math:`q` points of its ``KMESH_INTERPOLATE`` mesh (see
+               :ref:`label_hdf5_scph_nonanalytic`). In ``MODE = kappa``, this tag also switches
+               ``PREFIX``.kappa.h5 to its temperature-resolved layout so that
+               runs at different basis temperatures accumulate into one file
+               (set ``TMIN = TMAX = FC2_TEMPERATURE`` per run). Temperatures whose
+               SCPH iteration or structural optimization did not converge are
+               refused unless :ref:`ALLOW_UNCONVERGED <anphon_allow_unconverged>`
+               is set.
+
+````
+
+.. _anphon_dfc2file:
+
+* DFC2FILE-tag : SCPH/QHA state file supplying the anharmonic FC2 correction
+
+ :Default: None
+ :Type: String
+ :Description: Adds the anharmonic FC2 correction :math:`\Delta\Phi_{ij}` stored in a
+               ``PREFIX``.scph.h5 / ``PREFIX``.qha.h5 file (at
+               :ref:`FC2_TEMPERATURE <anphon_fc2_temperature>`, which must be given)
+               onto the harmonic FC2 provided by ``FCSFILE`` or ``FC2FILE``. This is
+               the native form of the legacy ``dfc2`` workflow: the harmonic FC2
+               may come from a **larger supercell** than the SCPH cell, which is
+               justified because the anharmonic correction is usually shorter ranged
+               than the harmonic force constants. The two supercells must be
+               commensurate tilings of the same primitive cell. The convergence
+               flags of the state file are enforced as for a direct
+               ``FC2_TEMPERATURE`` read.
+
+               The correction may break the translations of the primitive cell of the
+               harmonic FC2 file, as a cell-doubling distortion relaxed with
+               ``RELAX_STR > 0`` in a supercell does; it is kept atom by atom. The
+               ``&cell`` of the present run must then be that SCPH cell (or a cell whose
+               copies inside the SCPH cell carry identical corrections); the run stops
+               when it finds copies whose corrections differ.
+
+               ``DFC2FILE`` never replaces the harmonic FC2 — it is purely additive.
+               The base FC2 follows the usual precedence (``FC2FILE`` if given,
+               otherwise ``FCSFILE``), and ``FC2_TEMPERATURE`` refers to ``DFC2FILE``
+               when it is present. The resulting combinations are:
+
+               .. list-table::
+                  :header-rows: 1
+                  :widths: 55 45
+
+                  * - Input combination
+                    - Resulting FC2
+                  * - ``FCSFILE`` only
+                    - base from ``FCSFILE``
+                  * - ``FCSFILE`` + ``FC2FILE``
+                    - base from ``FC2FILE`` (FC3/FC4 from ``FCSFILE``)
+                  * - either of the above + ``DFC2FILE`` + ``FC2_TEMPERATURE``
+                    - same base **+** :math:`\Delta\Phi(T)` from ``DFC2FILE``
+                  * - ``FC2FILE`` = ``PREFIX``.scph.h5 + ``FC2_TEMPERATURE``, no ``DFC2FILE``
+                    - total (base + :math:`\Delta\Phi(T)`) read directly from the state file
+                  * - ``FC2FILE`` = ``PREFIX``.scph.h5, no ``FC2_TEMPERATURE``, no ``DFC2FILE``
+                    - base FC2 of the state file only; the renormalized FC2 is **not** used
+
+               The correction is relative to the full harmonic dynamical matrix of the
+               SCPH/QHA run, so the present run must use the same ``NONANALYTIC``
+               (2 and 3 are interchangeable) and the same ``BORNINFO``. A file of a
+               ``NONANALYTIC = 0`` run may be used with ``NONANALYTIC > 0`` with a
+               warning: the correction then lacks the long-range term, which is added
+               to the harmonic part only (an approximation). See
+               :ref:`label_hdf5_scph_nonanalytic`.
+
+               Note that the crystal structure is still taken from
+               ``FCSFILE``/``FC2FILE``; ``DFC2FILE`` contributes force-constant
+               corrections only. Giving a state file as the harmonic FC2 source
+               *together with* ``DFC2FILE`` uses only its coarse-mesh-folded base
+               FC2 and prints a warning, since that is rarely intended.
+
+````
+
+.. _anphon_relaxed_structure:
+
+* RELAXED_STRUCTURE-tag = 0 | 1
+
+ :Default: 0
  :Type: Integer
+ :Description: Run on the crystal structure that an earlier SCPH or QHA
+               calculation relaxed, instead of the original one.
+
+               When ``RELAX_STR > 0``, an SCPH/QHA run finds a new equilibrium
+               structure at every temperature: the cell is strained and the
+               atoms shift. It stores those structures in its
+               ``PREFIX``.scph.h5 / ``PREFIX``.qha.h5 file. Setting
+               ``RELAXED_STRUCTURE = 1`` makes the present run adopt the one at
+               :ref:`FC2_TEMPERATURE <anphon_fc2_temperature>`, which must also
+               be given. The structure is read from ``DFC2FILE`` if present,
+               otherwise from ``FC2FILE`` or ``FCSFILE``.
+
+               Three things then follow the relaxed structure:
+
+               * **The cell itself** — its volume, its reciprocal lattice and
+                 its symmetry. This matters because thermal conductivity is
+                 inversely proportional to the cell volume, group velocities are
+                 Cartesian derivatives with respect to the physical (deformed)
+                 wave vector, and a relaxation usually *lowers* the symmetry,
+                 which changes the set of irreducible **q** points.
+               * **The cubic force constants**, which the deformation changes
+                 just as it changes the harmonic ones. They are corrected using
+                 the quartic force constants, so ``FC4FILE`` — or an ``FCSFILE``
+                 containing the quartic order — must be available even for a
+                 three-phonon calculation. This is the same FC4 the SCPH/QHA run
+                 itself needed, and the run checks that it is indeed the same
+                 one. The quartic force constants themselves are used as they
+                 are, as in the SCP calculation.
+               * **The STRAIN_FC5 setting of the relaxation.** A structure
+                 relaxed with :ref:`STRAIN_FC5 = 1 <anphon_strain_fc5>` is
+                 followed with the same model, taken from the state file
+                 without any further input: the quintic force constants are
+                 read with the others (the same ones; the run checks their
+                 fingerprint), the quartic force constants become
+                 :math:`\Phi_4 + \sum_{\mu\nu} u_{\mu\nu}\, \partial \Phi_4 /
+                 \partial u_{\mu\nu}`, and the cubic ones gain the cross term
+                 :math:`\sum_{\mu\nu} u_{\mu\nu}\, (\partial \Phi_4 / \partial
+                 u_{\mu\nu}) : u_0` of that strain and the atomic shifts
+                 :math:`u_0`, in the channels of its
+                 :ref:`STRAIN_FC5_CHANNELS <anphon_strain_fc5_channels>`. A
+                 calculation without cubic force constants, such as a phonon
+                 dispersion, does not read the quintic ones. ``STRAIN_FC5`` and
+                 ``STRAIN_FC5_CHANNELS`` need not be given; if they are (in
+                 ``&relax``), they must agree with the state file.
+
+               The dynamical matrix itself is the one of the SCPH/QHA state.
+               That run never moves its cell: its harmonic part, including the
+               long-range dipole-dipole term, is built on the reference cell and
+               the deformation enters only through the force constants. The
+               present run therefore splits the geometry as follows
+               (``relaxed_cell_convention = 2`` in ``PREFIX``.kappa.h5):
+
+               * **Reference cell** — everything that defines
+                 :math:`D(\boldsymbol{q})` at a fractional **q**: the Ewald sums
+                 and the long-range force constants (``NONANALYTIC = 3``), the
+                 ``NONANALYTIC = 1, 2`` terms, the direction of the
+                 non-analytic limit, and the choice of the uniform-mesh
+                 representatives (minimum :math:`|\boldsymbol{q}+\boldsymbol{G}|`).
+                 The Born effective charges and the dielectric tensor are taken
+                 from the state file as the SCPH/QHA run processed them (acoustic
+                 sum rule, ``BORNSYM`` with its symmetry operations), instead of
+                 processing ``BORNINFO`` again with those of the relaxed cell.
+                 The frequencies and
+                 eigenvectors are thus those of the state at every **q**, not
+                 only on its coarse mesh.
+               * **Relaxed cell** — the physical geometry: the conversion of
+                 group velocities to Cartesian coordinates, the atomic positions
+                 entering the velocity operator, the cell volume, the symmetry
+                 operations, the band-path lengths and the tangent onto which
+                 ``PRINTVEL`` projects, the boundary scattering
+                 (``LEN_BOUNDARY``), and the longitudinal projection of the DOS.
+
+               Affected when ``NONANALYTIC`` is nonzero: thermal conductivity
+               (RTA, IBTE, four-phonon, ``KAPPA_COHERENT``, ``KAPPA_SPEC``),
+               bands, DOS, mean square displacements, thermodynamic functions,
+               Grüneisen parameters, ``PRINTVEL``, the dielectric function, mode
+               effective charges, irreducible representations, normal-mode
+               animations and ``MODE = selfenergy``.
+               ``PREFIX``.kappa.h5 records, per temperature, which convention
+               computed it; a run that would continue a temperature computed
+               with another one stops, whatever ``RESTART`` and
+               ``RESTART_4PH`` say — delete or rename the file. Results with
+               and without ``RELAXED_STRUCTURE`` describe different crystals and
+               are never mixed. (Text
+               ``.result`` files are never imported under
+               ``RELAXED_STRUCTURE = 1``.)
+
+               Without this tag, a follow-up calculation uses the renormalized
+               harmonic force constants of the relaxed structure together with
+               the *original* cell and the *original* cubic force constants,
+               which do not describe the same crystal.
+
+               A typical two-step use, thermal conductivity at 300 K::
+
+                   &general
+                     MODE = kappa
+                     FCSFILE = si_anharm.h5      # original structure, FC2/FC3/FC4
+                     DFC2FILE = si_scph.scph.h5  # from the RELAX_STR run
+                     FC2_TEMPERATURE = 300
+                     RELAXED_STRUCTURE = 1
+                     TMIN = 300; TMAX = 300
+                   /
+
+               The same tag works for ``MODE = phonons``, giving phonon
+               dispersion, DOS, mean square displacements, thermodynamic
+               functions and Grüneisen parameters on the relaxed structure.
+
+               Please note:
+
+               * Use the same :ref:`TOLERANCE <anphon_tolerance>` as the SCPH/QHA
+                 run. The symmetry of the relaxed structure is detected with it,
+                 and a different value may give a different space group. The run
+                 prints the space group the relaxation found next to the one it
+                 detects itself, so the two can be compared.
+               * Born effective charges and the dielectric tensor are **not**
+                 adjusted to the relaxed structure, in the SCPH/QHA run and
+                 here alike, and the long-range term keeps the reference
+                 geometry (see above). For polar materials under a sizeable
+                 strain this is the largest remaining approximation.
+               * The correction to the cubic force constants assumes force
+                 constants that satisfy the acoustic and rotational invariance
+                 conditions well (``ICONST`` in *alm*); its accuracy is limited
+                 by how well they do.
+               * This tag cannot be combined with ``RELAX_STR > 0`` in the same
+                 run, nor with :ref:`NEWFCS <anphon_newfcs>`.
+               * The band structure (``KPMODE = 1``) is drawn on the :math:`k`
+                 axis of the relaxed cell, whereas ``PREFIX``.scph_bands of the
+                 ``RELAX_STR > 0`` run uses the reference cell's axis. The
+                 frequencies agree; only the abscissa differs.
+
+````
+
+.. _anphon_allow_unconverged:
+
+* ALLOW_UNCONVERGED-tag = 0 | 1
+
+ :Default: 0
+ :Type: Integer
+ :Description: SCPH/QHA state files record, per temperature, whether the SCPH
+               iteration and the structural optimization converged
+               (``/convergence`` in ``PREFIX``.scph.h5 / ``PREFIX``.qha.h5).
+               By default, later calculations that consume the renormalized
+               IFCs or structure — ``FC2_TEMPERATURE`` reads for kappa/DOS/band
+               runs, and ``RESTART_SCPH`` / ``RESTART_QHA`` (whose postprocess
+               produces DOS, bands, and thermodynamic functions) — refuse
+               unconverged temperatures with an error. Set
+               ``ALLOW_UNCONVERGED = 1`` to use such data anyway (a warning is
+               printed). When the structural optimization of an SCPH
+               temperature fails, its row holds a copy of the last converged
+               temperature (or the harmonic data if none converged yet), and
+               so do that run's DOS and band outputs; its thermodynamic
+               functions are evaluated at its own temperature from those
+               fallback frequencies. ``/convergence/data_temperature`` records
+               the source temperature (NaN for harmonic), and the warning
+               names it.
+
+````
+
+.. _anphon_verbosity:
+
+* VERBOSITY-tag : Level of the standard output
+
+ :Default: 1
+ :Type: Integer
+ :Description: ``VERBOSITY = 0`` suppresses the echo of the input variables and the per-iteration log of the SCPH solver. ``VERBOSITY >= 2`` keeps the per-iteration SCPH log even inside the structural optimization loop (``RELAX_STR != 0``), where it is compacted by default.
 
 ````
 
@@ -381,7 +820,7 @@ Description of input variables
   1   Consider the off-diagonal elements of the loop diagram in the SCPH calculation
  === ================================================================================
 
- :Default: 0
+ :Default: 1
  :Type: Integer
  :Description: ``SELF_OFFDIAG = 1`` is more accurate, but expensive.
 
@@ -406,6 +845,21 @@ Description of input variables
 
 ````
 
+.. _anphon_imix:
+
+* IMIX-tag = 0 | 1
+
+ === ===============================================================================
+  0   Simple linear mixing with the mixing parameter ``MIXALPHA``
+  1   DIIS (Pulay) mixing
+ === ===============================================================================
+
+ :Default: 1
+ :Type: Integer
+ :Description: Mixing algorithm used in the SCPH iteration. With ``IMIX = 1``, a few simple-mixing steps are performed first and the subsequent iterations are accelerated by the DIIS method; :ref:`MIXALPHA <anphon_mixalpha>` is used as the underlying mixing parameter and must be in (0, 1] in this case. ``IMIX = 0`` restores the plain simple mixing.
+
+````
+
 .. _anphon_maxiter:
 
 * MAXITER-tag: Maximum number of the SCPH iteration
@@ -420,8 +874,8 @@ Description of input variables
 * LOWER_TEMP-tag = 0 | 1
 
  === ===============================================================================
-  0   The SCPH iteration start from ``TMIN`` to ``TMAX``. (Raise the temperature)
-  1   The SCPH iteration start from ``TMAX`` to ``TMIN``. (Lower the temperature)
+  0   The SCPH iteration starts from ``TMIN`` and proceeds to ``TMAX``. (Raise the temperature)
+  1   The SCPH iteration starts from ``TMAX`` and proceeds to ``TMIN``. (Lower the temperature)
  === ===============================================================================
 
  :Default: 1
@@ -441,6 +895,34 @@ Description of input variables
  :Default: 1
  :Type: Integer
  :Description: ``WARMSTART = 1`` usually improves the convergence.
+
+````
+
+.. _anphon_v4_real_space:
+
+* V4_REAL_SPACE-tag = 0 | 1 | 2
+
+ === ===============================================================================
+  0   The quartic couplings are the reciprocal-space tensor V4
+  1   The quartic couplings are contracted over the real-space fourth-order IFCs
+  2   Both, compared in the log (the tensor is used); for testing
+ === ===============================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: The SCPH iteration contracts the quartic coupling with the displacement
+               correlation of the dense mesh once per iteration, and the structural
+               optimization contracts it with the displacement once per step. With
+               ``V4_REAL_SPACE = 0`` these use the tensor V4 between the irreducible points of
+               ``KMESH_INTERPOLATE`` and the points of ``KMESH_SCPH``, whose memory grows as the
+               fourth power of the number of modes and whose construction is usually the most
+               expensive part of the run. With ``V4_REAL_SPACE = 1`` the same contractions are done
+               over the fourth-order IFCs folded onto the cells of ``KMESH_SCPH`` (exact for the
+               loaded IFCs; the memory is that of the folded IFC list plus a few matrices of
+               :math:`N_k \times n_s^2` elements), and the tensor is not built. The
+               contractions run on one MPI process with OpenMP threads; the other processes stay
+               idle, so run with one process and many threads. ``BUBBLE = 4`` then uses the
+               real-space quartic ladder.
 
 ````
 
@@ -468,7 +950,7 @@ Description of input variables
   1   Skip a SCPH iteration by loading a precalculated result
  === ==============================================================
 
- :Default: 1 if the file ``PREFIX.scph_dymat`` exists in the working directory; 0 otherwise
+ :Default: 1 if the file ``PREFIX.scph.h5`` (or the legacy ``PREFIX.scph_dymat``) exists in the working directory; 0 otherwise
  :Type: Integer
 
 
@@ -476,29 +958,190 @@ Description of input variables
 
 .. _anphon_bubble:
 
-* BUBBLE-tag = 0 | 1
+* BUBBLE-tag = 0 | 1 | 2 | 3 | 4
+
+ === ================================================================================================
+  0   No bubble correction to the dynamical matrix
+  1   Static correction: the real part of the bubble self-energy at :math:`\omega = 0`
+  2   On-shell correction: the real part of the bubble self-energy at the SCPH frequency
+      :math:`\omega = \Omega_{\boldsymbol{q}j}`
+  3   Quasiparticle correction: the real part of the bubble self-energy at the solution of
+      :math:`\omega^{2} = \Omega_{\boldsymbol{q}j}^{2} - 2\Omega_{\boldsymbol{q}j}\,\mathrm{Re}\,\Sigma^{\mathrm{B}}_{\boldsymbol{q}j}(\omega)`
+  4   Curvature of the SCP free energy: static bubble with the quartic ladder resummed, at
+      :math:`\Gamma` of the cell, along a structural optimization (``RELAX_STR > 0``)
+ === ================================================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: Adds the bubble (three-phonon) self-energy correction on top of the converged SCPH
+               dynamical matrix. For every irreducible point of ``KMESH_INTERPOLATE`` and branch
+               :math:`j` the real part of the bubble self-energy is evaluated with the SCPH phonons
+               (frequencies :math:`\Omega_{\boldsymbol{q}j}` and eigenvectors) and summed over the
+               :math:`q` mesh given by ``KMESH_BUBBLE``; ``EPSILON`` is the imaginary part added to
+               the frequency. The corrected frequencies
+               :math:`\omega^{2}_{\boldsymbol{q}j} = \Omega_{\boldsymbol{q}j}^{2} - 2\Omega_{\boldsymbol{q}j}\,\mathrm{Re}\,\Sigma^{\mathrm{B}}_{\boldsymbol{q}j}`
+               (averaged over degenerate branches) define a new dynamical matrix, which is Fourier
+               interpolated like the SCPH one and written as ``PREFIX.scph+bubble(0)_dfc2``,
+               ``PREFIX.scph+bubble(w)_dfc2`` or ``PREFIX.scph+bubble(wQP)_dfc2`` for
+               ``BUBBLE = 1, 2, 3``; the DOS, MSD and thermodynamic outputs get the same suffix.
+
+               With ``BUBBLE = 3`` the equation above is solved for every mode in two steps. The
+               function :math:`F(\omega) = \omega^{2} - \Omega^{2} + 2\Omega\,\mathrm{Re}\,\Sigma^{\mathrm{B}}(\omega)`
+               is first scanned on a coarse grid from 0 to
+               :math:`\Omega + \max(50\ \mathrm{cm}^{-1}, \Omega/2)`, so that strongly softened modes such
+               as soft polar modes, whose root can lie far below :math:`\Omega`, are found as well as
+               stiffened ones. The coarse step is ``EPSILON``/4, but at most
+               :math:`\max(0.5\ \mathrm{cm}^{-1}, \text{range}/400)` and at least 0.1 cm\ :sup:`-1`: the
+               Lorentzian-broadened self-energy does not vary on scales much shorter than ``EPSILON``.
+               The coarse intervals with a sign change of :math:`F`, and the two intervals around a
+               coarse local extremum of :math:`F` whose parabolic interpolation crosses zero (a pair
+               of roots within one step), are then rescanned on a 0.1 cm\ :sup:`-1` grid. In each
+               fine interval with an upward crossing (:math:`F' > 0`) the self-energy is taken as
+               linear and the resulting quadratic equation is solved, so that the root and the
+               frequency of the corrected dynamical matrix coincide. Downward crossings
+               (:math:`F' < 0`, negative weight) are not used. A root at :math:`\omega = 0`
+               (:math:`F(0) = 0`, :math:`F > 0` above it) is accepted. If several roots are found,
+               the one with the largest weight
+               :math:`Z = 2\omega / F'(\omega) = [1 + (\Omega/\omega)\,\partial_{\omega}\mathrm{Re}\,\Sigma^{\mathrm{B}}]^{-1}`
+               is used by convention (it is the residue of the pole when :math:`\mathrm{Im}\,\Sigma` is
+               neglected), and all roots are listed in a warning. If there is no root in the scanned
+               range (for example when the bubble makes the mode unstable, :math:`F(0) > 0`), the
+               on-shell value :math:`\mathrm{Re}\,\Sigma^{\mathrm{B}}(\Omega)` of ``BUBBLE = 2`` is used and
+               a warning naming the branch is printed. ``BUBBLE = 3`` costs at most two self-energy
+               sums per mode, one at a few hundred frequencies (more for a small ``EPSILON``) and one
+               at about ten frequencies per refined interval.
+
+               With ``RELAX_STR > 0`` the correction is evaluated on the structure relaxed at each
+               temperature: the SCPH phonons already belong to it, and the cubic force constants are
+               deformed to it as :math:`\Phi_3 + \Phi_4 : d` (as with
+               :ref:`RELAXED_STRUCTURE <anphon_relaxed_structure>`). Temperatures whose SCPH iteration or
+               structural optimization did not converge keep the SCPH result. The structure is the one
+               the optimizer accepted, which differs from that of the final SCPH solution within
+               ``COORD_CONV_TOL`` / ``CELL_CONV_TOL``. A restart (``RESTART_SCPH = 1``) takes the
+               structures from ``PREFIX``.scph.h5; the legacy text restart files do not carry them
+               and are refused for this combination. In a phase with large
+               symmetry-breaking displacements the one-loop correction can overshoot and even turn a
+               stable mode imaginary; it is a frequency correction, not a stability test.
+
+               ``BUBBLE = 4`` answers that stability question instead. At every temperature whose
+               structural optimization converges, it computes the derivative of the SCP force with
+               respect to the :math:`\Gamma` displacements: the SCPH curvature plus the response of
+               the phonon occupations, i.e. the static bubble with the quartic ladder resummed
+               (Masuki *et al.*, Phys. Rev. B **106**, 224104 (2022), Appendix B). The
+               self-consistent response equation is solved by GMRES to the relative residual
+               ``BUBBLE_TOL``; the response is not symmetrized, so directions that break the symmetry
+               of the structure are included. When this force Jacobian is symmetric, it is the
+               curvature of the SCP free energy, and the frequencies
+               :math:`\mathrm{sign}(\lambda)\sqrt{|\lambda|}` of its eigenvalues :math:`\lambda` are
+               printed, with the SCPH ones for comparison, and written to ``PREFIX``.scph_hessian; a
+               negative value marks a direction in which the structure is not a minimum of the free
+               energy. Each such direction is also written to ``PREFIX``.scph_hessian_displace as a
+               ``&displace`` and a ``&strain`` field of the structure moved 0.05 bohr along it, labeled with the space
+               group of the displaced structure, as a start for a relaxation in the lower symmetry. A
+               temperature is skipped, with the reason, when its final SCPH iteration
+               repaired an eigenvalue, a frequency vanishes, the translations mix with optical modes,
+               the response equation does not converge, or the Jacobian is not symmetric. With a
+               cell (``RELAX_STR = 2, 4``) the curvature also covers the six strain components, and
+               the elastic curvature of the free energy plus :math:`pV` with respect to the strain
+               of the reference cell (Voigt notation, GPa, with clamped and with relaxed atoms; the
+               phonon occupations respond in both) is printed and written to
+               ``PREFIX``.scph_hessian. The ordinary SCPH outputs are written as usual; the curvature is static, so no DOS or
+               thermodynamic output is derived from it. The present version needs ``RELAX_STR > 0``,
+               ``KMESH_SCPH = KMESH_INTERPOLATE`` (a supercell with ``1 1 1``, or a k-mesh, on which the
+               curvature is also computed for the modulations at the other irreducible :math:`\boldsymbol{Q}`
+               of the mesh, ``PREFIX``.scph_hessian_q) and ``NONANALYTIC = 0``,
+               and cannot be combined with ``RESTART_SCPH``; an existing state file does not switch
+               such a run to a restart.
+
+````
+
+.. _anphon_bubble_tol:
+
+* BUBBLE_TOL-tag : Relative residual of the response equation of ``BUBBLE = 4``
+
+ :Default: 1.0e-8
+ :Type: Double
+
+````
+
+.. _anphon_kmesh_bubble:
+
+* KMESH_BUBBLE-tag = k1, k2, k3
+
+ :Default: ``KMESH_SCPH``
+ :Type: Array of integers
+ :Description: :math:`q` mesh over which the bubble self-energy of ``BUBBLE > 0`` is summed.
+               The SCPH phonons are interpolated onto this mesh, so it can be denser than
+               ``KMESH_SCPH`` to converge the bubble correction without changing the SCPH
+               iteration. Each value must be equal to or a multiple of the number of
+               ``KMESH_INTERPOLATE`` in the same direction.
+
+````
+
+.. _anphon_cv_anharm:
+
+* CV_ANHARM-tag = 0 | 1
 
  === ==============================================================
-  0   No bubble correction to the dynamical matrix
-  1   Calculate bubble correction on top of the SCPH dynamical matrix
+  0   Report the QHA-like heat capacity only
+  1   Also report the anharmonic correction to :math:`C_{v}`
  === ==============================================================
 
  :Default: 0
  :Type: Integer
-
+ :Description: With ``CV_ANHARM = 1`` the anharmonic correction to the constant-volume heat
+               capacity that originates from the temperature dependence of the SCPH frequencies
+               is computed, i.e. the term containing
+               :math:`\partial \Omega_{\boldsymbol{q}j} / \partial T`, which is evaluated by a
+               central finite difference of the SCPH frequencies on the temperature grid defined
+               by ``TMIN``, ``TMAX`` and ``DT``. Since the central difference needs both
+               neighboring temperatures, the correction is reported as zero at ``TMIN`` and
+               ``TMAX``; at least three temperature points and a :math:`k` mesh
+               (``KPMODE = 2``) are therefore required. The accuracy of the correction depends
+               on ``DT`` because only the adjacent temperature points enter the derivative; for
+               a more reliable estimate it is recommended to fit the entropy as a function of
+               temperature by a polynomial and differentiate the fitted curve instead. The value
+               is written to ``PREFIX.scph_thermo`` in the extra column
+               ``Cv (anharm correction) [in kB unit]``, which follows the ``Cv`` column.
 
 ````
 
 .. _anphon_relax_str:
 
-* RELAX_STR-tag = 0 | 1 | 2 | 3
+* RELAX_STR-tag = 0 | 1 | 2 | 3 | 4
 
  === ==============================================================
-  0   Don't relax the crystal structure (not supported when ``mode = QHA``).
+  0   Don't relax the crystal structure (not supported when ``MODE = QHA``).
   1   Relax atomic positions.
   2   Relax both atomic positions and the shape of the unit cell.
   3   Lowest-order perturbation theory (not supported when ``MODE = SCPH``).
+  4   Relax atomic positions with the unit cell held at the strain given in the
+      ``&strain`` field.
  === ==============================================================
+
+ ``RELAX_STR = 4`` differs from ``RELAX_STR = 1`` only in where the cell sits:
+ both optimize the internal coordinates alone, but ``RELAX_STR = 1`` works at
+ the undeformed reference cell, whereas ``RELAX_STR = 4`` holds the cell at the
+ prescribed strain and therefore requires the elastic constants and the
+ strain-IFC coupling (``STRAINFILE`` or ``STRAIN_IFC_DIR``), exactly as
+ ``RELAX_STR = 2`` does. The strain given in ``&strain`` must be symmetric.
+
+ This mode gives the internally relaxed free energy at a prescribed strain,
+ :math:`\bar{F}(\epsilon, T) = \min_{q} F(\epsilon, q, T)`, which is written
+ to the ``.scph_thermo`` / ``.qha_thermo`` file (the ``Phi0`` column is already
+ included in ``F_total``). Finite differences of :math:`\bar{F}` with respect to
+ the strain give the isothermal elastic constants at finite temperature,
+ :math:`C_{ij}(T) = V^{-1} \partial^2 \bar{F} / \partial \epsilon_i \partial \epsilon_j`.
+ Set ``STAT_PRESSURE = 0`` for this purpose: a nonzero value adds a :math:`pV`
+ term, so the quantity being differentiated is then no longer :math:`\bar{F}`.
+
+ The energy is a function of the Green-Lagrange strain
+ :math:`\eta = \mathrm{sym}\,u + \tfrac{1}{2} u u^{T}`, which is built assuming
+ that the displacement gradient :math:`u` given in ``&strain`` is symmetric; an
+ asymmetric :math:`u` is rejected. Note that a symmetric :math:`u` need not
+ preserve the crystal symmetry, and that ``SET_INIT_STR = 3`` compares against the
+ space group of the undeformed reference cell, so it will not trigger under a
+ symmetry-lowering strain. ``QHA_SCHEME`` must be 0 in this mode.
 
  :Default: 0
  :Type: Integer
@@ -529,21 +1172,32 @@ Description of input variables
  :Description: This :math:`k` mesh is used for the QHA-based structural optimization. 
                Each value of ``KMESH_QHA`` must be equal to or a multiple of the number of ``KMESH_INTERPOLATE`` in the same direction.
 
+               Imaginary modes on this mesh are excluded from the vibrational free energy but not from
+               the stress and forces. When they appear, a WARNING is printed once per temperature with
+               their number and the most negative frequency: the free energy (absolute values and
+               differences) and the stress/forces at that temperature are then unreliable.
+
+               The free energy in ``PREFIX``.qha_thermo (and ``PREFIX``.scph_thermo) is evaluated on the
+               ``&kpoint`` mesh, while the structure is optimized for the free energy on ``KMESH_QHA``
+               (``KMESH_SCPH``). Use the same mesh for both when the reported free energy should be the
+               minimized one; a WARNING is printed when they differ with ``RELAX_STR`` > 0.
+
 ````
 
 .. _anphon_qha_relax_str:
 
-* RELAX_STR-tag = 0 | 1 | 2 | 3
+* RELAX_STR-tag = 1 | 2 | 3 | 4
 
  === ==============================================================
-  0   Don't relax the crystal structure (not supported when ``mode = QHA``).
   1   Relax atomic positions.
   2   Relax both atomic positions and the shape of the unit cell.
-  3   Lowest-order perturbation theory (not supported when ``mode = SCPH``).
+  3   Lowest-order perturbation theory.
+  4   Relax atomic positions at the fixed strain of ``&strain``.
  === ==============================================================
 
- :Default: 0
+ :Default: 1
  :Type: Integer
+ :Description: ``RELAX_STR = 0`` is not supported when ``MODE = QHA``.
 
 ````
 
@@ -552,8 +1206,8 @@ Description of input variables
 * LOWER_TEMP-tag = 0 | 1
 
  === ===============================================================================
-  0   The structural optimization start from ``TMIN`` to ``TMAX``. (Raise the temperature)
-  1   The structural optimization start from ``TMAX`` to ``TMIN``. (Lower the temperature)
+  0   The structural optimization starts from ``TMIN`` and proceeds to ``TMAX``. (Raise the temperature)
+  1   The structural optimization starts from ``TMAX`` and proceeds to ``TMIN``. (Lower the temperature)
  === ===============================================================================
 
  :Default: 1
@@ -575,42 +1229,76 @@ Description of input variables
  :Type: Integer
 
  :Description: This option is used only when ``mode = QHA`` and ``RELAX_STR = 2``.
+               It must be 0 when ``RELAX_STR = 4``.
+
+````
+
+.. _anphon_restart_qha:
+
+* RESTART_QHA-tag = 0 | 1
+
+ === ==============================================================
+  0   Perform a QHA calculation from scratch
+  1   Skip the QHA optimization by loading a precalculated result
+ === ==============================================================
+
+ :Default: 1 if the file ``PREFIX.qha.h5``, or the pair of the legacy files ``PREFIX.renorm_harm_dymat`` and ``PREFIX.V0``, exists in the working directory; 0 otherwise
+ :Type: Integer
+ :Description: With the default ``FILE_FORMAT = h5``, the restart data are read preferentially from the unified state file ``PREFIX``.qha.h5. When only the legacy text files are found, they are loaded instead and migrated into ``PREFIX``.qha.h5 once. Temperatures whose structural optimization did not converge are refused unless :ref:`ALLOW_UNCONVERGED <anphon_allow_unconverged>` is set.
 
 ````
 
 
 
 "&relax"-field (Read only when ``RELAX_STR != 0``)
-++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. _anphon_relax_algo:
 
-* RELAX_ALGO-tag = 1 | 2
+* RELAX_ALGO-tag = 1 | 2 | 3
 
  === ==============================================================
-  1   Steepest decent (not recommended)
+  1   Steepest descent (not recommended)
   2   Newton-like method
+  3   BFGS + GDIIS
  === ==============================================================
 
  :Default: 2
  :Type: Integer
 
  :Description: Algorithm to update the crystal structure in structural optimization. 
-               This option is used only when ``RELAX_STR = 1, 2``.
+               This option is used only when ``RELAX_STR = 1, 2, 4``.
                ``RELAX_ALGO = 1`` works properly only when the unit cell is fixed (``RELAX_STR = 1``).
 
 ````
 
 .. _anphon_alpha_stdecent:
+.. _anphon_alpha_steepest_decent:
 
-* ALPHA_STDECENT-tag: Coefficient of steepest decent in structural optimization
+* ALPHA_STDECENT-tag: Coefficient of steepest descent in structural optimization
 
  :Default: 1.0e4
  :Type: Double
 
- :Description: :math:`\alpha` coefficient in structural optimization with steepest-decent algorithm.
-               The unit is [:math:`m_e a_B^2/(2\text{Ry})`]. 
+ :Description: :math:`\alpha` coefficient in structural optimization with the steepest-descent algorithm.
+               The unit is [:math:`m_e a_B^2/(2\text{Ry})`].
                This option is used only when ``RELAX_ALGO = 1``.
+
+````
+
+.. _anphon_gdiis_plain:
+
+* GDIIS_PLAIN-tag = 0 | 1
+
+ === ==============================================================
+  0   Use the controlled GDIIS (with step-acceptance tests)
+  1   Use the plain GDIIS (without step-acceptance tests)
+ === ==============================================================
+
+ :Default: 0
+ :Type: Integer
+
+ :Description: This option is used only when ``RELAX_ALGO = 3``. By default, each GDIIS step is subjected to the step-acceptance criteria of the controlled GDIIS method by Farkas and Schlegel (step-length cap, coefficient/extrapolation cap, and near-singularity rejection with error-vector rescaling), which makes the optimization more robust. Set ``GDIIS_PLAIN = 1`` to switch back to the regular GDIIS update.
 
 ````
 
@@ -621,13 +1309,13 @@ Description of input variables
  :Default: 100
  :Type: Integer
 
- :Description: This option is used only when ``RELAX_STR = 1, 2``.
+ :Description: This option is used only when ``RELAX_STR = 1, 2, 4``.
 
 ````
 
 .. _anphon_add_hess_diag:
 
-* ADD_HESS_DIAG-tag: Correction to the estimated Hessian of free energy in units of kayser (cm\ :sup:`-1`)
+* ADD_HESS_DIAG-tag: Correction to the estimated Hessian of free energy in units of Kayser (cm\ :sup:`-1`)
 
  :Default: 100.0
  :Type: Double
@@ -639,6 +1327,32 @@ Description of input variables
 
 ````
 
+.. _anphon_bubble_hess:
+
+* BUBBLE_HESS-tag = 0 | 1
+
+ :Default: 0
+ :Type: Integer
+
+ :Description: ``BUBBLE_HESS = 1`` takes the atomic-coordinate block of the Hessian of the
+               structural optimizer from the curvature of the SCP free energy (``BUBBLE = 4``)
+               at the current structure, instead of the SCP :math:`\Gamma` matrix plus
+               ``ADD_HESS_DIAG``. Its negative eigenvalues are replaced by their absolute values
+               and all are bounded below by (1 cm\ :sup:`-1`)\ :sup:`2`, so that the step
+               leaves a saddle point downhill. The curvature is computed whenever the optimizer
+               reads a Hessian: at every step for ``RELAX_ALGO = 2``, and when the BFGS history
+               is initialized for ``RELAX_ALGO = 3``. When it is not available at a step (see
+               ``BUBBLE = 4``), the default Hessian is used and the log says why. With
+               ``RELAX_STR = 2`` the cell block and the coupling between coordinates and strain
+               come from the same curvature (``RELAX_ALGO = 2`` then solves the coupled Newton
+               equation, each part scaled by its ``MIXBETA``); with a fixed cell only the
+               coordinate block is used. The phonon response in this Hessian is restricted to the
+               symmetry the SCPH equation is solved in (that of the initial structure), so that it
+               is the Jacobian of the forces the optimizer sees. Requires ``MODE = SCPH``,
+               ``BUBBLE = 4`` and ``RELAX_ALGO = 2`` or ``3``.
+
+````
+
 .. _anphon_coord_conv_tol:
 
 * COORD_CONV_TOL-tag: Threshold of convergence for atomic positions in structural optimization.
@@ -647,7 +1361,18 @@ Description of input variables
  :Type: Double
 
  :Description: The value is interpreted in units of Bohr.
-               This option is used only when ``RELAX_STR = 1, 2``.
+               This option is used only when ``RELAX_STR = 1, 2, 4``.
+
+````
+
+.. _anphon_gradient_conv_tol:
+
+* GRADIENT_CONV_TOL-tag: Threshold of convergence for the residual force in structural optimization.
+
+ :Default: 0.0 (disabled)
+ :Type: Double
+
+ :Description: When ``GRADIENT_CONV_TOL > 0``, the structural optimization at each temperature is declared converged only if the norm of the residual force acting on the internal coordinates is smaller than this value, in addition to the step-size criterion :ref:`COORD_CONV_TOL <anphon_coord_conv_tol>`. This guards against false convergence at a non-stationary point, where the step can be small although the gradient is not, which may happen with the GDIIS optimizer (``RELAX_ALGO = 3``).
 
 ````
 
@@ -658,7 +1383,7 @@ Description of input variables
  :Default: 0.5
  :Type: Double
 
- :Description: This option is used only when ``RELAX_STR = 1, 2``.
+ :Description: This option is used only when ``RELAX_ALGO = 2`` (``RELAX_STR = 1, 2, 4``).
 
 ````
 
@@ -673,6 +1398,17 @@ Description of input variables
 
 ````
 
+.. _anphon_cell_gradient_conv_tol:
+
+* CELL_GRADIENT_CONV_TOL-tag: Threshold of convergence for the residual cell gradient (stress) in structural optimization.
+
+ :Default: 0.0 (disabled)
+ :Type: Double
+
+ :Description: When ``CELL_GRADIENT_CONV_TOL > 0`` and the cell shape is relaxed (``RELAX_STR = 2``), convergence additionally requires the norm of the gradient of the free energy with respect to the strain tensor (including the term due to :ref:`STAT_PRESSURE <anphon_stat_pressure>`) to be smaller than this value. Its units differ from those of :ref:`GRADIENT_CONV_TOL <anphon_gradient_conv_tol>`, hence the separate threshold.
+
+````
+
 .. _anphon_mixbeta_cell:
 
 * MIXBETA_CELL-tag: Mixing coefficient for displacement gradient tensor :math:`u_{\mu \nu}` in structure updates.
@@ -680,7 +1416,7 @@ Description of input variables
  :Default: 0.5
  :Type: Double
 
- :Description: This option is used only when ``RELAX_STR = 2``.
+ :Description: This option is used only when ``RELAX_ALGO = 2`` and ``RELAX_STR = 2``.
 
 ````
 
@@ -698,38 +1434,11 @@ Description of input variables
  :Type: Integer
 
  :Description: This option specifies how to set the initial structure of structural optimization at different temperatures.
-               This option is used when ``RELAX_STR = 1, 2``.
+               This option is used when ``RELAX_STR = 1, 2, 4``.
                In all options, the initial structure at the initial temperature is set from the input file.
                The initial structure of the input file is read from the ``&strain`` and ``&displace`` field.
-               When ``SET_INIT_STR = 3``, the initial displacement from the input file is used if the crystal structure converges to the high-symmetry phase in the previous temperature. The criteria to distinguish low-symmetry and high-symmetry phases is explained in :ref:`COOLING_U0_THR <anphon_cooling_u0_thr>`.
+               When ``SET_INIT_STR = 3``, the initial displacement from the input file is used again whenever the crystal structure relaxed back to the high-symmetry phase at the previous temperature. The structure is judged to be in the high-symmetry phase when spglib finds the space group of the undistorted reference cell for it, with the symmetry tolerance of the :ref:`TOLERANCE <anphon_tolerance>` tag. This is useful in cooling calculations because a small displacement from the high-symmetry structure is required to induce spontaneous symmetry breaking. (The former ``COOLING_U0_INDEX`` and ``COOLING_U0_THR`` tags are deprecated and ignored.)
 
-````
-
-.. _anphon_cooling_u0_index:
-
-* COOLING_U0_INDEX-tag = 0 | 1 | ... | 3N-1 (N : the number of atoms in the unit cell)
-
- :Default: 0
- :Type: Integer
-
- :Description: Specify as :math:`3\times\alpha + \mu`. Here, :math:`\alpha` denotes the atom index in the primitive cell and :math:`\mu` is the xyz index, where both indices are zero-indexed.
-  See the description of :ref:`COOLING_U0_THR <anphon_cooling_u0_thr>` for details.
-  This option is used only when ``SET_INIT_STR = 3``.
-
-````
-
-.. _anphon_cooling_u0_thr:
-
-* COOLING_U0_THR-tag: Threshold to judge high-symmetry phase in structural optimization [Bohr].
-
- :Default: 0.001
- :Type: Double
-
- :Description: The crystal structure is judged to be back to the high-symmetry phase if 
-               :math:`u^{(0)}` [``COOLING_U0_INDEX``] < ``COOLING_U0_THR``. 
-               This option is useful in cooling calculations because small displacements to the high-symmetry structure is required to induce spontaneous symmetry breaking.
-               This option is used only when ``SET_INIT_STR = 3``.
- 
 ````
 
 .. _anphon_stat_pressure:
@@ -741,90 +1450,531 @@ Description of input variables
 
 ````
 
-.. _anphon_renorm_2to1st:
+.. EFIELD and POL_REF are unpublished in 2.0 (planned for 2.1); entries kept hidden.
+   .. _anphon_efield:
 
-* RENORM_2TO1ST-tag = 0 | 1 | 2
+   * EFIELD-tag = Ex Ey Ez: Static electric field in eV/Å (Cartesian components).
 
- === ==============================================================
-  0   Set zero.
-  1   Real-space IFC renormalization. (not recommended)
-  2   Finite difference method with respect to strain.
- === ==============================================================
+    :Default: 0 0 0
+    :Type: Array of doubles
 
- :Default: 2
- :Type: Integer
+    :Description: The field is given as the force on a unit charge, i.e., numerically in V/Å
+                  (1 MV/cm = 0.01 eV/Å; 100 kV/cm = 0.001 eV/Å), the same unit as ``EFIELD_PEAD`` of VASP.
+                  A nonzero field adds the electric enthalpy of an electroded sample held at **fixed
+                  voltage**,
 
- :Description: This option specifies the method to calculate first-order derivatives of first-order IFCs with respect to strain
- 
-  :math:`\frac{\partial \Phi_{\mu}(0\alpha)}{\partial u_{\mu_1 \nu_1} }`.
+                  .. math::
 
-  This option is used only when ``RELAX_STR = 2, 3``.
-  Note that ``RENORM_2TO1ST = 1`` requires rotational invariance on IFCs, which is not checked in the program ANPHON.
-  ``RENORM_2TO1ST = 0`` can be used for high-symmetry materials in which strain-force coupling is zero, which a user need to confirm themselves.
+                     H_E = -\boldsymbol{E}\cdot\tilde{\boldsymbol{d}}, \qquad
+                     \tilde{\boldsymbol{d}} = \Omega_{\mathrm{ref}}\Big[e^{(0)}\!:\!u + \tfrac12 B\!:\!u\!:\!u\Big]
+                     + \sum_{k}\big[Z^{*}_{k} + \Lambda_k\!:\!u\big]\boldsymbol{u}_{0,k},
+
+                  to the free energy minimized in the structural optimization. Here :math:`Z^{*}_{k}` are the
+                  Born effective charges of the ``BORNINFO`` file (required), :math:`\boldsymbol{u}_{0,k}` the
+                  :math:`\Gamma`-point displacement of atom :math:`k`, :math:`u` the displacement gradient
+                  (``&strain``, :math:`F = I + u`), :math:`\Omega_{\mathrm{ref}}` the volume of the reference
+                  primitive cell, :math:`e^{(0)}` the clamped-ion piezoelectric tensor, and :math:`B` and
+                  :math:`\Lambda_k` its nonlinear (second-order) terms, all from the ``/Piezoelectric``
+                  group of ``STRAINFILE`` (each zero when absent; see below). It is ignored
+                  unless ``MODE = SCPH`` or ``QHA`` with ``RELAX_STR = 1, 2, 4``; it is an error with
+                  ``RELAX_STR = 3``.
+
+                  ``EFIELD`` is the field **at the reference geometry**, i.e. the voltage per reference
+                  cell. Electrodes fix the potential drop across the sample, so the Cartesian field follows
+                  the deformation, :math:`\boldsymbol{E}(u) = F^{-T}\boldsymbol{E}`, and the factor
+                  :math:`F` of the Cartesian dipole :math:`F\tilde{\boldsymbol{d}}` cancels in
+                  :math:`-\boldsymbol{E}(u)\cdot F\tilde{\boldsymbol{d}}`. As a consequence the polarization of
+                  the reference structure (``POL_REF``) and its Berry-phase branch only shift
+                  :math:`H_E` by a constant and never act on the structure, and the cell feels the stress
+                  :math:`\partial H_E/\partial u_{mn} = -\Omega_{\mathrm{ref}}E_i\,(e^{(0)}_{imn} +
+                  B_{imn,pq}u_{pq}) - E_i\sum_k\Lambda_{k,ib,mn}u_{0,kb}` (the converse **proper**
+                  piezoelectric effect; constant when :math:`B = \Lambda = 0`). Without :math:`\Lambda` the
+                  ionic term is :math:`-\boldsymbol{E}\cdot\sum_k Z^{*}_k\boldsymbol{u}_{0,k}` instead of the
+                  exact :math:`-\boldsymbol{E}\cdot F^{-1}\sum_k Z^{*}(u)_k\boldsymbol{u}_{0,k}`; the difference
+                  is of the order :math:`E\,u\,u_0`. :math:`\Lambda` removes it to linear order in
+                  :math:`\boldsymbol{u}_0` (the terms :math:`u^2u_0` and :math:`u_0^2`, i.e. the dependence of
+                  :math:`Z^{*}` on :math:`\boldsymbol{u}_0`, are omitted).
+                  :math:`\boldsymbol{E}` is the internal macroscopic field of an insulator (short-circuit
+                  electrodes); carrier screening and depolarization fields (fixed-:math:`\boldsymbol{D}`
+                  conditions) are not modeled.
+
+                  **Clamped-ion piezoelectric tensor.** With a strained cell (``RELAX_STR = 2, 4``) the
+                  electronic part of the converse piezoelectric response comes from
+                  ``/Piezoelectric/clamped_ion`` of ``STRAINFILE`` (C/m², written by
+                  ``piezo.py collect --route berry`` or ``strainfile.py piezo``, see
+                  :ref:`the strain tools <label_strain_tools>`). It must be the
+                  **clamped-ion** proper tensor: the ionic (relaxed-ion) contribution is already produced by
+                  the :math:`Z^{*}\boldsymbol{u}_0` term, so giving the relaxed-ion total, or VASP's
+                  ``IONIC CONTR`` block, counts it twice. For a non-centrosymmetric reference use the Berry-phase strain grid
+                  (``piezo.py``): VASP's ``LEPSILON`` piezoelectric tensor is unreliable for polar
+                  structures. If a ``LEPSILON`` value is used anyway, take the block
+                  ``PIEZOELECTRIC TENSOR (including local field effects) for field in x, y, z (C/m^2)``;
+                  the block of the same name in ``e Angst`` is the derivative of the dipole of the
+                  simulation cell (extensive), the ``C/m^2`` one is intensive. Without the group (and on the
+                  ``STRAIN_IFC_DIR`` route) :math:`e^{(0)} = 0`; that is exact for a centrosymmetric
+                  reference, and anphon warns when the reference has no inversion (the clamped-ion response
+                  "may be missing"; point group 432 is a known false positive).
+
+                  **Nonlinear terms.** Two optional datasets of the same group, independent of each other
+                  and of ``clamped_ion`` (per linear symmetric strain :math:`u`, reference frame):
+
+                  * ``second_order`` (3,3,3,3,3) in C/m², indices :math:`[i, jk, lm]`,
+                    :math:`B_{ijklm} = \partial e^{(0)}_{ijk}/\partial u_{lm}`; symmetric in :math:`jk`, in
+                    :math:`lm` and under :math:`jk\leftrightarrow lm`. It adds the strain curvature
+                    :math:`-\Omega_{\mathrm{ref}}\boldsymbol{E}\cdot B` (the field changes the clamped elastic
+                    constants by :math:`-E_iB_{iJK}` per unit volume). It vanishes for a centrosymmetric
+                    reference. Compute it from the Berry-phase dipole of strained cells,
+                    :math:`B = \Omega_{\mathrm{ref}}^{-1}\partial^2\tilde{\boldsymbol{d}}/\partial u^2`, not by
+                    differentiating the piezoelectric tensors of strained cells.
+                  * ``born_charge_strain_derivative`` (natom,3,3,3,3) in e, indices
+                    :math:`[k, i\,(\text{polarization}), b\,(\text{displacement}), m, n]`,
+                    :math:`\Lambda_{k,ib,mn} = \partial(F^{-1}Z^{*})_{k,ib}/\partial u_{mn}`, the strain derivative
+                    of the **reduced** Born charges of the atoms of ``/ReferenceCell``; symmetric in
+                    :math:`mn`. It makes the field force on :math:`\boldsymbol{u}_0` strain dependent,
+                    :math:`\boldsymbol{E}\cdot(Z^{*}_k + \Lambda_k\!:\!u)`, and adds the displacement–strain
+                    curvature :math:`-\boldsymbol{E}\cdot\Lambda`. It is allowed in every crystal (for
+                    centrosymmetric perovskites it is the only clamped-ion electromechanical coupling).
+
+                  anphon checks the shape, the ``unit`` and ``convention`` attributes, finiteness and the
+                  symmetries (absolute 1e-8 plus relative 1e-6), and then symmetrizes exactly. The blocks of
+                  :math:`\Lambda` are mapped onto the atoms of the primitive cell like the rows of
+                  ``/StrainForce`` (copied, or averaged over translation images for a nested cell; no
+                  volume scaling), and the acoustic sum rule :math:`\sum_k\Lambda_k = 0` is enforced by
+                  subtracting the atomic mean; the log reports the residual before and after, with a
+                  warning when it exceeds 5% of the largest component. All terms enter the energy, the
+                  forces, the stress, the ``BUBBLE = 4`` curvature and the ZSISA/v-ZSISA quantities of
+                  ``MODE = QHA`` (the strain derivative of the force and the elastic constants), only when
+                  ``EFIELD`` is nonzero.
+
+                  **Space-group average.** Under a nonzero ``EFIELD`` anphon then averages
+                  :math:`e^{(0)}`, :math:`B` and :math:`\Lambda` over the space group of the reference
+                  (undistorted) structure, :math:`\Lambda` with the atom permutation of each operation
+                  (:math:`\Lambda_{P(k)} \leftarrow R\,R\,R\,R\,\Lambda_k`). These are properties of the
+                  reference crystal, so its full group applies although the field lowers the symmetry of the
+                  relaxed structure; the average removes the finite-difference noise of the data, which would
+                  otherwise leave a small symmetry-breaking residue in the relaxed structure. The log prints the
+                  largest correction of each tensor and warns when it exceeds 5% of its largest component
+                  (wrong orientation or atom order of the data). Odd-rank tensors vanish for a
+                  centrosymmetric reference. Without a field the data are used as given.
+
+                  Only the symmetry operations of the (distorted) cell that leave :math:`\boldsymbol{E}`
+                  invariant are kept; the k-point reduction, the symmetrization of the dynamical matrix and
+                  of the Born charges, and the ``IRREPS`` labels refer to this subgroup. The re-seeding of
+                  ``SET_INIT_STR = 3`` is disabled under a field: each temperature starts from the structure
+                  of the previous one.
+
+                  **Polarization output.** Whenever ``BORNINFO`` is given in a structural optimization
+                  (also without a field), the log shows per optimization step and per temperature the
+                  Cartesian polarization, the conjugate of :math:`H_E`,
+
+                  .. math::
+
+                     \boldsymbol{P} = \frac{F\,(\boldsymbol{d}_{\mathrm{ref}} + \tilde{\boldsymbol{d}})}{\Omega_{\mathrm{ref}}\det F},
+                     \qquad \boldsymbol{d}_{\mathrm{ref}} = \Omega_{\mathrm{ref}}\boldsymbol{P}_{\mathrm{ref}},
+
+                  in :math:`\mu\mathrm{C/cm}^2`, its ionic-displacement part
+                  :math:`F\sum_k(Z^{*}_k + \Lambda_k\!:\!u)\boldsymbol{u}_{0,k}/(\Omega_{\mathrm{ref}}\det F)`,
+                  and the field
+                  energy :math:`-\boldsymbol{E}\cdot\tilde{\boldsymbol{d}}` in Ry.
+                  :math:`\boldsymbol{P}_{\mathrm{ref}}` is ``POL_REF`` (zero when not given; the header says
+                  so). ``PREFIX.polarization`` has one row per temperature with the columns: temperature,
+                  :math:`P_x`, :math:`P_y`, :math:`P_z` (total), :math:`P^{\mathrm{ion}}_x`,
+                  :math:`P^{\mathrm{ion}}_y`, :math:`P^{\mathrm{ion}}_z`, the field energy, and a convergence
+                  flag (1 when the optimization converged), printed with 11 significant digits; the header
+                  echoes ``EFIELD``, ``POL_REF`` and the sources of :math:`e^{(0)}`, :math:`B` and
+                  :math:`\Lambda`. :math:`B` and :math:`\Lambda` change :math:`\boldsymbol{P}` also without a
+                  field. Each row refers to the
+                  **last evaluated structure** of the temperature. When the optimization converged
+                  (flag 1), that is the structure of the last free energy and gradients (``PREFIX.V0``),
+                  and the final structure printed in the log and written to ``PREFIX.atom_disp`` /
+                  ``PREFIX.umn_tensor`` is one optimizer step further. With flag 0 it is the last attempted
+                  structure, which need not match ``PREFIX.V0`` or the printed final structure (a failed
+                  SCPH temperature restores the previous converged or initial state). With
+                  ``VERBOSITY >= 2`` the log also prints :math:`\boldsymbol{P}`, :math:`\tilde{\boldsymbol{d}}`
+                  (e Bohr) and the nine strain gradients :math:`\partial F/\partial u_{mn}` (static plus
+                  thermal) at full precision for every step. For a centrosymmetric reference without a field,
+                  :math:`\boldsymbol{P}` is the spontaneous polarization in the linear Born-charge
+                  approximation.
+
+                  ``EFIELD``, ``POL_REF``, :math:`e^{(0)}`, :math:`B` and :math:`\Lambda` (the last as mapped
+                  and ASR-corrected) are stored in ``PREFIX.scph.h5`` / ``PREFIX.qha.h5``, and with a
+                  nonzero field also the Born charges. A restart (``RESTART_SCPH``, ``RESTART_QHA``) with a
+                  different ``EFIELD``, ``POL_REF``, :math:`e^{(0)}`, :math:`B` or :math:`\Lambda` is refused
+                  (absent means zero), and so is one with different Born charges (``BORNINFO``) when
+                  ``EFIELD`` is nonzero (they are not checked at zero field). The legacy text restart files
+                  cannot be used when any of them is nonzero. A field sweep is therefore not a restart: run each field value
+                  as a new optimization seeded from the relaxed structure of the previous one with
+
+                  .. code-block:: bash
+
+                     $ python tools/efield_seed.py PREFIX [--temp T]
+
+                  which prints the ``&displace`` and ``&strain`` blocks for the next input
+                  (default: the last temperature).
+
+                  Limitations:
+
+                  * The Born charges do not depend on :math:`\boldsymbol{u}_0`: the nonlinearity of
+                    :math:`\boldsymbol{P}(\boldsymbol{u}_0)` is omitted, and the strain dependence of
+                    :math:`Z^{*}` and the second-order piezoelectric coefficients enter only through
+                    :math:`\Lambda` and :math:`B` when they are given. The model is an exact polynomial, exact
+                    to linear order in :math:`\boldsymbol{u}_0`. :math:`\det F > 0` is assumed.
+                  * Terms of order :math:`E^2` (Raman / electrostriction through
+                    :math:`\epsilon^{\infty}`) are neglected. For typical perovskites they are of order
+                    :math:`10^{-3}` of the Born force at 1 MV/cm (an estimate, not a strict bound).
+                  * Switching is homogeneous, so intrinsic coercive fields greatly exceed experimental ones.
+
+   ````
+
+   .. _anphon_pol_ref:
+
+   * POL_REF-tag = Px Py Pz: Polarization of the reference structure in C/m² (Cartesian components).
+
+    :Default: not given (0 0 0)
+    :Type: Array of doubles
+
+    :Description: Output only: ``POL_REF`` never enters an energy, a force or a stress (see ``EFIELD``:
+                  under fixed voltage the reference dipole shifts the enthalpy by a constant). It is added
+                  to the reported polarization as
+                  :math:`F\boldsymbol{P}_{\mathrm{ref}}/\det F` (:math:`\approx\boldsymbol{P}_{\mathrm{ref}}`
+                  for small strain). It requires ``BORNINFO`` (an error otherwise, also at zero field); it
+                  does not need ``EFIELD`` or ``STRAINFILE``. When it is not given, the log and the header of
+                  ``PREFIX.polarization`` state that :math:`\boldsymbol{P}` excludes the reference
+                  polarization.
+
+                  :math:`\boldsymbol{P}_{\mathrm{ref}}` is a formal (Berry-phase) polarization, defined only
+                  modulo a polarization quantum. Give it on a branch that is continuous from a chosen
+                  nonpolar reference (e.g. relative to zinc blende for a wurtzite) and do not re-wrap it;
+                  the choice of the branch is the user's responsibility. From a VASP ``LCALCPOL`` run of the
+                  reference structure,
+
+                  .. math::
+
+                     \boldsymbol{P}_{\mathrm{ref}}\,[\mathrm{C/m^2}] =
+                     \frac{\boldsymbol{p}[\mathrm{elc}] + \boldsymbol{p}[\mathrm{ion}]}{\Omega}\times 16.0218,
+
+                  where :math:`\boldsymbol{p}` (e Å) is the dipole of the simulation cell, which is
+                  extensive: :math:`\Omega` (Å³) must be the volume of the same cell. 16.0218 converts
+                  e/Å² to C/m².
 
 ````
 
-.. _anphon_renorm_34to1st:
+.. _anphon_strain_coupling:
 
-* RENORM_34TO1ST-tag = 0 | 1 
+* STRAIN_COUPLING-tag = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 10 | 11 | 14 | 15 | 20 | 21 | 24 | 25
 
- === ==============================================================
-  0   Set zero.
-  1   Real-space IFC renormalization.
- === ==============================================================
+ :Default: 7
+ :Type: Integer
+
+ :Description: This option selects where the elastic constants and the strain couplings of the
+  cell relaxation come from. It is used only when ``RELAX_STR = 2, 3, 4`` and replaces the four
+  tags ``ELASTIC_CONST``, ``RENORM_2TO1ST``, ``RENORM_34TO1ST`` and ``RENORM_3TO2ND`` of earlier
+  versions (still accepted, see below). Three ingredients are involved; each is either read from
+  the strain-coupling file (``STRAINFILE``, or the legacy text files in ``STRAIN_IFC_DIR``) or
+  obtained without DFT input. The **units digit** is the sum of the values of the ingredients
+  read from the file:
+
+  .. list-table::
+     :header-rows: 1
+     :widths: 6 40 22 32
+
+     * - Value
+       - Ingredient
+       - Read from the file
+       - Not read from the file (bit clear)
+     * - 1
+       - Elastic constants :math:`C^{(2)}_{\mu_1 \nu_1, \mu_2 \nu_2}`, :math:`C^{(3)}_{\mu_1 \nu_1, \mu_2 \nu_2, \mu_3 \nu_3}`
+       - ``/Elastic`` (``elastic_constants.in``)
+       - computed from the harmonic and cubic IFCs (see the notes below)
+     * - 2
+       - Strain–force coupling :math:`\partial \Phi_{\mu}(0\alpha) / \partial u_{\mu_1 \nu_1}`
+       - ``/StrainForce`` (``strain_force.in``)
+       - set to zero (valid only when it vanishes by symmetry)
+     * - 4
+       - Strain–harmonic-IFC coupling :math:`\partial \Phi_{\mu_1 \mu_2}(0\alpha_1, R \alpha_2) / \partial u_{\mu \nu}`
+       - ``/StrainHarmonic`` (``strain_harmonic.in``)
+       - computed from the cubic IFCs
+
+  Every combination therefore has a value:
+
+  .. list-table::
+     :header-rows: 1
+     :widths: 12 14 16 16 42
+
+     * - ``STRAIN_COUPLING``
+       - :math:`C^{(2)}, C^{(3)}`
+       - strain–force
+       - strain–harmonic
+       - typical situation
+     * - 0
+       - IFCs
+       - zero
+       - IFCs
+       - high-symmetry crystal, no strained-cell DFT at all
+     * - 1
+       - file
+       - zero
+       - IFCs
+       - high-symmetry crystal, elastic constants from elsewhere
+     * - 2
+       - IFCs
+       - file
+       - IFCs
+       - ``strainifc.py collect --coupling force`` only
+     * - 3
+       - file
+       - file
+       - IFCs
+       - ``elastic.py fit`` only (it writes both groups)
+     * - 4
+       - IFCs
+       - zero
+       - file
+       - high-symmetry crystal, ``strainifc.py --coupling harmonic`` only
+     * - 5
+       - file
+       - zero
+       - file
+       - high-symmetry crystal, ``/Elastic`` and ``/StrainHarmonic`` only
+     * - 6
+       - IFCs
+       - file
+       - file
+       - ``strainifc.py`` force + harmonic, elastic constants from the IFCs
+     * - 7 (default)
+       - file
+       - file
+       - file
+       - ``elastic.py fit`` + ``strainifc.py collect``
+     * - 10, 11, 14, 15
+       - as 0, 1, 4, 5
+       - **harmonic IFCs**
+       - as 0, 1, 4, 5
+       - expert, see the note on the tens digit
+     * - 20, 21, 24, 25
+       - as 0, 1, 4, 5
+       - **harmonic IFCs**, plus :math:`\partial^2 \Phi_{\mu}(0\alpha)/\partial u^2`, :math:`\partial^3 \Phi_{\mu}(0\alpha)/\partial u^3` from the cubic and quartic IFCs
+       - as 0, 1, 4, 5
+       - expert, see the note on the tens digit
+
+  The second strain derivative of the harmonic IFCs and the first strain derivative of the cubic
+  IFCs are always taken from the quartic IFCs. The log echoes the resolved source of every
+  ingredient. ``strainfile.py show`` prints the values a container supports.
+
+  **Projection of the IFC-derived strain–harmonic-IFC couplings.** The strain derivatives of
+  the harmonic IFCs computed from the cubic IFCs (bit 4 clear) and from the quartic IFCs take the
+  positions of the other atoms relative to the first atom of each cluster. In a finite supercell
+  with equidistant images, the resulting real-space set is neither symmetric under exchange of
+  its two atoms nor translation-invariant. anphon therefore applies a chosen correction in real
+  space, before the Fourier transform, for every strain component:
+
+  1. The set is averaged with the set anchored on the second atom.
+  2. The minimal-norm correction that is symmetric over the set's own atom pairs is added, so
+     that the acoustic sum rule holds for every atom and Cartesian block, including the shear
+     components.
+
+  The correction depends only on the derivative set, not on the phonon spectrum. It keeps the
+  crystal symmetry provided the input IFCs, and hence the set's atom pairs, are symmetric. The log
+  prints its relative size (``max|delta| / max|dPhi|``; about :math:`10^{-3}` for
+  SrTiO\ :sub:`3` on a 2×2×2 supercell). A warning is printed if the sum rule of the corrected set
+  is violated by more than :math:`10^{-8}` relative. Only these strain contributions are
+  corrected. The renormalized dynamical matrix satisfies the sum rule at :math:`\Gamma` to
+  round-off only when the other contributions (harmonic IFCs, SCPH correction, displacement
+  terms) do so as well. In the SrTiO\ :sub:`3` tests, the acoustic frequencies are then about
+  :math:`10^{-5}` cm\ :sup:`-1`.
+
+  **Strain–force coupling set to zero** (bit 2 clear, one-digit values). This is exact only in
+  crystals whose site symmetries forbid a strain–force coupling (every atom on a centrosymmetric
+  site, e.g. rock salt, cubic perovskites; not diamond, whose sites lack inversion). anphon checks this with the
+  harmonic IFCs, which carry the site symmetry, and prints a warning when the symmetry allows a
+  nonzero coupling.
+
+  **Tens digit** (values 10–25). The strain–force coupling is computed from the harmonic IFCs
+  (Appendix C of the `original paper <https://arxiv.org/abs/2302.04537>`_); with a tens digit of
+  2 its second and third strain derivatives are also computed, from the cubic and quartic IFCs.
+  These relations hold only for rotationally invariant IFCs (``ICONST >= 2`` in alm) and are
+  limited by the cutoff of the fitted model, so this route is not recommended; anphon prints a
+  warning, and the result should be validated against a run with the coupling read from the file.
+  The units digit must not contain 2 (the coupling cannot come from both sources).
+
+  **Strain–harmonic-IFC coupling from the file** (bit 4). When the file covers only a subset of the
+  strain components (weight sums 1 for the given components, 0 for the rest), the missing ones are
+  generated from the given ones by the space-group operations; this requires that the entries of
+  the rotation matrices of all operations are 0 or :math:`\pm 1` in Cartesian coordinates, and the
+  log says which completion is used.
+
+  **Elastic constants from the IFCs** (bit 1 clear). The clamped-ion second-order elastic
+  constants are computed from the harmonic force constants via the Born long-wave method, and the
+  third-order ones from the cubic force constants following Wallace's formulation. The clamped-ion
+  (not relaxed-ion) constants are used because the internal coordinates are optimized explicitly.
+  The first-order coefficients (the residual stress of the reference structure) are not contained
+  in the force constants and are still taken from ``/Elastic/stress`` of ``STRAINFILE`` or from
+  ``C1_array.in`` when present (set to zero otherwise). The accuracy is limited by the range and
+  the rotational invariance of the fitted force constants; comparing the values printed in the
+  log against DFT elastic constants (``elastic.py fit --compare``) is recommended. In polar
+  crystals, the real-space sums entering the second-order elastic constants converge slowly with
+  the supercell size because of the long-range dipole-dipole interaction. When ``NONANALYTIC = 3``
+  is set (with ``BORNINFO``), the dipole-dipole contribution is separated and resummed analytically
+  (with the macroscopic term excluded, giving the fixed-field response), which largely removes this
+  supercell-size error; using ``NONANALYTIC = 3`` together with the IFC route is therefore strongly
+  recommended for polar materials. The third-order elastic constants remain short-range because
+  the strain derivatives of the Born charges are not contained in the force constants.
+
+  **Elastic constants from the file** (bit 1). The constants are generated from DFT calculations of
+  strained cells with the ``tools/elastic.py`` script (see :ref:`this page <label_strain_tools>`)
+  and read from the ``/Elastic`` group of the ``STRAINFILE`` container or, on the legacy route,
+  from ``elastic_constants.in`` (and ``C1_array.in``). The text files hold the constants in GPa when
+  their section labels carry the unit token (``SOEC GPa``, ``TOEC GPa``, ``C1 GPa``); anphon
+  multiplies them by the volume of its primitive cell, so the same files serve any nested ``&cell``
+  of the same reference structure (the values are not transformed between Cartesian frames). Files
+  without the unit token (the legacy layout) or with an explicit ``Ry`` token hold :math:`V C` and
+  :math:`V \sigma` in Ry for one specific cell, which anphon cannot check: a warning is printed
+  when such a file is used together with a user-defined ``&cell``.
+
+````
+
+.. _anphon_strain_fc5:
+
+* STRAIN_FC5-tag = 0 | 1
 
  :Default: 0
  :Type: Integer
 
- :Description: This option specifies the method to calculate second and higher-order derivatives of first-order IFCs with respect to strain. 
+ :Description: ``STRAIN_FC5 = 1`` adds the first strain derivative of the quartic IFCs,
+  computed from the quintic ones in the same way as :math:`\partial \Phi_3 / \partial u_{\mu\nu}`
+  is computed from the quartic ones (the strain leg on a partner atom, positions relative to the
+  atom in the home cell):
 
-  :math:`\frac{\partial^2 \Phi_{\mu}(0\alpha)}{\partial u_{\mu_1 \nu_1} \partial u_{\mu_2 \nu_2}}`,
-  :math:`\frac{\partial^3 \Phi_{\mu}(0\alpha)}{\partial u_{\mu_1 \nu_1} \partial u_{\mu_2 \nu_2} \partial u_{\mu_3 \nu_3}}`  
+  .. math::
 
-  This option is used only when ``RELAX_STR = 2, 3``.
-  Note that ``RENORM_34TO1ST = 1`` requires rotational invariance on IFCs, which a user need to confirm themselves.
+     \Phi_4(u) = \Phi_4 + \sum_{\mu\nu} u_{\mu\nu} \frac{\partial \Phi_4}{\partial u_{\mu\nu}}, \quad
+     \frac{\partial \Phi_4(\ldots)}{\partial u_{\mu\nu}} = \sum_{m} \Phi_5(\ldots, m\mu)\, r_m^{\nu}.
+
+  It enters the SCP equation, the renormalization at the displaced structure :math:`q_0` and the
+  stress. This is the only use of the quintic IFCs: the expansion is truncated at the first strain
+  derivative of :math:`\Phi_4`; higher strain derivatives (:math:`\partial^2 \Phi_3/\partial u^2`,
+  :math:`\partial^3 \Phi_2/\partial u^3`) and the quintic displacement potential
+  :math:`\Phi_5 u^5` are not included. At the relaxed structure (strain :math:`u_{\mu\nu}`,
+  atomic shifts :math:`u_0`, :math:`d = u \cdot R + u_0`) the anharmonic IFCs of the model are
+  therefore
+
+  .. math::
+
+     \Phi_4' = \Phi_4 + \delta\Phi_4, \quad
+     \Phi_3' = \Phi_3 + \Phi_4 : d + \delta\Phi_4 : u_0, \quad
+     \delta\Phi_4 = \sum_{\mu\nu} u_{\mu\nu} \frac{\partial \Phi_4}{\partial u_{\mu\nu}},
+
+  with no :math:`\Phi_5 : u_0` in :math:`\Phi_4'` and no :math:`\Phi_5 : d\, d` in
+  :math:`\Phi_3'`. A follow-up run with :ref:`RELAXED_STRUCTURE = 1 <anphon_relaxed_structure>`
+  uses exactly these (for ``STRAIN_FC5 = 0`` the same without :math:`\delta\Phi_4`), so its
+  three- and four-phonon calculations follow the relaxation's setting.
+
+  The quintic IFCs are read from ``/ForceConstants/Order5`` of the HDF5 file of the quartic
+  ones (``FC4FILE``, else ``FCSFILE``), which must therefore contain both orders from the same fit
+  (same supercell). They must satisfy the acoustic sum rule, without which the strain derivative
+  depends on the atom the positions are measured from; a warning is printed when the deviation
+  exceeds :math:`10^{-6}` of the largest :math:`|\Phi_5|`. Available for ``MODE = SCPH`` with ``RELAX_STR = 2`` or ``4``, not with
+  ``BUBBLE > 0`` or ``BUBBLE_HESS = 1``. The correction is evaluated on MPI rank 0 (in a
+  ``RELAXED_STRUCTURE = 1`` follow-up, every rank reads the quintic IFCs). The setting and
+  a fingerprint of the quintic IFCs are stored in ``PREFIX.scph.h5``; ``RESTART_SCPH`` refuses a
+  state file written with a different ``STRAIN_FC5``, ``STRAIN_FC5_CHANNELS`` or quintic IFCs
+  (files without the record count as ``STRAIN_FC5 = 0``).
 
 ````
 
+.. _anphon_strain_fc5_channels:
+
+* STRAIN_FC5_CHANNELS-tag = ALL | DIAG
+
+ :Default: ALL
+ :Type: String
+
+ :Description: ``DIAG`` keeps only the normal-strain channels :math:`u_{xx}, u_{yy}, u_{zz}` of
+  ``STRAIN_FC5`` and drops the six shear channels.
+
+````
+
+.. _anphon_elastic_const:
+.. _anphon_renorm_2to1st:
+.. _anphon_renorm_34to1st:
 .. _anphon_renorm_3to2nd:
 
-* RENORM_3TO2ND-tag = 1 | 2 | 3
+* ELASTIC_CONST, RENORM_2TO1ST, RENORM_34TO1ST, RENORM_3TO2ND-tags (deprecated)
 
- === ==============================================================
-  1   Real-space IFC renormalization.
-  2   Finite difference method (Read input from all six strain patterns).
-  3   Finite difference method (Read input from specified strain patterns).
- === ==============================================================
+ :Description: The four tags replaced by ``STRAIN_COUPLING``. They are still accepted and override
+  the individual switches (a warning names the equivalent ``STRAIN_COUPLING`` value); they will be
+  removed in a later release. ``ELASTIC_CONST = 1, 2``: elastic constants from the IFCs / the file
+  (bit 1). ``RENORM_2TO1ST = 0, 1, 2``: strain–force coupling zero / from the harmonic IFCs (tens
+  digit) / from the file (bit 2). ``RENORM_34TO1ST = 0, 1``: its higher strain derivatives zero /
+  from the cubic and quartic IFCs (tens digit 2). ``RENORM_3TO2ND = 1, 2, 3``: strain–harmonic-IFC
+  coupling from the cubic IFCs / from the file (bit 4; the former distinction between all and a
+  subset of the strain patterns is now detected from the file).
 
- :Default: 2
- :Type: Integer
+````
 
- :Description: This option specifies the method to calculate first-order derivatives of harmonic IFCs with respect to strain.
- 
-  :math:`\frac{\partial \Phi_{\mu_1 \mu_2}(0\alpha_1, R \alpha_2)}{\partial u_{\mu \nu}}`
+.. _anphon_strainfile:
 
-  This option is used only when ``RELAX_STR = 2, 3``.
-  To use ``RENORM_3TO2ND = 3``, the entries of the rotation matrices of ALL the space-group operations must be either 0 or :math:`\pm` 1 in Cartesian representation.
+* STRAINFILE-tag: The strain-coupling container.
+
+ :Default: None
+ :Type: String
+
+ :Description: The HDF5 container (schema ``alamode:strain_coupling``) holding every
+   input of the cell relaxation that anphon cannot compute from the force constants:
+   the reference stress and the elastic constants (``/Elastic``, used with bit 1 of
+   ``STRAIN_COUPLING``; the stress also with bit 1 clear), the strain–force
+   coupling (``/StrainForce``, bit 2) and the strain–harmonic-IFC
+   coupling with the force constants of the strained supercells embedded
+   (``/StrainHarmonic``, bit 4). It is produced with ``--strain-file`` by
+   ``elastic.py fit`` (``/Elastic`` and ``/StrainForce``, the latter from the same strained
+   primitive cells) and ``strainifc.py collect`` (``/StrainHarmonic``; ``--coupling force``
+   for runs without ``elastic.py``), or from existing text files with ``strainfile.py pack``; see :ref:`this page <label_strain_container>`. anphon verifies the
+   schema, the presence of the groups its settings need (a missing one is reported together
+   with the command that adds it), the units, the reference structure against the ``&cell``
+   field (a nested super- or sub-cell is accepted, the rows of ``/StrainForce`` being tiled or averaged accordingly), and every strained supercell against the supercell of the harmonic
+   force constants. ``STRAINFILE`` and ``STRAIN_IFC_DIR`` are mutually exclusive. The file is
+   read on every MPI rank and must not be modified while anphon runs.
 
 ````
 
 .. _anphon_strain_ifc_dir:
 
-* STRAIN_IFC_DIR-tag: Directory name of the inputs of strain-IFC couplings.
+* STRAIN_IFC_DIR-tag: Directory name of the inputs of strain-IFC couplings (legacy text files).
 
  :Default: None
  :Type: String
 
- :Description: When ``RENORM_2TO1ST = 2 `` or ``RENORM_3TO2ND = 3``,
-   the input files of the strain-IFC couplings must be given properly in this directory.
+ :Description: The legacy alternative to ``STRAINFILE`` (anphon prints a note when it is used;
+   ``strainfile.py pack`` converts the directory into a container). The input files of the
+   strain-IFC couplings (``strain_force.in`` for bit 2 of ``STRAIN_COUPLING``, ``strain_harmonic.in``
+   and the force-constant files it lists for bit 4) must be given in this directory, as well as
+   ``elastic_constants.in`` for bit 1. Note that ``C1_array.in`` is read from the working directory of anphon,
+   not from this directory. See :ref:`this page <label_strain_tools>` for the file formats and the
+   tools that generate them. When the ``&cell`` field selects a cell different from the one the
+   strain-force calculations were done for (for instance an enlarged cell chosen to condense a
+   zone-boundary instability), ``strain_force.in`` must either carry the ``&reference_cell``
+   header, so that its rows can be mapped onto the atoms of that cell, or already contain one
+   row per atom of that cell in its order; ``elastic_constants.in`` and ``C1_array.in`` in GPa
+   need no change.
 
 
 ````
 
+.. _anphon_cell_field:
+
 "&cell"-field
 +++++++++++++
 
-Please specify the cell parameters of the *primitive cell* as::
+This field gives the unit cell used by *anphon*. It can be omitted when ``FCSFILE`` is an HDF5 file
+(``PREFIX``.h5): the primitive cell defined in the *alm* calculation, which is stored in that file, is then used.
+With an XML file (``PREFIX``.xml), the field is required.
+
+When the field is given, it replaces the cell stored in ``FCSFILE``.
+The cell must be either the true primitive cell or a supercell of it, such as the conventional cell,
+so that the supercell of the *alm* calculation consists of whole copies of it.
+Otherwise *anphon* stops with an error.
+
+The cell parameters are given as::
 
  &cell
   a
@@ -843,6 +1993,8 @@ The cell parameters are then given by :math:`\vec{a}_{1} = a \times (a_{11}, a_{
  here for the primitive cell.
 
 ````
+
+.. _anphon_kpoint_field:
 
 "&kpoint"-field
 +++++++++++++++
@@ -891,23 +2043,35 @@ The first entry **KPMODE** specifies the types of calculation which is followed 
 
 ````
 
-"&strain"-field (Read only when ``RELAX_STR = 2``)
-+++++++++++++++++
+.. _anphon_strain_field:
 
-Please specify the initial displacement gradient tensor :math:`u_{\mu \nu}` for structural optimization as ::
+"&strain"-field (Read when ``RELAX_STR = 2, 3, 4``; optional when ``MODE = phonons`` with ``NEWFCS = 1``)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- &cell
+Please specify the displacement gradient tensor :math:`u_{\mu \nu}` as ::
+
+ &strain
  u_xx u_xy u_xz
  u_yx u_yy u_yz
  u_zx u_zy u_zz
  /
 
-Note that a user need to give a symmetric matrix.
+Note that the user needs to give a symmetric matrix.
 
-"&displace"-field (Read only when ``RELAX_STR = 1, 2``)
-+++++++++++++++++
+When ``RELAX_STR = 2``, this field gives the initial strain for structural optimization; when ``RELAX_STR = 4``, the fixed strain.
+When ``MODE = phonons`` with :ref:`NEWFCS <anphon_newfcs>` = 1, this field is optional: if given,
+the force constants of the systems strained by :math:`+u` and :math:`-u` are estimated and saved
+to ``PREFIX``\_+.h5/``PREFIX``\_-.h5 (or the XML pair with ``FILE_FORMAT = text``). This is the
+recommended way to specify the deformation for ``NEWFCS = 1``.
+
+.. _anphon_displace_field:
+
+"&displace"-field (Read when ``RELAX_STR`` is nonzero; optional)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bohr].
+This field is optional: when it is absent (or empty), the structural optimization starts from the undistorted positions.
+Note that a zero initial displacement keeps the full symmetry of the reference structure, so a symmetry-breaking distortion never appears spontaneously; give a small displacement along the soft mode (most conveniently with ``DISPMODE = 2``) to allow it.
 
 * **DISPMODE = 0** : Fractional coordinate representation
 
@@ -940,27 +2104,152 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
    ...
   /
 
+* **DISPMODE = 2** : Normal-mode representation
+
+ Each line after DISPMODE (= 2) displaces the atoms along one :math:`\Gamma`-point normal mode of the harmonic force constants. The lines are added up, so a linear combination of modes can be given.
+ ::
+
+  &displace
+   2
+   branch  amplitude  [nx ny nz]
+   ...
+  /
+
+ * ``branch`` is the 1-based branch index at :math:`\Gamma` in ascending order of the harmonic frequency (unstable modes come first), as printed in the anphon outputs. Any member of a degenerate set selects the whole set.
+ * ``amplitude`` [Bohr] is the largest atomic displacement of the pattern. The pattern is oriented so that its largest Cartesian component is positive; a negative amplitude reverses it.
+ * ``nx ny nz`` is required for a degenerate branch and ignored otherwise. It is a symmetry axis of the reference structure (Cartesian coordinates) that the distortion keeps: the pattern is the member of the degenerate set that is invariant under a proper rotation about this axis. The eigenvectors of a degenerate subspace returned by the diagonalization are arbitrary, but this member is not. A polar mode transforms as a vector and an octahedral tilt as an axial vector, so the same axes select the analogous patterns for both.
+
+ Examples. For cubic BaTiO\ :sub:`3`, the soft polar triplet with axis ``0 0 1``, ``1 1 0``, and ``1 1 1`` gives the tetragonal, orthorhombic, and rhombohedral distortions; for the folded tilt triplet of SrTiO\ :sub:`3` in a 2x2x2 cell, the same axes give the a\ :sup:`0`\ a\ :sup:`0`\ c\ :sup:`-`, a\ :sup:`0`\ b\ :sup:`-`\ b\ :sup:`-`, and a\ :sup:`-`\ a\ :sup:`-`\ a\ :sup:`-` tilt patterns::
+
+   1  0.03  0 0 1
+   1  0.03  1 1 0
+   1  0.03  1 1 1
+
+ The resolved Cartesian displacements, the degenerate set, and the rotation used are printed at the beginning of the log. anphon stops with an error when the reference structure has no rotation about the axis, when no member of the set is invariant (the axis is incompatible with the mode), or when several members are (choose a higher-order axis). When rotations about the same axis through different points select distinct patterns that are not symmetry-equivalent domains, the candidates are printed as ``DISPMODE = 1`` lines and the run stops so that one of them can be given explicitly.
+
+.. _anphon_selfenergy_field:
+
+"&selfenergy"-field (``MODE = selfenergy``)
+++++++++++++++++++++++++++++++++++++++++++++
+
+``MODE = selfenergy`` analyzes the anharmonic self-energy of selected phonon modes at arbitrary wave vectors. It shares the setup of ``MODE = kappa`` (harmonic and cubic force constants, smearing or tetrahedron integration, temperatures), but the ``&kpoint`` field lists the *target* wave vectors and the integration mesh is given here::
+
+  &general
+    MODE = selfenergy
+  /
+  &kpoint
+    0                      # KPMODE 0: list of target q points
+    0.0 0.0 0.0
+    0.15 0.2 0.3
+  /                        # or KPMODE 1: a band path, every point of the path is a target
+  &selfenergy
+    KMESH = 20 20 20       # integration mesh
+    BRANCHES = all         # or a list such as 1,4-6 (1-based), applied to every target
+    LINEWIDTH = 1          # Gamma(T), files PREFIX.Gamma.[n]     (as SELF_ENERGY)
+    SHIFT = 0              # frequency shift, PREFIX.Shift.[n]    (as REALPART)
+    SELF_W = 0             # Sigma(omega, T), PREFIX.Self.[n]      (tetrahedron only)
+    FSTATE_W = 0           # frequency-resolved final state, PREFIX.fw.[n]
+    PRINTV3 = 0; PRINTV4 = 0
+    INTERPOLATE = 0        # 1: spectral function from the Fourier-interpolated self-energy matrix
+    KMESH_COARSE = 5 5 5   # coarse mesh for INTERPOLATE (must divide KMESH)
+    OMEGA_RANGE = 300 600 0.5   # frequency window and step for INTERPOLATE [cm^-1]
+  /
+
+At least one output must be requested; ``LINEWIDTH = 0`` suppresses the linewidth output, for example when only the frequency shift is needed.
+
+With ``INTERPOLATE = 1`` the full bubble self-energy matrix :math:`\Sigma_{jj'}(\mathbf{q},\omega)` (Lorentzian broadening ``EPSILON``) is computed on the coarse mesh, transformed to the displacement basis where it does not depend on the eigenvector gauge, Fourier-interpolated to every target wave vector, and the spectral function :math:`A(\mathbf{q},\omega) = -\frac{2\omega}{\pi}\,\mathrm{Im}\,\mathrm{Tr}\,[\omega^2 - D(\mathbf{q}) - \Pi(\mathbf{q},\omega)]^{-1}` and its branch projections are written (``PREFIX.spectrum`` or the ``spectrum/`` group of the HDF5 file). The interpolation is exact on the coarse-mesh points; between them the accuracy is set by the coarse mesh, so compare with the direct linewidths of a few targets. The cost grows with the number of coarse points and frequencies; ``OMEGA_RANGE`` restricts the window (default: 0 to twice the highest frequency in steps of ``DELTA_E``).
+
+With the default ``FILE_FORMAT = h5`` the results of all targets are collected in one file ``PREFIX.selfenergy.h5`` (group ``targets/NNNNN`` per target in the order of the ``&kpoint`` field and ``BRANCHES``, with ``xk``, ``branch``, ``frequency``, ``kaxis`` for a path, ``linewidth``, ``shift_*``, ``self_omega``/``self_real``/``self_imag``, ``fstate_*``, and units as attributes; the path coordinates are repeated under ``path/``). With ``FILE_FORMAT = text`` the per-target text files of the ``KS_INPUT`` analysis are written instead. The matrix-element listings (``PRINTV3``/``PRINTV4``) are always text files.
+
+Targets that fall on the integration mesh are evaluated as in the ``KS_INPUT`` analysis. Targets off the mesh are evaluated exactly on the same mesh by diagonalizing the dynamical matrix on the shifted grid :math:`\{\mathbf{q}-\mathbf{k}\}`; every mesh point then contributes once and, for the matrix-element listings, the partners are keyed by their fractional coordinates. ``QUARTIC = 2`` is not available off the mesh, and ``ISMEAR = 2`` cannot be used off the mesh. For a degenerate target branch the linewidth, the shifts, and :math:`\Sigma(\omega)` are averaged over the degenerate block, which makes them independent of the eigenvector gauge; ``FSTATE_W`` and the matrix-element listings remain per branch. Output files are numbered with the on-mesh targets first, then the off-mesh ones, in the order of the ``&kpoint`` field and ``BRANCHES``; the header of each file gives the wave vector and branch. ``KS_INPUT`` in ``&analysis`` remains available with ``MODE = kappa`` and accepts off-mesh points under the same restrictions.
+
+````
 
 "&analysis"-field
 +++++++++++++++++
 
 .. _anphon_gruneisen:
 
-* GRUNEISEN-tag = 0 | 1
+* GRUNEISEN-tag = 0 | 1 | 2 | 3
 
  === ===================================================================
   0   Gr\ |umulaut_u|\ neisen parameters will not be calculated
-  1   Gr\ |umulaut_u|\ neisen parameters will be stored
+  1   Volumetric Gr\ |umulaut_u|\ neisen parameters
+      :math:`\gamma_{\boldsymbol{q}j} = -\partial \log\omega_{\boldsymbol{q}j}/\partial \log V`
+      will be stored
+  2   Generalized Gr\ |umulaut_u|\ neisen parameters for the diagonal
+      strain components (xx, yy, zz) will be stored
+  3   Generalized Gr\ |umulaut_u|\ neisen parameters for all 6 strain
+      components (xx, yy, zz, yz, xz, xy) will be stored
  === ===================================================================
 
  :Default: 0
  :Type: Integer
- :Description:  When ``MODE = phonons`` and ``GRUNEISEN = 1``, Gr\ |umulaut_u|\ neisen parameters will be stored in ``PREFIX``.gru (*KPMODE* = 1) or ``PREFIX``.gru_all (*KPMODE* = 2).
+ :Description:  When ``MODE = phonons`` and ``GRUNEISEN >= 1``, Gr\ |umulaut_u|\ neisen parameters will be stored in ``PREFIX``.gru_kpoints (*KPMODE* = 0), ``PREFIX``.gruneisen (*KPMODE* = 1), or ``PREFIX``.gru_all (*KPMODE* = 2). ``GRUNEISEN = 1`` computes the volumetric parameters :math:`\gamma_{\boldsymbol{q}j} = -\frac{\partial \log{\omega_{\boldsymbol{q}j}}}{\partial \log{V}}`. ``GRUNEISEN = 2`` and ``3`` compute the generalized parameters :math:`\gamma_{\boldsymbol{q}j}^{\mu\nu} = -\frac{\partial \log{\omega_{\boldsymbol{q}j}}}{\partial \varepsilon_{\mu\nu}}` for the diagonal or all 6 symmetric strain components, respectively, and the output files change to a long format with one line per (*k* point, branch) containing the phonon frequency and the strain components. The volumetric value equals one third of the trace, :math:`\gamma_{\boldsymbol{q}j} = (\gamma_{\boldsymbol{q}j}^{xx}+\gamma_{\boldsymbol{q}j}^{yy}+\gamma_{\boldsymbol{q}j}^{zz})/3`. See :ref:`this page <formalism_gruneisen>` for the formalism.
 
 .. Note::
 
- To compute Gr\ |umulaut_u|\ neisen parameters, cubic force constants must be contained in the ``FCSXML`` file.
+ To compute Gr\ |umulaut_u|\ neisen parameters, cubic force constants must be contained in the ``FCSFILE`` file.
 
+
+````
+
+.. _anphon_delta_a:
+
+* DELTA_A-tag : Magnitude of the isotropic strain used by ``NEWFCS = 1``
+
+ :Default: 0.001
+ :Type: Double
+ :Description: When ``NEWFCS = 1`` and the ``&strain`` field is not given, the force constants are
+               estimated for the isotropic strains :math:`\pm` ``DELTA_A``.
+
+````
+
+.. _anphon_newfcs:
+
+* NEWFCS-tag = 0 | 1
+
+ === ===================================================================
+  0   Do not estimate force constants of deformed systems
+  1   Estimate force constants of deformed systems and save them
+      as ``PREFIX``\_+.h5 and ``PREFIX``\_-.h5 (XML with ``FILE_FORMAT = text``)
+ === ===================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``MODE = phonons`` and ``NEWFCS = 1``, the harmonic (and, when ``QUARTIC = 1``, cubic) force constants of deformed systems are estimated from the cubic (and quartic) force constants in ``FCSFILE`` and saved as ``PREFIX``\_+.h5 and ``PREFIX``\_-.h5 (or ``PREFIX``\_+.xml and ``PREFIX``\_-.xml with ``FILE_FORMAT = text``, or in a build without HDF5 support). The strain tensor :math:`u` should be specified in the ``&strain`` field; it is applied as :math:`+u` and :math:`-u` in the two created files. When the ``&strain`` field is not given, a small isotropic strain of :math:`\pm` :ref:`DELTA_A <anphon_delta_a>` is applied. The created files contain the deformed lattice vectors and the corrected force constants, and can be used directly as ``FCSFILE`` of subsequent phonon calculations. Since each created file carries a single supercell structure, all force constants must come from ``FCSFILE``; when ``FC2FILE`` or ``FC3FILE`` is given, the files are not written and a warning is printed.
+
+````
+
+.. _anphon_sublattice_relax:
+
+* SUBLATTICE_RELAX-tag = 0 | 1
+
+ === ===================================================================
+  0   Clamped-ion strain derivatives: only the affine (homogeneous)
+      deformation of the atomic positions is considered
+  1   Relaxed-ion strain derivatives: the strain-induced internal
+      (sublattice) displacements are additionally included
+ === ===================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: Selects the clamped-ion or relaxed-ion path of the strain derivatives used by :ref:`GRUNEISEN <anphon_gruneisen>` and :ref:`NEWFCS <anphon_newfcs>`. With ``SUBLATTICE_RELAX = 1``, the internal coordinates are relaxed to first order in the strain: the sublattice displacement response :math:`X = -\mathsf{K}^{+}\Lambda` is computed from the harmonic force constants, the strain derivatives of the IFCs gain the internal-strain leg, and the structures written by ``NEWFCS`` carry the induced internal displacements. The relaxed-ion path is normally the relevant one for quasiharmonic properties of crystals with internal structural parameters; the two paths coincide when symmetry forbids strain-induced internal displacements (e.g. under hydrostatic strain in diamond-structure crystals).
+
+````
+
+.. _anphon_printeval:
+
+* PRINTEVAL-tag = 0 | 1
+
+ === ===================================================================
+  0   Do not print phonon frequencies to separate files
+  1   Print phonon frequencies (eigenvalues) to files
+ === ===================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``PRINTEVAL = 1``, the phonon frequencies are saved in ``PREFIX``.eval (*KPMODE* = 0), ``PREFIX``.band.eval (*KPMODE* = 1), and ``PREFIX``.mesh.eval (*KPMODE* = 2). The file format follows :ref:`FILE_FORMAT <anphon_file_format>`: the default ``h5`` writes the corresponding \*.eval.h5 files (schema ``alamode:eigenvalues``) instead of the text files; ``FILE_FORMAT = text`` (or a build without HDF5 support) writes the plain-text files.
 
 ````
 
@@ -975,6 +2264,17 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
 
  :Default: 0
  :Type: Integer
+ :Description: The file format follows :ref:`FILE_FORMAT <anphon_file_format>`: the default ``h5`` writes ``PREFIX``\ [.band|.mesh].evec.h5 (schema ``alamode:eigenvectors``); ``FILE_FORMAT = text`` (or a build without HDF5 support) writes the plain-text ``PREFIX``\ [.band|.mesh].evec files.
+
+````
+
+.. _anphon_projection_axes:
+
+* PROJECTION_AXES-tag = e1x e1y e1z [, e2x e2y e2z]
+
+ :Default: None
+ :Type: Array of doubles (one or two vectors separated by a comma)
+ :Description: When given, the eigenvectors of degenerate phonon modes are transformed within each degenerate subspace so that they align with the specified direction(s), which are given in Cartesian coordinates. Up to two axes can be given, separated by a comma; additional entries are ignored with a warning. This option affects the outputs that depend on eigenvectors, such as :ref:`PRINTEVEC <anphon_printevec>` and :ref:`ANIME <anphon_anime>`.
 
 ````
 
@@ -1015,12 +2315,27 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
 
  === ===================================================================
   0   Do not print mean-square-displacement (MSD) of atoms
-  1   Save MSD of atoms to the file ``PREFIX``.mds
+  1   Save MSD of atoms to the file ``PREFIX``.msd
  === ===================================================================
  
  :Default: 0
  :Type: Integer
  :Description: This flag is available only when ``MODE = phonons`` and *KPMODE* = 2.
+
+````
+
+.. _anphon_dos:
+
+* DOS-tag = 0 | 1
+
+ === ===================================================================
+  0   Do not compute the phonon DOS
+  1   The total phonon DOS is computed and stored in ``PREFIX``.dos
+ === ===================================================================
+
+ :Default: 1
+ :Type: Integer
+ :Description: This flag is available only when ``MODE = phonons`` and *KPMODE* = 2. Set ``DOS = 0`` to skip the DOS calculation. See also :ref:`PDOS <anphon_pdos>`.
 
 ````
 
@@ -1031,6 +2346,22 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
  === ===================================================================
   0   Only the total DOS will be printed in ``PREFIX``.dos
   1   Atom-projected phonon DOS will be stored in ``PREFIX``.dos
+ === ===================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: This flag is available only when ``MODE = phonons`` and *KPMODE* = 2.
+
+````
+
+.. _anphon_longitudinal_dos:
+
+* LONGITUDINAL_DOS-tag = 0 | 1
+
+ === ===================================================================
+  0   Do not compute the longitudinal-projected DOS
+  1   The phonon DOS projected onto the longitudinal direction
+      (polarization parallel to the wave vector) is stored in ``PREFIX``.longitudinal_dos
  === ===================================================================
 
  :Default: 0
@@ -1094,76 +2425,6 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
 
 ````
 
-.. _anphon_kappa_coherent:
-
-* KAPPA_COHERENT-tag = 0 | 1 | 2
-
- === ====================================================================================
-  0    Do not compute the coherent component of thermal conductivity
-  1    Compute the coherent component of thermal conductivity and save it in ``PREFIX``.kl_coherent.
-  2  | In addition to above (``KAPPA_COHERENT = 1``), all elements of the coherent term
-     | are saved in ``PREFIX``.kc_elem.
- === ====================================================================================
- 
- :Default: 0
- :Type: Integer
- :Description: This flag is available when ``MODE = RTA``. For the theoretical details, please see :ref:`this page <kappa_coherent>`.
-
- .. caution::
-
-     Still experimental. Please check the validity of results carefully.
-
-
-````
-
-.. _anphon_kappa_spec:
-
-* KAPPA_SPEC-tag = 0 | 1
-
- === ====================================================================================
-  0   Do not compute the thermal conductivity spectra
-  1   Compute the thermal conductivity spectra, which will be 
-      stored in  ``PREFIX``.kappa_spec .
- === ====================================================================================
- 
- :Default: 0
- :Type: Integer
- :Description: This flag is available when ``MODE = RTA``.
-
-
-````
-
-.. _anphon_isotope:
-
-* ISOTOPE-tag = 0 | 1
-
- === =========================================================================
-  0   Do not consider phonon-isotope scatterings
-  1   Consider phonon-isotope scatterings
-  2   | Consider phonon-isotope scatterings as in ``ISOTOPE = 1`` and 
-      | the calculated selfenergy is stored in ``PREFIX``.gamma_isotope
- === =========================================================================
- 
- :Default: 0
- :Type: Integer
- :Description: When ``MODE = RTA`` and ``ISOTOPE = 1 or 2``, phonon scatterings due to isotopes will be considered perturbatively. ``ISOFACT`` should be properly given.
-
-````
-
-.. _anphon_isofact:
-
-* ISOFACT-tag = isofact[1], ... , isofact[``NKD``]
-
- :Default: Automatically calculated from the ``KD`` tag
- :Type: Array of doubles
- :Description: Isotope factor is a dimensionless value defined by :math:`\sum_{i} f_{i} (1 - m_{i}/\bar{m})^{2}`. 
-               Here, :math:`f_{i}` is the fraction of the :math:`i`\ th isotope of an element having mass :math:`m_{i}`, 
-               and :math:`\bar{m}=\sum_{i}f_{i}m_{i}` is the average mass, respectively. 
-               This quantity is equivalent to :math:`g_{2}` appearing in the original paper by S. Tamura [Phys. Rev. B, 27, 858.].
-
-
-````
-
 .. _anphon_ucorr:
 
 * UCORR-tag = 0 | 1
@@ -1191,6 +2452,24 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
 
 ````
 
+.. _anphon_irreps:
+
+* IRREPS-tag = 0 | 1
+
+ === =========================================================================
+  0   Do nothing
+  1   | Assign irreducible representations (Mulliken symbols) and IR/Raman
+      | activities to the phonon modes at the Gamma point.
+      | The result is stored in ``PREFIX``.irreps
+ === =========================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``MODE = phonons`` and ``IRREPS = 1``, each zone-center phonon multiplet is assigned an irreducible representation of the crystal point group by projecting the eigenvectors of the analytic (without the non-analytic correction) dynamical matrix onto the characters of the point-group operations. Each multiplet is labeled as IR-active, Raman-active, both, silent, or acoustic, and the decomposition of the total vibrational representation is printed. When ``BORNINFO`` is given, the IR oscillator-strength tensors :math:`S_{\alpha\beta} = \sum_{\nu} Z^{*}_{\nu,\alpha} Z^{*}_{\nu,\beta}` (unit: :math:`e^{2}\,\text{amu}^{-1}`) are also reported. Labels that depend on the axis convention (e.g. :math:`B_{1}` vs. :math:`B_{2}`) follow the standardized frame reported in the output; the raw characters are printed so that labels can be re-derived under any other convention. This tag is effective only when ``MODE = phonons`` and is not supported for noncollinear magnetic systems.
+
+
+````
+
 .. _anphon_zmode:
 
 * ZMODE-tag = 0 | 1
@@ -1208,22 +2487,165 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
 
 ````
 
-.. .. _anphon_fe_bubble:
+.. _anphon_dielec:
 
-.. * FE_BUBBLE-tag = 0 | 1
+* DIELEC-tag = 0 | 1
 
-..  === ====================================================================================
-..   0   Do not compute the vibrational free-energy associated with the bubble diagram
-..   1   | Compute the vibrational free-energy associated with the bubble diagram and 
-..       | save it in ``PREFIX``.thermo (when ``MODE = phonons``) or ``PREFIX``.scph_thermo (when ``MODE = SCPH``).
-..  === ====================================================================================
- 
-..  :Default: 0
-..  :Type: Integer
-..  :Description: This tag is used when *KPMODE* = 2.
+ === =========================================================================
+  0   Do nothing
+  1   Compute the frequency-dependent dielectric function
+ === =========================================================================
 
+ :Default: 0
+ :Type: Integer
+ :Description: When ``DIELEC = 1``, the phonon contribution to the frequency-dependent dielectric function :math:`\epsilon(\omega)` is computed from the Born effective charges and the zone-center phonon modes and saved in ``PREFIX``.dielec (``MODE = phonons``). ``BORNINFO`` must be given. When ``MODE = SCPH`` (``QHA``), the dielectric function is computed with the temperature-renormalized phonon frequencies and saved in ``PREFIX``.scph_dielec (``PREFIX``.qha_dielec).
 
-.. ````
+````
+
+.. _anphon_quartic:
+
+* QUARTIC-tag = 0 | 1 | 2
+
+ === ====================================================================================
+  0   Quartic force constants are not used.
+  1   | Read the quartic force constants and enable the quartic terms.
+      | ``QUARTIC = 1`` is set automatically when ``MODE = SCPH`` or ``MODE = QHA``.
+  2   | In the mode analysis (:ref:`KS_INPUT <anphon_ks_input>`), additionally compute
+      | the contribution of a specific four-phonon diagram to the linewidth (expensive).
+ === ====================================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``QUARTIC = 1``, the quartic force constants are read from ``FCSFILE`` (or ``FC4FILE``). In the mode analysis with ``REALPART = 1``, the frequency shift due to the loop diagram of the quartic anharmonicity is then computed in addition to the third-order terms. The former role of ``QUARTIC`` as the switch of four-phonon scattering in ``MODE = kappa`` is deprecated in favor of :ref:`INCLUDE_4PH <anphon_include_4ph>`; ``QUARTIC > 0`` without ``INCLUDE_4PH`` still enables it, with a warning.
+
+````
+
+.. _anphon_ks_input:
+
+* KS_INPUT-tag : File containing a list of phonon modes to be analyzed (deprecated)
+
+ :Default: None
+ :Type: String
+ :Description: Deprecated in favor of ``MODE = selfenergy`` (targets in ``&kpoint``, integration mesh and switches in ``&selfenergy``), which also accepts wave vectors off the mesh and band paths. When ``MODE = kappa`` and ``KS_INPUT`` is given, the mode analysis of the phonon modes listed in the specified file is performed *instead of* the thermal conductivity calculation. The first line of the file gives the number of entries, and each of the following lines contains the fractional coordinates of a :math:`k` point and a branch index (1-based) as ``k1 k2 k3 s``. Each :math:`k` point must be a point of the grid given in the ``&kpoint`` field (*KPMODE* = 2). The quantities to be computed are selected by :ref:`SELF_ENERGY <anphon_self_energy>`, :ref:`REALPART <anphon_realpart>`, :ref:`SELF_W <anphon_self_w>`, :ref:`PRINTV3 <anphon_printv3>`, and :ref:`PRINTV4 <anphon_printv4>`.
+
+````
+
+.. _anphon_self_energy:
+
+* SELF_ENERGY-tag = 0 | 1
+
+ === =========================================================================
+  0   Do nothing
+  1   | Compute the temperature dependence of the phonon linewidth for
+      | the modes given in ``KS_INPUT``
+ === =========================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: For each mode listed in :ref:`KS_INPUT <anphon_ks_input>`, the linewidth (FWHM = :math:`2\Gamma`) due to three-phonon interactions is computed as a function of temperature and saved in ``PREFIX``.Gamma.[number]. With ``QUARTIC = 2``, contributions of specific four-phonon diagrams are appended. When ``REALPART = 1``, the frequency shift is also computed and saved in ``PREFIX``.Shift.[number].
+
+````
+
+.. _anphon_realpart:
+
+* REALPART-tag = 0 | 1
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``REALPART = 1`` is used with :ref:`KS_INPUT <anphon_ks_input>` and ``SELF_ENERGY = 1``, the real part of the phonon self-energy --- the frequency shift due to the tadpole and bubble diagrams of the cubic anharmonicity and, if ``QUARTIC = 1``, the loop diagram of the quartic anharmonicity --- is computed and saved in ``PREFIX``.Shift.[number]. This option works only with ``ISMEAR = 0``.
+
+````
+
+.. _anphon_self_w:
+
+* SELF_W-tag = 0 | 1
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``SELF_W = 1`` is used with :ref:`KS_INPUT <anphon_ks_input>`, the frequency dependence of the three-phonon (bubble) self-energy is computed at each temperature for the modes listed in ``KS_INPUT`` and saved in ``PREFIX``.Self.[number], from which spectral functions can be obtained. This option works only with the tetrahedron method (``ISMEAR = -1``).
+
+````
+
+.. _anphon_printv3:
+
+* PRINTV3-tag = 0 | 1 | 2
+
+ === ===================================================================
+  0   Do nothing
+  1   Print :math:`|V_{3}|^{2}` matrix elements in ``PREFIX``.V3.[number]
+  2   Print :math:`\Phi_{3}` matrix elements in ``PREFIX``.Phi3.[number]
+ === ===================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: For each mode listed in :ref:`KS_INPUT <anphon_ks_input>`, the three-phonon matrix elements involving the mode are printed. ``PRINTV3 = 1`` prints the squared elements :math:`|V_{3}(-qj; q'j', q''j'')|^{2}` in units of cm\ :sup:`-2`, while ``PRINTV3 = 2`` prints the complex elements :math:`\Phi_{3}(qj; q'j', q''j'')` in units of Ry/(u\ :sup:`1/2` Bohr)\ :sup:`3`.
+
+````
+
+.. _anphon_printv4:
+
+* PRINTV4-tag = 0 | 1 | 2
+
+ === ===================================================================
+  0   Do nothing
+  1   Print :math:`|V_{4}|^{2}` matrix elements in ``PREFIX``.V4.[number]
+  2   Print :math:`\Phi_{4}` matrix elements in ``PREFIX``.Phi4.[number]
+ === ===================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: Same as :ref:`PRINTV3 <anphon_printv3>`, but for the four-phonon matrix elements :math:`|V_{4}(-qj; q_1 j_1, q_2 j_2, q_3 j_3)|^{2}` (in cm\ :sup:`-2`) and :math:`\Phi_{4}` (in Ry/(u\ :sup:`1/2` Bohr)\ :sup:`4`). The quartic force constants are required (``QUARTIC = 1``).
+
+````
+
+.. _anphon_fc2_ewald:
+
+* FC2_EWALD-tag = 0 | 1
+
+ === ====================================================================================
+  0   Do nothing
+  1   | Print the dipole-dipole and short-range components of the harmonic
+      | force constants in ``PREFIX``.fc2_ewald
+ === ====================================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: Available only when ``NONANALYTIC = 3``. For each pair of atoms, the original harmonic force constant, its dipole-dipole (Ewald) part, and the short-range remainder are printed, which is useful for checking the long-range separation of the harmonic force constants.
+
+````
+
+.. _anphon_fe_bubble:
+
+* FE_BUBBLE-tag = 0 | 1
+
+ === ====================================================================================
+  0   Do nothing
+  1   | Compute the bubble correction to the vibrational free energy and save it
+      | in ``PREFIX``.thermo (``MODE = phonons``) or ``PREFIX``.scph_thermo (``MODE = SCPH``)
+ === ====================================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``FE_BUBBLE = 1``, the lowest-order correction of the cubic anharmonicity to the
+               vibrational free energy, which comes from the bubble diagram (see
+               :ref:`formalism_fe_bubble`), is computed on the uniform :math:`k` mesh of the ``&kpoint`` field.
+               The cubic force constants are needed, and the tag works only with ``MODE = phonons`` and
+               ``MODE = SCPH``.
+               With ``MODE = phonons``, *KPMODE* = 2 is required, and the harmonic phonons are used at all
+               temperatures. The result is written in the last column, "Free energy (Bubble)", of
+               ``PREFIX``.thermo. It is not included in the column "Free energy (QHA)", so the free energy
+               including the bubble correction is the sum of the two columns.
+               With ``MODE = SCPH``, *KPMODE* = 2 is also required, and the bubble correction is computed with the SCPH frequencies and eigenvectors of each temperature interpolated from
+               ``KMESH_INTERPOLATE`` onto the ``&kpoint`` mesh. The result is written in the column
+               "F_{vib} (Bubble correction)" of ``PREFIX``.scph_thermo and is included in the column
+               "F_{total}". In both modes, the heat capacity and the entropy do not include the bubble
+               contribution. With ``CLASSICAL = 1``, the classical occupation factors are used.
+               ``FE_BUBBLE = 1`` cannot be combined with ``RELAX_STR`` :math:`\neq` 0, and therefore not with
+               ``MODE = QHA`` either.
+               The computational cost grows as :math:`N_{q}^{2}`, where :math:`N_{q}` is the number of
+               :math:`k` points of the mesh.
+
+````
 
 .. _anphon_anime:
 
@@ -1261,13 +2683,437 @@ Please specify the initial atomic displacements :math:`u^{(0)}_{\alpha \mu}` [Bo
 
 .. _anphon_anime_format:
 
-* ANIME_FORMAT = xsf | xyz
+* ANIME_FORMAT-tag = xsf | xyz
 
  :Default: xyz
  :Type: String
  :Description: When ``ANIME_FORMAT = xsf``, ``PREFIX``.anime???.axsf files are created for XcrySDen.
                When ``ANIME_FORMAT = xyz``, ``PREFIX``.anime???.xyz files are created for VMD (and any other supporting software such as Jmol).
 
+
+````
+
+"&kappa"-field (Read only when ``MODE = kappa``)
+++++++++++++++++++++++++++++++++++++++++++++++++
+
+In version 1.x, ``ISOTOPE``, ``ISOFACT``, ``KAPPA_SPEC``, and ``KAPPA_COHERENT`` were given in the ``&analysis`` field.
+They now belong to the ``&kappa`` field, and an old input file that keeps them in ``&analysis`` stops with an error.
+
+.. _anphon_solver:
+
+* SOLVER-tag : Solver level of the Boltzmann transport equation
+
+ ====== ========================================================================
+  RTA    Relaxation-time approximation (single-mode approximation)
+  IBTE   Iterative solution of the linearized BTE (result in ``PREFIX``.kl_iter)
+  VBTE   Variational solution by preconditioned conjugate gradients
+         (result in ``PREFIX``.kl_iter)
+  DBTE   Direct solution: dense eigendecomposition of the collision kernel
+         (diagnostic; small meshes; result in ``PREFIX``.kl_iter)
+ ====== ========================================================================
+
+ :Default: RTA
+ :Type: String
+ :Description: Case insensitive. For the theoretical background of the three
+               non-RTA solvers, please see :ref:`this page <kappa_beyond_rta>`.
+               The ``IBTE`` iteration is controlled by
+               :ref:`MIN_CYCLE <anphon_min_cycle>`, :ref:`MAX_CYCLE <anphon_max_cycle>`,
+               :ref:`ITER_THRESHOLD <anphon_iter_threshold>`, and
+               :ref:`IBTE_MIXING <anphon_ibte_mixing>`. With the default
+               ``FILE_FORMAT = h5``, the per-temperature results are stored in
+               the ``/iterativebte`` group of ``PREFIX``.kappa.h5 and an
+               interrupted temperature sweep restarts from the missing
+               temperatures (``RESTART = 0`` forces a recomputation).
+               Temperatures whose iteration hits ``MAX_CYCLE`` or diverges are
+               reported and flagged as unconverged (also in a comment line of
+               ``PREFIX``.kl_iter, with the lowest-residual iterate kept); a
+               restart continues their iteration from the stored deviation
+               function instead of skipping them.
+
+ ``IBTE`` and ``VBTE`` stop when the relative residual of the linear system,
+ :math:`\|b - A F\| / \|b\|`, falls below ``ITER_THRESHOLD`` (default
+ :math:`10^{-4}`); temperatures that do not reach it are flagged as unconverged in
+ the log, in ``PREFIX``.kl_iter and in ``/iterativebte/converged`` of
+ ``PREFIX``.kappa.h5.
+
+ The non-RTA solvers work with velocities averaged over degenerate modes.
+ The intra-block part of the velocity diad, :math:`\mathrm{Tr}(P V^{\alpha} P V^{\beta}) - d\,\bar{v}^{\alpha}\bar{v}^{\beta}`
+ for a degenerate block :math:`P` of dimension :math:`d`, which the RTA includes
+ through the velocity-matrix block traces, is added to kappa at the RTA level
+ (in Si it raises kappa by 0.7 % at a 16x16x16 mesh and 0.4 % at 24x24x24).
+
+ ``SOLVER = VBTE`` solves the same linearized BTE as ``IBTE`` by
+ preconditioned conjugate gradients (CG) in the star-weighted inner product.
+ The operator is self-adjoint for fixed-width smearing (``ISMEAR = 0, 1``), and
+ kappa, the value of the variational functional, then has an error quadratic in
+ the residual, so CG usually needs fewer operator applications than ``IBTE``.
+ The tetrahedron and adaptive weights (``ISMEAR = -1, 2``) make the discretized
+ operator slightly non-symmetric, and CG then stagnates or breaks down at low
+ temperature and in normal-process-dominated crystals. For these kernels
+ ``VBTE`` uses the BiCGSTAB method instead (two operator applications per
+ iteration, kappa error linear in the residual), which converged in 3-11
+ iterations per temperature in Si (20-1000 K) and BAs (100-1000 K), where
+ ``IBTE`` needs up to about 70 iterations. With fixed-width smearing, ``VBTE``
+ falls back to BiCGSTAB if CG fails. ``MIN_CYCLE`` and ``IBTE_MIXING`` are not
+ used by ``VBTE``. All non-RTA solvers share the ``/iterativebte`` restart state
+ in ``PREFIX``.kappa.h5.
+
+ ``SOLVER = DBTE`` is a diagnostic solver: it assembles the collision kernel
+ on the irreducible wedge as an explicit dense matrix - restricted to the
+ degeneracy-reduced, little-group-invariant basis, in the Omega normalization
+ whose diagonal is :math:`1/\tau` - symmetrizes it as :math:`(A + A^{T})/2`,
+ and computes its full eigendecomposition with LAPACK ``dsyevd`` on MPI rank 0
+ (multithreaded if the LAPACK library is, e.g. through ``MKL_NUM_THREADS``).
+ The symmetrization is exact for fixed-width smearing, where DBTE is the exact
+ reference for ``IBTE`` and ``VBTE``. With the tetrahedron or adaptive methods
+ DBTE solves the symmetrized kernel, a slightly different system: in Si it
+ differs from the ``IBTE``/``VBTE`` solution by 0.02-0.2 % at 100 K and above
+ (decreasing with the mesh density), but by several percent or more below about
+ 30 K. Temperatures at which the symmetrized kernel has negative eigenvalues are
+ flagged as unconverged. It reports what the matrix-free solvers cannot access: the
+ residual asymmetry of the discretized kernel, violations of positive
+ semidefiniteness (a direct probe of a too-coarse mesh or an inadequate
+ smearing width), the near-null part of the spectrum (scattering rates in
+ cm^-1) with its overlap onto the momentum-drift directions, and the
+ sensitivity of kappa to dropping the softest modes. All iterative-family
+ solvers use the detailed-balance-symmetric occupation kernel
+ (:math:`g_1 g_2 g_3` with :math:`g = \sqrt{n(n+1)}`, identical on the
+ energy shell to the raw occupation products), so for fixed-width smearing
+ the three solvers agree to their tolerances; with the tetrahedron or
+ adaptive methods a small residual difference remains from the direction
+ dependence of the integration weights. Memory scales with the square of the
+ reduced dimension; oversized problems abort with a clear message.
+
+ .. caution::
+
+     ``SOLVER = DBTE`` keeps the dense kernel on MPI rank 0 and is limited to
+     small k meshes (:math:`3 N_{k}^{\mathrm{irred}} N_{\mathrm{branch}} \le 25000`).
+     For production runs use ``IBTE`` or ``VBTE``.
+
+````
+
+.. _anphon_include_4ph:
+
+* INCLUDE_4PH-tag = 0 | 1
+
+ === ====================================================================================
+  0   Compute three-phonon scattering rates only
+  1   Additionally compute four-phonon scattering rates
+ === ====================================================================================
+
+ :Default: 0
+ :Type: Integer
+ :Description: The explicit switch for the four-phonon channel. It requires quartic
+               force constants (``FCSFILE`` containing Order4, or ``FC4FILE``) and
+               activates the FC4 machinery automatically; the related settings are
+               ``KMESH_COARSE``, ``ISMEAR_4PH``, ``EPSILON_4PH``, and
+               ``INTERPOLATOR``.
+
+               The quartic matrix elements of all band triples of a momentum-conserving
+               quartet are evaluated by successive eigenvector contractions of the
+               Fourier-transformed quartic force constants, so the cost per quartet grows
+               as :math:`(3N_{\mathrm{atom}})^4` and is independent of the number of
+               force-constant terms once they have been Fourier transformed. Band triples
+               outside the smearing window are discarded before any matrix element is
+               formed. ``VERBOSITY = 2`` prints a per-mode timing breakdown of the kernel.
+               The three-phonon matrix elements of the RTA and IBTE solvers are evaluated
+               by the same factorization (cost :math:`(3N_{\mathrm{atom}})^3` per
+               triplet for a fixed mode, :math:`(3N_{\mathrm{atom}})^4` for the
+               collision matrix), which matters for cells with more than a few atoms.
+               The dense contractions use Eigen; building with ``-DUSE_EIGEN_BLAS=ON``
+               routes them through the BLAS library, which is faster for large cells
+               (pin the BLAS thread count to 1, e.g. ``OPENBLAS_NUM_THREADS=1``, when
+               OpenMP threads are used).
+
+````
+
+.. _anphon_kmesh_coarse:
+
+* KMESH_COARSE-tag = k1, k2, k3
+
+ :Default: The same :math:`k` mesh as given in the ``&kpoint`` field
+ :Type: Array of integers
+ :Description: :math:`k` mesh used for evaluating the four-phonon scattering rates when ``INCLUDE_4PH = 1``. Because four-phonon calculations are far more expensive than three-phonon ones, a mesh coarser than that of the ``&kpoint`` field can be given here; the computed rates are then interpolated onto the dense mesh by the method selected with :ref:`INTERPOLATOR <anphon_interpolator>`.
+
+````
+
+.. _anphon_ismear_4ph:
+
+* ISMEAR_4PH-tag = -1 | 0 | 1 | 2
+
+ === ==========================================================================
+  -1  Not implemented for four-phonon scattering; automatically switched to 2
+  0   Lorentzian smearing with width of ``EPSILON_4PH``
+  1   Gaussian smearing with width of ``EPSILON_4PH``
+  2   Adaptive Gaussian smearing
+ === ==========================================================================
+
+ :Default: 1
+ :Type: Integer
+ :Description: Brillouin-zone integration method for the four-phonon scattering
+               rates (``INCLUDE_4PH = 1``), independent of the three-phonon
+               setting :ref:`ISMEAR <anphon_ismear>`. ``ISMEAR_4PH = 2`` uses the
+               same adaptive-broadening scheme as ``ISMEAR = 2``, generalized to
+               the three-mode energy denominators of the four-phonon processes
+               and evaluated on the (possibly coarser) mesh given by
+               ``KMESH_COARSE``; the width is scaled by
+               :ref:`ADAPTIVE_FACTOR <anphon_adaptive_factor>` and
+               ``EPSILON_4PH`` is not used. Adaptive smearing is recommended for
+               the coarse four-phonon meshes, where a single fixed width is hard
+               to converge.
+
+````
+
+.. _anphon_epsilon_4ph:
+
+* EPSILON_4PH-tag : Smearing width for four-phonon scattering rates in units of Kayser (cm\ :sup:`-1`)
+
+ :Default: 10.0
+ :Type: Double
+ :Description: Used when ``ISMEAR_4PH = 0`` or ``1``; neglected when
+               ``ISMEAR_4PH = 2``. Because the four-phonon phase space is much
+               larger and the mesh usually coarser than for three-phonon
+               processes, the optimal width generally differs from ``EPSILON``.
+
+````
+
+.. _anphon_interpolator:
+
+* INTERPOLATOR-tag = linear | log-linear | modified-log-linear
+
+ ==================== =================================================================
+  linear               Trilinear interpolation of the scattering rates
+  log-linear           Trilinear interpolation of the logarithm of the scattering rates
+  modified-log-linear  | Same as log-linear, but for the acoustic branches the
+                       | interpolation cells containing the :math:`\Gamma` point
+                       | are avoided
+ ==================== =================================================================
+
+ :Default: log-linear
+ :Type: String
+ :Description: Method for interpolating the four-phonon scattering rates computed on :ref:`KMESH_COARSE <anphon_kmesh_coarse>` onto the dense :math:`k` mesh of the ``&kpoint`` field. The value is case-insensitive.
+
+````
+
+.. _anphon_write_interpol:
+
+* WRITE_INTERPOL-tag = 0 | 1
+
+ :Default: 0
+ :Type: Integer
+ :Description: When ``WRITE_INTERPOL = 1`` and the four-phonon scattering rates are interpolated (``INCLUDE_4PH = 1``), the interpolated linewidths on the dense :math:`k` mesh are written to ``PREFIX``.interpolated_gamma, which is useful for checking the interpolation quality.
+
+````
+
+.. _anphon_adaptive_factor:
+
+* ADAPTIVE_FACTOR-tag : Scaling prefactor :math:`\alpha` of the adaptive smearing width
+
+ :Default: 1.0
+ :Type: Double
+ :Description: Multiplies the automatically determined Gaussian widths of the
+               adaptive smearing method, for both ``ISMEAR = 2`` (three-phonon)
+               and ``ISMEAR_4PH = 2`` (four-phonon). The default is usually
+               adequate; smaller values sharpen the energy conservation (and may
+               require denser meshes), larger values smooth it.
+
+````
+
+.. _anphon_restart:
+
+* RESTART-tag : Flag to restart the calculation when ``MODE = kappa``
+
+ === =======================================================
+  0   Calculate from scratch
+  1   Restart from the existing file
+ === =======================================================
+
+ :Default: 1 if there is a file named ``PREFIX``.kappa.h5 or ``PREFIX``.result; 0 otherwise
+ :Type: Integer
+ :Description: With the default ``FILE_FORMAT = h5``, the restart state lives in
+               ``PREFIX``.kappa.h5. A legacy text ``PREFIX``.result file (from an
+               older run or ``FILE_FORMAT = text``) is imported into the HDF5 file
+               once, read-only, and left untouched. This tag is also accepted in the
+               ``&general`` field for backward compatibility (deprecated); the
+               ``&kappa`` value wins when both are given.
+
+````
+
+.. _anphon_restart_4ph:
+
+* RESTART_4PH-tag : Flag to restart the four-phonon part of the calculation when ``INCLUDE_4PH = 1``
+
+ === =======================================================
+  0   Calculate the four-phonon scattering rates from scratch
+  1   Restart from the existing file
+ === =======================================================
+
+ :Default: 1 if there is a file named ``PREFIX``.kappa.h5 or ``PREFIX``.4ph.result; 0 otherwise
+ :Type: Integer
+ :Description: Controls the four-phonon channel independently of :ref:`RESTART <anphon_restart>`
+               (the two channels are stored side by side in ``PREFIX``.kappa.h5 but restart
+               separately). ``RESTART_4PH = 0`` discards only the previously computed
+               four-phonon scattering rates; the three-phonon data are kept.
+
+````
+
+.. _anphon_kappa_coherent:
+
+* KAPPA_COHERENT-tag = 0 | 1 | 2
+
+ === ====================================================================================
+  0    Do not compute the coherent component of thermal conductivity
+  1    Compute the coherent component of thermal conductivity and save it in ``PREFIX``.kl_coherent.
+  2  | In addition to above (``KAPPA_COHERENT = 1``), all elements of the coherent term
+     | are saved in ``PREFIX``.kc_elem.
+ === ====================================================================================
+ 
+ :Default: 0
+ :Type: Integer
+ :Description: This flag is available when ``MODE = kappa``. For the theoretical details, please see :ref:`this page <kappa_coherent>`.
+               The Peierls term uses the velocity matrix regardless of this flag; setting it to 1 or 2 additionally
+               stores the full band off-diagonal matrix, which costs :math:`N_{q}(3N_{\kappa})^{2}\times 3` complex
+               numbers on the root process.
+
+ .. caution::
+
+     Still experimental. Please check the validity of results carefully.
+
+
+````
+
+.. _anphon_kappa_spec:
+
+* KAPPA_SPEC-tag = 0 | 1
+
+ === ====================================================================================
+  0   Do not compute the thermal conductivity spectra
+  1   Compute the thermal conductivity spectra, which will be 
+      stored in  ``PREFIX``.kl_spec
+ === ====================================================================================
+ 
+ :Default: 0
+ :Type: Integer
+ :Description: This flag is available when ``MODE = kappa``. With ``ISMEAR = -1``, each
+               irreducible k point enters the spectrum with the tetrahedron weight of its
+               representative instead of the weights of its star members. The spectral shape
+               is therefore approximate on coarse meshes, while its energy integral still
+               equals the thermal conductivity.
+
+
+````
+
+.. _anphon_isotope:
+
+* ISOTOPE-tag = 0 | 1 | 2
+
+ === =========================================================================
+  0   Do not consider phonon-isotope scatterings
+  1   Consider phonon-isotope scatterings
+  2   | Consider phonon-isotope scatterings as in ``ISOTOPE = 1`` and
+      | the calculated selfenergy is stored in ``PREFIX``.self_isotope
+ === =========================================================================
+
+ :Default: 1
+ :Type: Integer
+ :Description: When ``MODE = kappa`` and ``ISOTOPE = 1 or 2``, phonon scatterings due to isotopes will be considered perturbatively.
+               The computation is negligibly cheap, so it is enabled by default with ``ISOFACT``
+               taken from the internal natural-abundance database; set ``ISOTOPE = 0`` for
+               isotopically pure crystals, or give ``ISOFACT`` explicitly for enriched samples
+               (required for elements without a database entry). The per-mode isotope
+               linewidths and the factors used are stored in ``PREFIX``.kappa.h5
+               (``/scattering/isotope/gamma``, ``/metadata/isotope_factors``).
+
+````
+
+.. _anphon_isofact:
+
+* ISOFACT-tag : Isotope factor for each atomic species (in the order of the ``KD``-tag)
+
+ :Default: Automatically calculated from the ``KD`` tag
+ :Type: Array of doubles
+ :Description: Isotope factor is a dimensionless value defined by :math:`\sum_{i} f_{i} (1 - m_{i}/\bar{m})^{2}`. 
+               Here, :math:`f_{i}` is the fraction of the :math:`i`\ th isotope of an element having mass :math:`m_{i}`, 
+               and :math:`\bar{m}=\sum_{i}f_{i}m_{i}` is the average mass, respectively. 
+               This quantity is equivalent to :math:`g_{2}` appearing in the original paper by S. Tamura [Phys. Rev. B, 27, 858.].
+
+
+````
+
+.. _anphon_isotope_inscattering:
+
+* ISOTOPE_INSCATTERING-tag = 0 | 1
+
+ === =========================================================================
+  0   Isotope scattering enters the iterative solvers as an RTA-level
+      (diagonal) rate only
+  1   The elastic isotope-disorder channel (Tamura kernel) becomes part of
+      the collision operator, including its in-scattering term
+ === =========================================================================
+
+ :Default: 1
+ :Type: Integer
+ :Description: Used by ``SOLVER = IBTE`` and ``VBTE`` when ``ISOTOPE >= 1``
+               (``SOLVER = RTA`` is unaffected). With the in-scattering term the
+               isotope diagonal is the row sum of the operator entries, so the
+               elastic channel annihilates constant deviation functions exactly.
+               The effect on kappa is positive (in-scattering restores heat flux)
+               and grows with the mass variance and towards low temperatures; for
+               natural silicon it is below 0.2 %. Boundary scattering remains
+               exactly diagonal (it has no in-scattering term), and the
+               four-phonon channel is treated at the RTA level.
+
+````
+
+.. _anphon_len_boundary:
+
+* LEN_BOUNDARY-tag : Characteristic length for boundary scattering in units of meter
+
+ :Default: 0.0 (no boundary scattering)
+ :Type: Double
+ :Description: When ``LEN_BOUNDARY > 0``, a boundary scattering rate :math:`|\boldsymbol{v}_{qj}|/L` with :math:`L` = ``LEN_BOUNDARY`` is added to the phonon linewidths used for the thermal conductivity, where :math:`\boldsymbol{v}_{qj}` is the group velocity of each phonon mode.
+
+````
+
+.. _anphon_min_cycle:
+
+* MIN_CYCLE-tag : Minimum number of iterations of the iterative BTE solver
+
+ :Default: 1
+ :Type: Integer
+ :Description: Used when ``SOLVER = IBTE``. The convergence test starts only after ``MIN_CYCLE`` iterations have been performed.
+
+````
+
+.. _anphon_max_cycle:
+
+* MAX_CYCLE-tag : Maximum number of iterations of the iterative BTE solver
+
+ :Default: 100
+ :Type: Integer
+ :Description: Used when ``SOLVER = IBTE`` or ``VBTE``. If the iteration does not converge within ``MAX_CYCLE`` cycles, the iterate with the lowest residual is kept, the temperature is flagged as unconverged, and the calculation proceeds to the next temperature. For ``IBTE`` started from zero, ``MAX_CYCLE = 1`` keeps the first iterate, the RTA-like :math:`F_0 = b/Q`, whose residual is not evaluated (reported as nan). For ``VBTE`` the limit applies separately to the CG and BiCGSTAB stages.
+
+````
+
+.. _anphon_iter_threshold:
+
+* ITER_THRESHOLD-tag : Convergence criterion of the iterative BTE solver
+
+ :Default: 1.0e-4
+ :Type: Double
+ :Description: Used when ``SOLVER = IBTE`` or ``VBTE``. The iteration at each temperature stops when the relative residual of the linear system, :math:`\|b - A F\| / \|b\|` (in the norm weighted by the star multiplicities of the irreducible k points), becomes smaller than ``ITER_THRESHOLD`` (see :ref:`SOLVER <anphon_solver>`). The error of kappa is roughly linear in the residual for ``IBTE`` and quadratic for ``VBTE`` with fixed-width smearing.
+
+  Values above :math:`10^{-3}` trigger a warning.
+
+````
+
+.. _anphon_ibte_mixing:
+
+* IBTE_MIXING-tag : Mixing factor of the iterative BTE solver
+
+ :Default: 0.9
+ :Type: Double
+ :Description: Used when ``SOLVER = IBTE``. In each iteration, the updated nonequilibrium distribution is mixed with the previous one as :math:`f_{\mathrm{new}} \leftarrow \alpha f_{\mathrm{new}} + (1-\alpha) f_{\mathrm{old}}` with :math:`\alpha` = ``IBTE_MIXING``. Values smaller than 1 damp oscillations of slowly converging iterations.
 
 ````
 
@@ -1289,11 +3135,11 @@ for each atom as the following.
     \epsilon_{yx}^{\infty} & \epsilon_{yy}^{\infty} & \epsilon_{yz}^{\infty} \\
     \epsilon_{zx}^{\infty} & \epsilon_{zy}^{\infty} & \epsilon_{zz}^{\infty} \\
     Z_{1,xx}^{*} & Z_{1,xy}^{*} & Z_{1,xz}^{*} \\
-    Z_{1,yx}^{*} & Z_{1,yy}^{*} & Z_{1,zz}^{*} \\
+    Z_{1,yx}^{*} & Z_{1,yy}^{*} & Z_{1,yz}^{*} \\
     Z_{1,zx}^{*} & Z_{1,zy}^{*} & Z_{1,zz}^{*} \\
     & \vdots & \\
     Z_{N_p,xx}^{*} & Z_{N_p,xy}^{*} & Z_{N_p,xz}^{*} \\
-    Z_{N_p,yx}^{*} & Z_{N_p,yy}^{*} & Z_{N_p,zz}^{*} \\
+    Z_{N_p,yx}^{*} & Z_{N_p,yy}^{*} & Z_{N_p,yz}^{*} \\
     Z_{N_p,zx}^{*} & Z_{N_p,zy}^{*} & Z_{N_p,zz}^{*} \\
    \end{eqnarray*} 
 

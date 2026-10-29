@@ -9,50 +9,67 @@
 */
 
 #include "writer.h"
+#include <algorithm>
+#include <boost/algorithm/string.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+#include <boost/version.hpp>
+#include <fstream>
+#include <highfive/H5Easy.hpp>
+#include <highfive/H5File.hpp>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <unordered_map>
+#include "cluster.h"
 #include "constraint.h"
 #include "error.h"
 #include "fcs.h"
+#include "fcs_hdf5_schema.h"
+#include "fcs_xml_schema.h"
 #include "files.h"
-#include "optimize.h"
-#include "cluster.h"
+#include "hdf5_parser.h"
 #include "memory.h"
+#include "optimize.h"
 #include "patterndisp.h"
 #include "symmetry.h"
 #include "system.h"
 #include "timer.h"
 #include "version.h"
-#include <iostream>
-#include <fstream>
-#include <map>
-#include <unordered_map>
-#include <boost/property_tree/xml_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/version.hpp>
+
+#ifdef _BOOST_LIBRARY_LINKABLE
+#include <boost/asio/ip/host_name.hpp>
+#endif
 
 using namespace ALM_NS;
 
-Writer::Writer() : output_maxorder(5)
+Writer::Writer() : output_maxorder(5), compression_level(1)
 {
-    save_format_flags["alamode"] = 1;
+    // The HDF5 file (PREFIX.h5) is the default output; the legacy .xml and
+    // .fcs outputs are opt-in via FCS_ALAMODE = 1.
+    save_format_flags["alamode"] = 0;
+    save_format_flags["alamode_h5"] = 1;
     save_format_flags["shengbte"] = 0;
     save_format_flags["shengbte4"] = 0;
     save_format_flags["qefc"] = 0;
     save_format_flags["hessian"] = 0;
     filename_fcs = "";
+    format_pattern = "yaml";
 }
 
 Writer::~Writer() = default;
 
-void Writer::write_input_vars(const System *system,
-                              const Symmetry *symmetry,
-                              const Cluster *cluster,
-                              const Displace *displace,
-                              const Fcs *fcs,
-                              const Constraint *constraint,
-                              const Optimize *optimize,
-                              const Files *files,
-                              const std::string run_mode) const
+
+auto Writer::write_input_vars(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                              const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Displace> &displace,
+                              const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Constraint> &constraint,
+                              const std::unique_ptr<Optimize> &optimize, const std::unique_ptr<Files> &files,
+                              const std::string &run_mode, const bool print) -> void
 {
+    // Share the echo between the log and HDF5 metadata.
+    std::ostringstream os;
+    // write docstrings
+
     size_t i;
 
     const auto nat = system->get_supercell().number_of_atoms;
@@ -60,103 +77,135 @@ void Writer::write_input_vars(const System *system,
 
     //alm->timer->start_clock("writer");
 
-    std::cout << '\n';
-    std::cout << " Input variables:\n";
-    std::cout << " -------------------------------------------------------------------" << '\n';
-    std::cout << " General:\n";
-    std::cout << "  PREFIX = " << files->get_prefix() << '\n';
-    std::cout << "  MODE = " << run_mode << '\n';
-    std::cout << "  NAT = " << nat << "; NKD = " << nkd << '\n';
-    std::cout << "  PRINTSYM = " << symmetry->get_print_symmetry()
-              << "; TOLERANCE = " << symmetry->get_tolerance() << '\n';
-    std::cout << "  KD = ";
-    for (i = 0; i < nkd; ++i) std::cout << std::setw(4) << system->get_kdname()[i];
-    std::cout << '\n';
-    std::cout << "  FCSYM_BASIS = " << fcs->get_forceconstant_basis() << '\n';
-    std::cout << "  PERIODIC = ";
-    for (i = 0; i < 3; ++i) std::cout << std::setw(3) << system->get_periodicity()[i];
-    std::cout << '\n';
-    std::cout << "  MAGMOM = " << system->get_str_magmom() << '\n';
-    std::cout << "  FCS_ALAMODE = " << save_format_flags.at("alamode") << ';';
-    std::cout << "  NMAXSAVE = " << get_output_maxorder() << '\n';
-    std::cout << "  FC3_SHENGBTE = " << save_format_flags.at("shengbte") << '\n';
-    std::cout << "  FC4_SHENGBTE = " << save_format_flags.at("shengbte4") << '\n';
-    std::cout << "  FC2_QEFC = " << save_format_flags.at("qefc") << '\n';
-    std::cout << "  HESSIAN = " << save_format_flags.at("hessian") << '\n';
-    std::cout << "  FC_ZERO_THR = " << fcs->get_fc_zero_threshold() << '\n';
-    std::cout << '\n';
-
-    std::cout << " Interaction:\n";
-    std::cout << "  NORDER = " << cluster->get_maxorder() << '\n';
-    std::cout << "  NBODY = ";
-    for (auto m = 0; m < cluster->get_maxorder(); ++m) {
-        std::cout << std::setw(3) << cluster->get_nbody_include()[m];
+    os << '\n';
+    os << " Input variables:\n";
+    os << " -------------------------------------------------------------------" << '\n';
+    os << " General:\n";
+    // API callers have no input dictionary.
+    const auto prefix_in = get_input_var("PREFIX");
+    const auto mode_in = get_input_var("MODE");
+    os << "  PREFIX = " << (prefix_in.empty() ? files->get_prefix() : prefix_in) << '\n';
+    os << "  MODE = " << (mode_in.empty() ? run_mode : mode_in) << '\n';
+    // The structure may not be initialized yet.
+    if (nat > 0) os << "  NAT = " << nat << "; NKD = " << nkd << '\n';
+    os << "  PRINTSYM = " << symmetry->get_print_symmetry() << "; TOLERANCE = " << symmetry->get_tolerance() << '\n';
+    if (nkd > 0) {
+        os << "  KD = ";
+        for (i = 0; i < nkd; ++i) os << std::setw(4) << system->get_kdname()[i];
+        os << '\n';
     }
-    std::cout << "\n\n";
+    os << "  FCSYM_BASIS = " << fcs->get_forceconstant_basis() << '\n';
+    os << "  PERIODIC = ";
+    for (i = 0; i < 3; ++i) os << std::setw(3) << system->get_periodicity()[i];
+    os << '\n';
+    // Skip input-file tags for API callers; CLI defaults may not apply.
+    const auto from_input_file = !input_variables.empty();
+    if (from_input_file) os << "  MAGMOM = " << get_input_var("MAGMOM") << '\n';
+    if (system->get_spin().lspin) {
+        os << "  NONCOLLINEAR = " << system->get_spin().noncollinear
+           << "; TREVSYM = " << system->get_spin().time_reversal_symm << '\n';
+    }
+    os << "  FCS_ALAMODE = " << save_format_flags.at("alamode") << ';';
+    os << "  NMAXSAVE = " << get_output_maxorder() << '\n';
+    os << "  FC3_SHENGBTE = " << save_format_flags.at("shengbte") << '\n';
+    os << "  FC4_SHENGBTE = " << save_format_flags.at("shengbte4") << '\n';
+    os << "  FC2_QEFC = " << save_format_flags.at("qefc") << '\n';
+    os << "  HESSIAN = " << save_format_flags.at("hessian") << '\n';
+    os << "  FC_ZERO_THR = " << fcs->get_fc_zero_threshold() << '\n';
+    const auto var_or_default = [this](const std::string &key, const char *defval) {
+        const auto val = get_input_var(key);
+        return val.empty() ? std::string(defval) : val;
+    };
+    if (from_input_file) {
+        os << "  LENGTH_UNIT = " << var_or_default("LENGTH_UNIT", "bohr")
+           << "; FORCE_UNIT = " << var_or_default("FORCE_UNIT", "Ry/bohr") << '\n';
+    }
+    os << "  FCS_UNIT_OUTPUT = " << units::canonical_name(fcs_unit_output) << '\n';
+    os << "  TOL_CONST = " << constraint->get_tolerance_constraint() << '\n';
+    os << "  COMPRESSION = " << get_compression_level() << "; FORMAT_PATTERN = " << get_format_patternfile() << '\n';
+    if (from_input_file) os << "  VERBOSITY = " << var_or_default("VERBOSITY", "1") << '\n';
+    // Structure tags are echoed as given (multi-line matrices on one line).
+    for (const auto *tag: {"STRUCTURE_FILE", "SUPERCELL", "PRIMCELL"}) {
+        auto val = get_input_var(tag);
+        if (val.empty()) continue;
+        std::replace(val.begin(), val.end(), '\n', ' ');
+        os << "  " << tag << " = " << val << '\n';
+    }
+    os << '\n';
+
+    os << " Interaction:\n";
+    os << "  NORDER = " << cluster->get_maxorder() << '\n';
+    os << "  NBODY = ";
+    for (auto m = 0; m < cluster->get_maxorder(); ++m) {
+        os << std::setw(3) << cluster->get_nbody_include()[m];
+    }
+    os << "\n\n";
 
     if (run_mode == "suggest") {
-        std::cout << "  DBASIS = " << displace->get_disp_basis() << "\n\n";
+        os << "  DBASIS = " << displace->get_disp_basis()
+           << "; TRIMEVEN = " << displace->get_trim_dispsign_for_evenfunc() << "\n\n";
 
     } else if (run_mode == "optimize") {
         const auto optctrl = optimize->get_optimizer_control();
         std::vector<std::string> str_linearmodel{"least-squares", "elastic-net", "adaptive-lasso"};
-        std::cout << " Optimize:\n";
-        std::cout << "  LMODEL = "
-                  << str_linearmodel[optctrl.linear_model - 1] << '\n';
-        std::cout << "  DFSET = " << files->get_datfile_train().filename << '\n';
-        std::cout << "  NDATA = " << files->get_datfile_train().ndata
-                  << "; NSTART = " << files->get_datfile_train().nstart
-                  << "; NEND = " << files->get_datfile_train().nend;
-        if (files->get_datfile_train().skip_s
-            < files->get_datfile_train().skip_e) {
-            std::cout << "   SKIP = " << files->get_datfile_train().skip_s
-                      << "-" << files->get_datfile_train().skip_e - 1 << "\n\n";
+        os << " Optimize:\n";
+        os << "  LMODEL = " << str_linearmodel[optctrl.linear_model - 1] << '\n';
+        os << "  DFSET = " << files->get_datfile_train().filename << '\n';
+        os << "  NDATA = " << files->get_datfile_train().ndata << "; NSTART = " << files->get_datfile_train().nstart
+           << "; NEND = " << files->get_datfile_train().nend;
+        if (files->get_datfile_train().skip_s < files->get_datfile_train().skip_e) {
+            os << "; SKIP = " << files->get_datfile_train().skip_s << "-" << files->get_datfile_train().skip_e - 1
+               << "\n\n";
         } else {
-            std::cout << "   SKIP = \n\n";
+            os << "; SKIP = \n\n";
         }
 
-        std::cout << "  ICONST = " << constraint->get_constraint_mode() << '\n';
-        std::cout << "  ROTAXIS = " << constraint->get_rotation_axis() << '\n';
-        std::cout << "  FC2XML = " << constraint->get_fc_file(2) << '\n';
-        std::cout << "  FC3XML = " << constraint->get_fc_file(3) << "\n\n";
-        std::cout << "  SPARSE = " << optctrl.use_sparse_solver << '\n';
-        std::cout << "  SPARSESOLVER = " << optctrl.sparsesolver << '\n';
-        std::cout << "  CONV_TOL = " << optctrl.tolerance_iteration << '\n';
-        std::cout << "  MAXITER = " << optctrl.maxnum_iteration << "\n";
-        std::cout << "  PERIODIC_IMAGE_CONV = " << optctrl.periodic_image_conv << "\n\n";
+        os << "  ICONST = " << constraint->get_constraint_mode() << '\n';
+        os << "  ROTAXIS = " << constraint->get_rotation_axis() << '\n';
+        os << "  FC2FIX = " << constraint->get_fc_file(2) << '\n';
+        os << "  FC3FIX = " << constraint->get_fc_file(3) << "\n\n";
+        os << "  ALGO_REDUCTION = " << static_cast<int>(constraint->get_reduction_algorithm()) << '\n';
+        os << "  SPARSE = " << optctrl.use_sparse_solver << "; SPARSESOLVER = " << optctrl.sparsesolver << '\n';
+        os << "  USE_CHOLESKY = " << optctrl.use_cholesky << "; CHUNKSIZE = " << optctrl.chunk_size << '\n';
+        os << "  CONV_TOL = " << optctrl.tolerance_iteration << "; MAXITER = " << optctrl.maxnum_iteration << '\n';
+        os << "  PERIODIC_IMAGE_CONV = " << optctrl.periodic_image_conv << '\n';
+        os << "  EFIT_WEIGHT = " << optctrl.efit_weight << "; EFIT_ESCALE = " << optctrl.efit_escale
+           << "; EFIT_CV = " << optctrl.efit_cv << "\n\n";
         if (optctrl.linear_model == 2) {
-            std::cout << " Elastic-net related variables:\n";
-            std::cout << "  CV = " << std::setw(5) << optctrl.cross_validation << '\n';
-            std::cout << "  DFSET_CV = " << files->get_datfile_validation().filename << '\n';
-            std::cout << "  NDATA_CV = " << files->get_datfile_validation().ndata
-                      << "; NSTART_CV = " << files->get_datfile_validation().nstart
-                      << "; NEND_CV = " << files->get_datfile_validation().nend << "\n\n";
-            std::cout << "  L1_RATIO = " << optctrl.l1_ratio << '\n';
-            std::cout << "  L1_ALPHA = " << optctrl.l1_alpha << '\n';
-            std::cout << "  CV_MINALPHA = " << optctrl.l1_alpha_min
-                      << "; CV_MAXALPHA = " << optctrl.l1_alpha_max
-                      << ";  CV_NALPHA = " << optctrl.num_l1_alpha << '\n';
-            std::cout << "  STANDARDIZE = " << optctrl.standardize << '\n';
-            std::cout << "  ENET_DNORM = " << optctrl.displacement_normalization_factor << '\n';
-            std::cout << "  NWRITE = " << std::setw(5) << optctrl.output_frequency << '\n';
-            std::cout << "  DEBIAS_OLS = " << optctrl.debiase_after_l1opt << '\n';
-            std::cout << '\n';
+            const auto str_l1_solver = optctrl.l1_solver == 0 ? "cd" : (optctrl.l1_solver == 1 ? "fista" : "admm");
+            os << " Elastic-net related variables:\n";
+            os << "  CV = " << std::setw(5) << optctrl.cross_validation << '\n';
+            os << "  DFSET_CV = " << files->get_datfile_validation().filename << '\n';
+            os << "  NDATA_CV = " << files->get_datfile_validation().ndata
+               << "; NSTART_CV = " << files->get_datfile_validation().nstart
+               << "; NEND_CV = " << files->get_datfile_validation().nend << "\n\n";
+            os << "  L1_RATIO = " << optctrl.l1_ratio << '\n';
+            os << "  L1_SOLVER = " << str_l1_solver << '\n';
+            os << "  L1_ALPHA = " << optctrl.l1_alpha << '\n';
+            os << "  CV_MINALPHA = " << optctrl.l1_alpha_min << "; CV_MAXALPHA = " << optctrl.l1_alpha_max
+               << "; CV_NALPHA = " << optctrl.num_l1_alpha << '\n';
+            os << "  CV_MINALPHA_RATIO = " << optctrl.l1_alpha_min_ratio << '\n';
+            os << "  STANDARDIZE = " << optctrl.standardize << '\n';
+            os << "  ENET_DNORM = " << optctrl.displacement_normalization_factor << '\n';
+            os << "  NWRITE = " << std::setw(5) << optctrl.output_frequency << '\n';
+            os << "  DEBIAS_OLS = " << optctrl.debiase_after_l1opt << '\n';
+            os << "  SOLUTION_PATH = " << optctrl.save_solution_path << "; STOP_CRITERION = " << optctrl.stop_criterion
+               << '\n';
+            os << '\n';
         }
     }
-    std::cout << " -------------------------------------------------------------------\n\n";
-    std::cout << std::flush;
+    os << " -------------------------------------------------------------------\n\n";
+    input_variables_echo = parse_input_echo(os.str());
+    if (print) std::cout << os.str() << std::flush;
     //alm->timer->stop_clock("writer");
 }
 
-void Writer::save_fcs_with_specific_format(const std::string fcs_format,
-                                           const System *system,
-                                           const Symmetry *symmetry,
-                                           const Cluster *cluster,
-                                           const Constraint *constraint,
-                                           const Fcs *fcs,
-                                           const Optimize *optimize,
-                                           const Files *files,
-                                           const int verbosity) const
+auto Writer::save_fcs_with_specific_format(const std::string &fcs_format, const std::unique_ptr<System> &system,
+                                           const std::unique_ptr<Symmetry> &symmetry,
+                                           const std::unique_ptr<Cluster> &cluster,
+                                           const std::unique_ptr<Constraint> &constraint,
+                                           const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Optimize> &optimize,
+                                           const std::unique_ptr<Files> &files, const int verbosity) const -> void
 {
     if (fcs_format == "alamode") {
         auto fname_save = get_filename_fcs();
@@ -174,87 +223,75 @@ void Writer::save_fcs_with_specific_format(const std::string fcs_format,
                                    fname_save,
                                    verbosity);
 
-    } else if (fcs_format == "shengbte") {
+    } else if (fcs_format == "alamode_h5") {
+        auto fname_save = get_filename_fcs();
+        if (fname_save.empty()) {
+            fname_save = files->get_prefix() + ".h5";
+        }
 
+        save_fcs_alamode(system, symmetry, cluster, fcs, optimize->get_params(), fname_save, verbosity);
+
+    } else if (fcs_format == "shengbte") {
         if (cluster->get_maxorder() > 1) {
             auto fname_save = get_filename_fcs();
             if (fname_save.empty()) {
-                fname_save = files->get_prefix() + ".FORCE_CONSTANT_3RD";;
+                fname_save = files->get_prefix() + ".FORCE_CONSTANTS_3RD";
             }
 
-            save_fc3_shengbte_format(system,
-                                     symmetry,
-                                     cluster,
-                                     constraint,
-                                     fcs,
-                                     fname_save,
-                                     verbosity);
+            save_fc3_shengbte_format(system, symmetry, cluster, constraint, fcs, fname_save, verbosity);
+        } else {
+            warn("save_fcs_with_specific_format",
+                 "FORCE_CONSTANTS_3RD is not written because NORDER is too small "
+                 "(FC3_SHENGBTE = 1 requires NORDER >= 2).");
         }
     } else if (fcs_format == "shengbte4") {
         if (cluster->get_maxorder() > 2) {
             auto fname_save = get_filename_fcs();
             if (fname_save.empty()) {
-                fname_save = files->get_prefix() + ".FORCE_CONSTANT_4TH";;
+                fname_save = files->get_prefix() + ".FORCE_CONSTANTS_4TH";
             }
 
-            save_fc4_shengbte_format(system,
-                                     symmetry,
-                                     cluster,
-                                     constraint,
-                                     fcs,
-                                     fname_save,
-                                     verbosity);
+            save_fc4_shengbte_format(system, symmetry, cluster, fcs, fname_save, verbosity);
+        } else {
+            warn("save_fcs_with_specific_format",
+                 "FORCE_CONSTANTS_4TH is not written because NORDER is too small "
+                 "(FC4_SHENGBTE = 1 requires NORDER >= 3).");
         }
     } else if (fcs_format == "qefc") {
         auto fname_save = get_filename_fcs();
         if (fname_save.empty()) {
-            fname_save = files->get_prefix() + ".fc";;
+            fname_save = files->get_prefix() + ".fc";
         }
-        save_fc2_QEfc_format(system,
-                             symmetry,
-                             fcs,
-                             fname_save,
-                             verbosity);
+        save_fc2_QEfc_format(system, symmetry, fcs, fname_save, verbosity);
 
     } else if (fcs_format == "hessian") {
         auto fname_save = get_filename_fcs();
         if (fname_save.empty()) {
-            fname_save = files->get_prefix() + ".hessian";;
+            fname_save = files->get_prefix() + ".hessian";
         }
 
-        write_hessian(system,
-                      symmetry,
-                      fcs,
-                      fname_save,
-                      verbosity);
+        write_hessian(system, symmetry, fcs, fname_save, verbosity);
     }
-
 }
 
 
-void Writer::writeall(const System *system,
-                      const Symmetry *symmetry,
-                      const Cluster *cluster,
-                      const Constraint *constraint,
-                      const Fcs *fcs,
-                      const Optimize *optimize,
-                      const Files *files,
-                      const int verbosity) const
+auto Writer::writeall(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                      const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Constraint> &constraint,
+                      const std::unique_ptr<Fcs> &fcs, const std::unique_ptr<Optimize> &optimize,
+                      const std::unique_ptr<Files> &files, const int verbosity) const -> void
 {
-//    alm->timer->start_clock("writer");
+    //    alm->timer->start_clock("writer");
 
     if (verbosity > 0) {
-        std::cout << " The following files are created:" << std::endl << std::endl;
+        std::cout << " The following files are created:" << '\n' << '\n';
     }
 
-    const auto fname_save = files->get_prefix() + ".fcs";
-    write_force_constants(cluster,
-                          fcs,
-                          symmetry,
-                          optimize->get_params(),
-                          verbosity,
-                          fname_save);
-
+    // The plain-text .fcs listing is a legacy output, written together
+    // with the .xml when FCS_ALAMODE = 1.
+    if (save_format_flags.at("alamode")) {
+        const auto fname_save = files->get_prefix() + ".fcs";
+        write_force_constants(cluster, fcs, symmetry, optimize->get_params(), verbosity, fname_save);
+    }
     for (const auto &save_format_flag: save_format_flags) {
         if (save_format_flag.second) {
             save_fcs_with_specific_format(save_format_flag.first,
@@ -269,40 +306,35 @@ void Writer::writeall(const System *system,
         }
     }
 
-//    alm->timer->stop_clock("writer");
+    //    alm->timer->stop_clock("writer");
 }
 
-void Writer::write_force_constants(const Cluster *cluster,
-                                   const Fcs *fcs,
-                                   const Symmetry *symmetry,
-                                   const double *fcs_vals,
-                                   const int verbosity,
-                                   const std::string fname_save) const
+auto Writer::write_force_constants(const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                                   const std::unique_ptr<Symmetry> &symmetry, const double *fcs_vals,
+                                   const int verbosity, const std::string &fname_save) const -> void
 {
     int order, j, l;
     std::string *str_fcs;
     std::ofstream ofs_fcs;
     std::vector<int> atom_tmp;
-    std::vector<std::vector<int>> cell_dummy;
 
     const auto maxorder = cluster->get_maxorder();
 
     ofs_fcs.open(fname_save.c_str(), std::ios::out);
     if (!ofs_fcs) exit("write_force_constants", "cannot open fcs file");
 
-    ofs_fcs << " *********************** Force Constants (FCs) ***********************" << std::endl;
-    ofs_fcs << " *        Force constants are printed in Rydberg atomic units.       *" << std::endl;
-    ofs_fcs << " *        FC2: Ry/a0^2     FC3: Ry/a0^3     FC4: Ry/a0^4   etc.      *" << std::endl;
-    ofs_fcs << " *        FC?: Ry/a0^?     a0 = Bohr radius                          *" << std::endl;
-    ofs_fcs << " *                                                                   *" << std::endl;
-    ofs_fcs << " *        The value shown in the last column is the distance         *" << std::endl;
-    ofs_fcs << " *        between the most distant atomic pairs.                     *" << std::endl;
-    ofs_fcs << " *********************************************************************" << std::endl;
-    ofs_fcs << std::endl;
-    ofs_fcs << " ----------------------------------------------------------------------" << std::endl;
-    ofs_fcs << "      Index              FCs         P        Pairs     Distance [Bohr]" << std::endl;
-    ofs_fcs << " (Global, Local)              (Multiplicity)                           " << std::endl;
-    ofs_fcs << " ----------------------------------------------------------------------" << std::endl;
+    ofs_fcs << " *********************** Force Constants (FCs) ***********************\n";
+    ofs_fcs << " *        Force constants are printed in Rydberg atomic units.       *\n";
+    ofs_fcs << " *        FC2: Ry/a0^2     FC3: Ry/a0^3     FC4: Ry/a0^4   etc.      *\n";
+    ofs_fcs << " *        FC?: Ry/a0^?     a0 = Bohr radius                          *\n";
+    ofs_fcs << " *                                                                   *\n";
+    ofs_fcs << " *        The value shown in the last column is the distance         *\n";
+    ofs_fcs << " *        between the most distant atomic pairs.                     *\n";
+    ofs_fcs << " *********************************************************************\n\n";
+    ofs_fcs << " ----------------------------------------------------------------------\n";
+    ofs_fcs << "      Index              FCs         P        Pairs     Distance [Bohr]\n";
+    ofs_fcs << " (Global, Local)              (Multiplicity)                           \n";
+    ofs_fcs << " ----------------------------------------------------------------------\n";
 
     allocate(str_fcs, maxorder);
 
@@ -318,33 +350,28 @@ void Writer::write_force_constants(const Cluster *cluster,
 
         if (!fcs->get_nequiv()[order].empty()) {
 
-            ofs_fcs << std::endl << std::setw(6) << str_fcs[order] << std::endl;
-
+            ofs_fcs << '\n' << std::setw(6) << str_fcs[order] << '\n';
             for (unsigned int ui = 0; ui < fcs->get_nequiv()[order].size(); ++ui) {
 
-                ofs_fcs << std::setw(8) << k + 1 << std::setw(8) << ui + 1
-                        << std::setw(18) << std::setprecision(7)
+                ofs_fcs << std::setw(8) << k + 1 << std::setw(8) << ui + 1 << std::setw(18) << std::setprecision(7)
                         << std::scientific << fcs_vals[k];
 
                 atom_tmp.clear();
                 for (l = 1; l < order + 2; ++l) {
                     atom_tmp.push_back(fcs->get_fc_table()[order][m].elems[l] / 3);
                 }
-                j = symmetry->get_map_s2p()[fcs->get_fc_table()[order][m].elems[0] / 3].atom_num;
+                j = symmetry->get_map_super_to_trueprim()[fcs->get_fc_table()[order][m].elems[0] / 3].atom_num;
                 std::sort(atom_tmp.begin(), atom_tmp.end());
 
-                const auto iter_cluster
-                        = cluster->get_interaction_cluster(order, j).
-                                find(InteractionCluster(atom_tmp, cell_dummy));
+                const auto iter_cluster = cluster->get_interaction_cluster(order, j).find(InteractionCluster(atom_tmp));
 
                 if (iter_cluster == cluster->get_interaction_cluster(order, j).end()) {
                     std::cout << std::setw(5) << j;
                     for (l = 0; l < order + 1; ++l) {
                         std::cout << std::setw(5) << atom_tmp[l];
                     }
-                    std::cout << std::endl;
-                    exit("write_force_constants",
-                         "This cannot happen.");
+                    std::cout << '\n';
+                    exit("write_force_constants", "This cannot happen.");
                 }
 
                 const auto multiplicity = (*iter_cluster).cell.size();
@@ -352,11 +379,9 @@ void Writer::write_force_constants(const Cluster *cluster,
                 ofs_fcs << std::setw(4) << multiplicity;
 
                 for (l = 0; l < order + 2; ++l) {
-                    ofs_fcs << std::setw(7)
-                            << easyvizint(fcs->get_fc_table()[order][m].elems[l]);
+                    ofs_fcs << std::setw(7) << easyvizint(fcs->get_fc_table()[order][m].elems[l]);
                 }
-                ofs_fcs << std::setw(12) << std::setprecision(3)
-                        << std::fixed << distmax << std::endl;
+                ofs_fcs << std::setw(12) << std::setprecision(3) << std::fixed << distmax << '\n';
 
                 m += fcs->get_nequiv()[order][ui];
                 ++k;
@@ -364,7 +389,7 @@ void Writer::write_force_constants(const Cluster *cluster,
         }
     }
 
-    ofs_fcs << std::endl;
+    ofs_fcs << '\n';
 
     ofs_fcs.unsetf(std::ios::showpos);
 
@@ -372,8 +397,8 @@ void Writer::write_force_constants(const Cluster *cluster,
         str_fcs[order] = "**FC" + std::to_string(order + 2);
     }
 
-    ofs_fcs << std::endl << std::endl;
-    ofs_fcs << " ------------------------ All FCs below ------------------------" << std::endl;
+    ofs_fcs << "\n\n";
+    ofs_fcs << " ------------------------ All FCs below ------------------------\n";
 
     auto ip = 0;
 
@@ -382,28 +407,26 @@ void Writer::write_force_constants(const Cluster *cluster,
         auto id = 0;
 
         if (!fcs->get_nequiv()[order].empty()) {
-            ofs_fcs << std::endl << std::setw(6) << str_fcs[order] << std::endl;
+            ofs_fcs << '\n' << std::setw(6) << str_fcs[order] << '\n';
 
             for (unsigned int iuniq = 0; iuniq < fcs->get_nequiv()[order].size(); ++iuniq) {
 
                 auto str_tmp = "  # FC" + std::to_string(order + 2) + "_";
                 str_tmp += std::to_string(iuniq + 1);
 
-                ofs_fcs << str_tmp << std::setw(5) << fcs->get_nequiv()[order][iuniq]
-                        << std::setw(16) << std::scientific
-                        << std::setprecision(7) << fcs_vals[ip] << std::endl;
+                ofs_fcs << str_tmp << std::setw(5) << fcs->get_nequiv()[order][iuniq] << std::setw(16)
+                        << std::scientific << std::setprecision(7) << fcs_vals[ip] << '\n';
 
                 for (j = 0; j < fcs->get_nequiv()[order][iuniq]; ++j) {
-                    ofs_fcs << std::setw(5) << j + 1 << std::setw(12)
-                            << std::setprecision(5) << std::fixed << fcs->get_fc_table()[order][id].sign;
+                    ofs_fcs << std::setw(5) << j + 1 << std::setw(12) << std::setprecision(5) << std::fixed
+                            << fcs->get_fc_table()[order][id].sign;
                     for (k = 0; k < order + 2; ++k) {
-                        ofs_fcs << std::setw(6)
-                                << easyvizint(fcs->get_fc_table()[order][id].elems[k]);
+                        ofs_fcs << std::setw(6) << easyvizint(fcs->get_fc_table()[order][id].elems[k]);
                     }
-                    ofs_fcs << std::endl;
+                    ofs_fcs << '\n';
                     ++id;
                 }
-                ofs_fcs << std::endl;
+                ofs_fcs << '\n';
                 ++ip;
             }
         }
@@ -412,15 +435,13 @@ void Writer::write_force_constants(const Cluster *cluster,
     ofs_fcs.close();
 
     if (verbosity > 0) {
-        std::cout << " Force constants in a human-readable format : "
-                  << fname_save << std::endl;
+        std::cout << " Force constants in a human-readable format : " << fname_save << '\n';
     }
 }
 
-void Writer::write_displacement_pattern(const Cluster *cluster,
-                                        const Displace *displace,
-                                        const std::string prefix,
-                                        const int verbosity) const
+auto Writer::write_displacement_pattern(const std::unique_ptr<System> &system, const std::unique_ptr<Cluster> &cluster,
+                                        const std::unique_ptr<Displace> &displace, const std::string &prefix,
+                                        const int verbosity) const -> void
 {
     const auto maxorder = cluster->get_maxorder();
 
@@ -428,155 +449,211 @@ void Writer::write_displacement_pattern(const Cluster *cluster,
     std::string file_disp_pattern;
 
     if (verbosity > 0) {
-        std::cout << " Suggested displacement patterns are printed in the following files: " << std::endl;
+        std::cout << " Suggested displacement patterns are printed in the following files: \n";
+        if (format_pattern == "old")
+            std::cout << " FORMAT_PATTERN = old is set in the input. The old format will be used.\n";
     }
 
-    for (auto order = 0; order < maxorder; ++order) {
+    if (format_pattern == "yaml") {
+        for (auto order = 0; order < maxorder; ++order) {
 
-        if (order == 0) {
-            file_disp_pattern = prefix + ".pattern_HARMONIC";
-        } else {
-            file_disp_pattern = prefix + ".pattern_ANHARM"
-                                + std::to_string(order + 2);
-        }
+            if (order == 0) {
+                file_disp_pattern = prefix + ".pattern_HARMONIC";
+            } else {
+                file_disp_pattern = prefix + ".pattern_ANHARM" + std::to_string(order + 2);
+            }
 
-        ofs_pattern.open(file_disp_pattern.c_str(), std::ios::out);
-        if (!ofs_pattern) {
-            exit("write_displacement_pattern",
-                 "Cannot open file_disp_pattern");
-        }
+            ofs_pattern.open(file_disp_pattern.c_str(), std::ios::out);
+            if (!ofs_pattern) {
+                exit("write_displacement_pattern", ("Cannot open " + file_disp_pattern).c_str());
+            }
 
-        auto counter = 0;
+            auto counter = 0;
 
-        ofs_pattern << "Basis : " << displace->get_disp_basis()[0] << std::endl;
-
-        for (auto entry: displace->get_pattern_all(order)) {
-            ++counter;
-
-            ofs_pattern << std::setw(5) << counter << ":"
-                        << std::setw(5) << entry.atoms.size() << std::endl;
-            for (size_t i = 0; i < entry.atoms.size(); ++i) {
-                ofs_pattern << std::setw(7) << entry.atoms[i] + 1;
-                for (auto j = 0; j < 3; ++j) {
-                    ofs_pattern << std::setw(15) << entry.directions[3 * i + j];
+            ofs_pattern << "ALM_version: " << ALAMODE_VERSION << '\n';
+            ofs_pattern << "structure:\n";
+            ofs_pattern << "  elements: [";
+            for (auto i = 0; i < system->get_supercell().number_of_elems; ++i) {
+                ofs_pattern << system->get_kdname()[i];
+                if (i == system->get_supercell().number_of_elems - 1) {
+                    ofs_pattern << "]";
+                } else {
+                    ofs_pattern << ", ";
                 }
-                ofs_pattern << std::endl;
+            }
+            ofs_pattern << '\n';
+            ofs_pattern << "  supercell:\n";
+            ofs_pattern << "    lattice_vectors: [";
+            for (auto j = 0; j < 3; ++j) {
+                if (j > 0) ofs_pattern << "                      ";
+                for (auto i = 0; i < 3; ++i) {
+                    ofs_pattern << std::setprecision(15) << std::setw(20)
+                                << system->get_supercell().lattice_vector(i, j);
+                    if (j == 2 && i == 2) {
+                        ofs_pattern << "]";
+                    } else {
+                        ofs_pattern << ", ";
+                    }
+                }
+                ofs_pattern << '\n';
+            }
+            ofs_pattern << "    coordinates: [";
+            for (auto j = 0; j < system->get_supercell().number_of_atoms; ++j) {
+                if (j > 0) ofs_pattern << "                  ";
+                for (auto i = 0; i < 3; ++i) {
+                    ofs_pattern << std::setprecision(15) << std::setw(20) << system->get_supercell().x_fractional(j, i);
+                    if ((j == system->get_supercell().number_of_atoms - 1) && i == 2) {
+                        ofs_pattern << "]";
+                    } else {
+                        ofs_pattern << ", ";
+                    }
+                }
+                ofs_pattern << '\n';
+            }
+            ofs_pattern << "    atomic_index: [";
+            for (auto j = 0; j < system->get_supercell().number_of_atoms; ++j) {
+                if (j > 0) ofs_pattern << "                   ";
+                ofs_pattern << system->get_supercell().kind[j];
+                if (j == system->get_supercell().number_of_atoms - 1) {
+                    ofs_pattern << "]";
+                } else {
+                    ofs_pattern << ", ";
+                }
+                ofs_pattern << '\n';
+            }
+
+            ofs_pattern << "displacements:\n";
+            ofs_pattern << "  basis: " << displace->get_disp_basis()[0] << '\n';
+            ofs_pattern << "  patterns:\n";
+            for (auto entry: displace->get_pattern_all(order)) {
+                ++counter;
+
+                ofs_pattern << "  - id: " << counter << '\n';
+                ofs_pattern << "    atoms: [";
+                for (size_t i = 0; i < entry.atoms.size(); ++i) {
+                    ofs_pattern << entry.atoms[i] + 1;
+                    if (i == entry.atoms.size() - 1) {
+                        ofs_pattern << "]";
+                    } else {
+                        ofs_pattern << ", ";
+                    }
+                }
+                ofs_pattern << '\n';
+                ofs_pattern << "    directions:      [";
+                for (size_t i = 0; i < entry.atoms.size(); ++i) {
+                    if (i > 0) ofs_pattern << "                      ";
+                    for (auto j = 0; j < 3; ++j) {
+                        ofs_pattern << std::setw(15) << entry.directions[3 * i + j];
+                        if ((i == entry.atoms.size() - 1) && j == 2) {
+                            ofs_pattern << "]";
+                        } else {
+                            ofs_pattern << ", ";
+                        }
+                    }
+                    ofs_pattern << '\n';
+                }
+            }
+
+            ofs_pattern.close();
+
+            if (verbosity > 0) {
+                std::cout << "  " << cluster->get_ordername(order) << " : " << file_disp_pattern << '\n';
             }
         }
 
-        ofs_pattern.close();
+    } else if (format_pattern == "old") {
+        for (auto order = 0; order < maxorder; ++order) {
 
-        if (verbosity > 0) {
-            std::cout << "  " << cluster->get_ordername(order)
-                      << " : " << file_disp_pattern << std::endl;
+            if (order == 0) {
+                file_disp_pattern = prefix + ".pattern_HARMONIC";
+            } else {
+                file_disp_pattern = prefix + ".pattern_ANHARM" + std::to_string(order + 2);
+            }
+
+            ofs_pattern.open(file_disp_pattern.c_str(), std::ios::out);
+            if (!ofs_pattern) {
+                exit("write_displacement_pattern", ("Cannot open " + file_disp_pattern).c_str());
+            }
+
+            auto counter = 0;
+
+            ofs_pattern << "Basis : " << displace->get_disp_basis()[0] << '\n';
+
+            for (auto entry: displace->get_pattern_all(order)) {
+                ++counter;
+
+                ofs_pattern << std::setw(5) << counter << ":" << std::setw(5) << entry.atoms.size() << '\n';
+                for (size_t i = 0; i < entry.atoms.size(); ++i) {
+                    ofs_pattern << std::setw(7) << entry.atoms[i] + 1;
+                    for (auto j = 0; j < 3; ++j) {
+                        ofs_pattern << std::setw(15) << entry.directions[3 * i + j];
+                    }
+                    ofs_pattern << '\n';
+                }
+            }
+
+            ofs_pattern.close();
+
+            if (verbosity > 0) {
+                std::cout << "  " << cluster->get_ordername(order) << " : " << file_disp_pattern << '\n';
+            }
         }
-
     }
-    if (verbosity > 0) std::cout << std::endl;
+
+    if (verbosity > 0) std::cout << '\n';
 }
 
 
-void Writer::save_fcs_alamode_oldformat(const System *system,
-                                        const Symmetry *symmetry,
-                                        const Cluster *cluster,
-                                        const Fcs *fcs,
-                                        const Constraint *constraint,
-                                        const double *fcs_vals,
-                                        const std::string fname_dfset,
-                                        const std::string fname_fcs,
+void Writer::save_fcs_alamode_oldformat(const std::unique_ptr<System> &system,
+                                        const std::unique_ptr<Symmetry> &symmetry,
+                                        const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                                        const std::unique_ptr<Constraint> &constraint, const double *fcs_vals,
+                                        const std::string &fname_dfset, const std::string fname_fcs,
                                         const int verbosity) const
 {
-    SystemInfo system_structure;
-
     size_t i, j;
 
-    for (i = 0; i < 3; ++i) {
-        for (j = 0; j < 3; ++j) {
-            system_structure.lattice_vector[i][j]
-                    = system->get_supercell().lattice_vector[i][j];
-        }
-    }
-
-    system_structure.nat = system->get_supercell().number_of_atoms;
-    system_structure.natmin = symmetry->get_nat_prim();
-    system_structure.ntran = symmetry->get_ntran();
-    system_structure.nspecies = system->get_supercell().number_of_elems;
-
-    AtomProperty prop_tmp{};
-
-    for (i = 0; i < system->get_supercell().number_of_atoms; ++i) {
-        prop_tmp.x = system->get_supercell().x_fractional[i][0];
-        prop_tmp.y = system->get_supercell().x_fractional[i][1];
-        prop_tmp.z = system->get_supercell().x_fractional[i][2];
-        prop_tmp.kind = system->get_supercell().kind[i];
-        prop_tmp.atom = symmetry->get_map_s2p()[i].atom_num + 1;
-        prop_tmp.tran = symmetry->get_map_s2p()[i].tran_num + 1;
-
-        system_structure.atoms.emplace_back(AtomProperty(prop_tmp));
-    }
+    const auto nat = system->get_supercell().number_of_atoms;
+    const auto nspecies = system->get_supercell().number_of_elems;
 
     using boost::property_tree::ptree;
 
     ptree pt;
-    std::string str_pos[3];
 
     pt.put("Data.ALM_version", ALAMODE_VERSION);
-//    pt.put("Data.Optimize.DFSET", files->get_datfile_train().filename);
+    //    pt.put("Data.Optimize.DFSET", files->get_datfile_train().filename);
     pt.put("Data.Optimize.DFSET", fname_dfset);
     pt.put("Data.Optimize.Constraint", constraint->get_constraint_mode());
 
-    pt.put("Data.Structure.NumberOfAtoms", system_structure.nat);
-    pt.put("Data.Structure.NumberOfElements", system_structure.nspecies);
-
-    for (i = 0; i < system_structure.nspecies; ++i) {
-        auto &child = pt.add("Data.Structure.AtomicElements.element",
-                             system->get_kdname()[i]);
-        child.put("<xmlattr>.number", i + 1);
-    }
-
-    for (i = 0; i < 3; ++i) {
-        str_pos[i].clear();
-        for (j = 0; j < 3; ++j) {
-            str_pos[i] += " " + double2string(system_structure.lattice_vector[j][i]);
+    {
+        std::vector<std::string> element_names(system->get_kdname().begin(), system->get_kdname().begin() + nspecies);
+        std::vector<int> atomic_kinds;
+        atomic_kinds.reserve(nat);
+        for (i = 0; i < nat; ++i) {
+            atomic_kinds.push_back(system->get_supercell().kind[i] - 1);
         }
+
+        std::stringstream ss;
+        ss << system->get_periodicity()[0] << " " << system->get_periodicity()[1] << " "
+           << system->get_periodicity()[2];
+
+        fcsxml::add_structure_group_xml(pt,
+                                        system->get_supercell().lattice_vector,
+                                        system->get_supercell().x_fractional,
+                                        atomic_kinds,
+                                        element_names,
+                                        ss.str());
     }
-    pt.put("Data.Structure.LatticeVector", "");
-    pt.put("Data.Structure.LatticeVector.a1", str_pos[0]);
-    pt.put("Data.Structure.LatticeVector.a2", str_pos[1]);
-    pt.put("Data.Structure.LatticeVector.a3", str_pos[2]);
 
-    std::stringstream ss;
-    ss << system->get_periodicity()[0] << " "
-       << system->get_periodicity()[1] << " "
-       << system->get_periodicity()[2];
-    pt.put("Data.Structure.Periodicity", ss.str());
+    fcsxml::add_symmetry_group_xml(pt, symmetry->get_map_trueprim_to_super());
 
-    pt.put("Data.Structure.Position", "");
     std::string str_tmp;
-
-    for (i = 0; i < system_structure.nat; ++i) {
-        str_tmp.clear();
-        for (j = 0; j < 3; ++j) str_tmp += " " + double2string(system->get_supercell().x_fractional[i][j]);
-        auto &child = pt.add("Data.Structure.Position.pos", str_tmp);
-        child.put("<xmlattr>.index", i + 1);
-        child.put("<xmlattr>.element", system->get_kdname()[system->get_supercell().kind[i] - 1]);
-    }
-
-    pt.put("Data.Symmetry.NumberOfTranslations", symmetry->get_ntran());
-    for (i = 0; i < system_structure.ntran; ++i) {
-        for (j = 0; j < system_structure.natmin; ++j) {
-            auto &child = pt.add("Data.Symmetry.Translations.map",
-                                 symmetry->get_map_p2s()[j][i] + 1);
-            child.put("<xmlattr>.tran", i + 1);
-            child.put("<xmlattr>.atom", j + 1);
-        }
-    }
 
     if (system->get_spin().lspin) {
         pt.put("Data.MagneticMoments", "");
         pt.put("Data.MagneticMoments.Noncollinear", system->get_spin().noncollinear);
         pt.put("Data.MagneticMoments.TimeReversalSymmetry", system->get_spin().time_reversal_symm);
-        for (i = 0; i < system_structure.nat; ++i) {
+        for (i = 0; i < nat; ++i) {
             str_tmp.clear();
             for (j = 0; j < 3; ++j) str_tmp += " " + double2string(system->get_spin().magmom[i][j], 5);
             auto &child = pt.add("Data.MagneticMoments.mag", str_tmp);
@@ -594,7 +671,6 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
     const auto nelem = cluster->get_maxorder() + 1;
     int *pair_tmp;
     std::vector<int> atom_tmp;
-    std::vector<std::vector<int>> cell_dummy;
     std::set<InteractionCluster>::iterator iter_cluster;
     size_t multiplicity;
 
@@ -606,16 +682,14 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
         for (i = 0; i < 2; ++i) {
             pair_tmp[i] = fcs->get_fc_table()[0][ihead].elems[i] / 3;
         }
-        j = symmetry->get_map_s2p()[pair_tmp[0]].atom_num;
+        j = symmetry->get_map_super_to_trueprim()[pair_tmp[0]].atom_num;
 
         atom_tmp.clear();
         atom_tmp.push_back(pair_tmp[1]);
 
-        iter_cluster = cluster->get_interaction_cluster(0, j).find(
-                InteractionCluster(atom_tmp, cell_dummy));
+        iter_cluster = cluster->get_interaction_cluster(0, j).find(InteractionCluster(atom_tmp));
         if (iter_cluster == cluster->get_interaction_cluster(0, j).end()) {
-            exit("load_reference_system_xml",
-                 "Cubic force constant is not found.");
+            exit("load_reference_system_xml", "Cubic force constant is not found.");
         }
 
         multiplicity = (*iter_cluster).cell.size();
@@ -623,8 +697,8 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
         auto &child = pt.add("Data.ForceConstants.HarmonicUnique.FC2",
                              double2string(fcs_vals[k] * fcs->get_fc_table()[0][ihead].sign));
         child.put("<xmlattr>.pairs",
-                  std::to_string(fcs->get_fc_table()[0][ihead].elems[0])
-                  + " " + std::to_string(fcs->get_fc_table()[0][ihead].elems[1]));
+                  std::to_string(fcs->get_fc_table()[0][ihead].elems[0]) + " " +
+                      std::to_string(fcs->get_fc_table()[0][ihead].elems[1]));
         child.put("<xmlattr>.multiplicity", multiplicity);
         ihead += fcs->get_nequiv()[0][ui];
         ++k;
@@ -641,7 +715,7 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
             for (i = 0; i < 3; ++i) {
                 pair_tmp[i] = fcs->get_fc_table()[1][ihead].elems[i] / 3;
             }
-            j = symmetry->get_map_s2p()[pair_tmp[0]].atom_num;
+            j = symmetry->get_map_super_to_trueprim()[pair_tmp[0]].atom_num;
 
             atom_tmp.clear();
             for (i = 1; i < 3; ++i) {
@@ -649,11 +723,9 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
             }
             std::sort(atom_tmp.begin(), atom_tmp.end());
 
-            iter_cluster = cluster->get_interaction_cluster(1, j).find(
-                    InteractionCluster(atom_tmp, cell_dummy));
+            iter_cluster = cluster->get_interaction_cluster(1, j).find(InteractionCluster(atom_tmp));
             if (iter_cluster == cluster->get_interaction_cluster(1, j).end()) {
-                exit("load_reference_system_xml",
-                     "Cubic force constant is not found.");
+                exit("load_reference_system_xml", "Cubic force constant is not found.");
             }
             multiplicity = (*iter_cluster).cell.size();
 
@@ -661,9 +733,9 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
             auto &child = pt.add("Data.ForceConstants.CubicUnique.FC3",
                                  double2string(fcs_vals[k] * fcs->get_fc_table()[1][ihead].sign));
             child.put("<xmlattr>.pairs",
-                      std::to_string(fcs->get_fc_table()[1][ihead].elems[0])
-                      + " " + std::to_string(fcs->get_fc_table()[1][ihead].elems[1])
-                      + " " + std::to_string(fcs->get_fc_table()[1][ihead].elems[2]));
+                      std::to_string(fcs->get_fc_table()[1][ihead].elems[0]) + " " +
+                          std::to_string(fcs->get_fc_table()[1][ihead].elems[1]) + " " +
+                          std::to_string(fcs->get_fc_table()[1][ihead].elems[2]));
             child.put("<xmlattr>.multiplicity", multiplicity);
             ihead += fcs->get_nequiv()[1][ui];
             ++k;
@@ -671,75 +743,30 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
     }
 
     int imult;
-    std::string elementname = "Data.ForceConstants.HARMONIC.FC2";
 
-    auto fc_cart_harmonic = fcs->get_fc_cart()[0];
-
-    std::sort(fc_cart_harmonic.begin(),
-              fc_cart_harmonic.end());
-
-    for (const auto &it: fc_cart_harmonic) {
-
-        for (k = 0; k < 2; ++k) {
-            pair_tmp[k] = it.atoms[k];
-        }
-
-        j = symmetry->get_map_s2p()[pair_tmp[0]].atom_num;
-
-        atom_tmp.clear();
-        atom_tmp.push_back(pair_tmp[1]);
-
-        iter_cluster = cluster->get_interaction_cluster(0, j).find(
-                InteractionCluster(atom_tmp, cell_dummy));
-
-        if (iter_cluster != cluster->get_interaction_cluster(0, j).end()) {
-            multiplicity = (*iter_cluster).cell.size();
-
-            for (imult = 0; imult < multiplicity; ++imult) {
-                auto cell_now = (*iter_cluster).cell[imult];
-
-                auto &child = pt.add(elementname,
-                                     double2string(it.fc_value / static_cast<double>(multiplicity)));
-
-                child.put("<xmlattr>.pair1", std::to_string(j + 1)
-                                             + " " + std::to_string(it.coords[0] + 1));
-
-                for (k = 1; k < 2; ++k) {
-                    child.put("<xmlattr>.pair" + std::to_string(k + 1),
-                              std::to_string(pair_tmp[k] + 1)
-                              + " " + std::to_string(it.coords[k] + 1)
-                              + " " + std::to_string(cell_now[k - 1] + 1));
-                }
-            }
-        } else {
-            exit("save_fcs_alamode_oldformat", "This cannot happen.");
-        }
-    }
-
-    auto ishift = fcs->get_nequiv()[0].size();
-
-    // Print anharmonic force constants to the xml file.
-
-    for (auto order = 1; order < cluster->get_maxorder(); ++order) {
+    // Cartesian force constants per order, expanded over the cluster
+    // multiplicity, handed to the shared XML schema writer.
+    for (auto order = 0; order < cluster->get_maxorder(); ++order) {
 
         if (order >= get_output_maxorder()) break;
 
-        auto fc_cart_anharm = fcs->get_fc_cart()[order];
+        auto fc_cart = fcs->get_fc_cart()[order];
 
-        std::sort(fc_cart_anharm.begin(),
-                  fc_cart_anharm.end());
+        std::sort(fc_cart.begin(), fc_cart.end());
 
-        for (const auto &it: fc_cart_anharm) {
+        std::vector<fcsxml::FcCartesianRowXml> rows;
+
+        for (const auto &it: fc_cart) {
 
             // Print force constants only when the coefficient is nonzero
             // and the last (order + 1) elements are sorted in ascending order.
 
-            if (!it.is_ascending_order) continue;
+            if (order > 0 && !it.is_ascending_order) continue;
 
             for (k = 0; k < order + 2; ++k) {
                 pair_tmp[k] = it.atoms[k];
             }
-            j = symmetry->get_map_s2p()[pair_tmp[0]].atom_num;
+            j = symmetry->get_map_super_to_trueprim()[pair_tmp[0]].atom_num;
 
             atom_tmp.clear();
 
@@ -748,65 +775,249 @@ void Writer::save_fcs_alamode_oldformat(const System *system,
             }
             std::sort(atom_tmp.begin(), atom_tmp.end());
 
-            elementname = "Data.ForceConstants.ANHARM"
-                          + std::to_string(order + 2)
-                          + ".FC" + std::to_string(order + 2);
-
-            iter_cluster = cluster->get_interaction_cluster(order, j).find(
-                    InteractionCluster(atom_tmp, cell_dummy));
+            iter_cluster = cluster->get_interaction_cluster(order, j).find(InteractionCluster(atom_tmp));
 
             if (iter_cluster != cluster->get_interaction_cluster(order, j).end()) {
-                multiplicity = (*iter_cluster).cell.size();
+                multiplicity = iter_cluster->cell.size();
 
                 for (imult = 0; imult < multiplicity; ++imult) {
-                    auto cell_now = (*iter_cluster).cell[imult];
+                    auto cell_now = iter_cluster->cell[imult];
 
-                    auto &child = pt.add(elementname,
-                                         double2string(it.fc_value / static_cast<double>(multiplicity)));
+                    fcsxml::FcCartesianRowXml row;
+                    row.value = it.fc_value / static_cast<double>(multiplicity);
+                    row.atom1_prim = static_cast<int>(j);
 
-                    child.put("<xmlattr>.pair1", std::to_string(j + 1)
-                                                 + " " + std::to_string(it.coords[0] + 1));
-
-                    for (k = 1; k < order + 2; ++k) {
-                        child.put("<xmlattr>.pair" + std::to_string(k + 1),
-                                  std::to_string(pair_tmp[k] + 1)
-                                  + " " + std::to_string(it.coords[k] + 1)
-                                  + " " + std::to_string(cell_now[k - 1] + 1));
+                    for (k = 0; k < order + 2; ++k) {
+                        row.coords.push_back(it.coords[k]);
                     }
+                    for (k = 1; k < order + 2; ++k) {
+                        row.atoms_super.push_back(pair_tmp[k]);
+                        row.cells.push_back(cell_now[k - 1]);
+                    }
+                    rows.emplace_back(std::move(row));
                 }
             } else {
                 exit("save_fcs_alamode_oldformat", "This cannot happen.");
             }
         }
-        ishift += fcs->get_nequiv()[order].size();
+
+        const auto blockname = order == 0 ? std::string("HARMONIC") : "ANHARM" + std::to_string(order + 2);
+        fcsxml::add_fc_cartesian_group_xml(pt, blockname, order + 2, rows);
     }
 
-    using namespace boost::property_tree::xml_parser;
-    const auto indent = 2;
-
-    //const auto file_xml = files->get_prefix() + ".xml";
-
-#if BOOST_VERSION >= 105600
-    write_xml(fname_fcs, pt, std::locale(),
-              xml_writer_make_settings<ptree::key_type>(' ', indent,
-                                                        widen<std::string>("utf-8")));
-#else
-    write_xml(fname_fcs, pt, std::locale(),
-              xml_writer_make_settings(' ', indent, widen<char>("utf-8")));
-#endif
+    fcsxml::write_fcs_xml_file(fname_fcs, pt);
 
     deallocate(pair_tmp);
 
     if (verbosity > 0) {
-        std::cout << " Input data for the phonon code ANPHON      : " << fname_fcs << std::endl;
+        std::cout << " Input data for the phonon code ANPHON      : " << fname_fcs << '\n';
     }
 }
 
-void Writer::write_hessian(const System *system,
-                           const Symmetry *symmetry,
-                           const Fcs *fcs,
-                           const std::string fname_out,
-                           const int verbosity) const
+auto Writer::save_fcs_alamode(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                              const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                              const double *fcs_vals, const std::string &fname_fcs, const int verbosity) const -> void
+{
+    using namespace H5Easy;
+
+    File file(fname_fcs, File::ReadWrite | File::Create | File::Truncate);
+    write_input_variables_h5(file, input_variables_echo);
+
+    // SuperCell
+    write_structures_h5(file,
+                        system->get_supercell(),
+                        system->get_spin(),
+                        "SuperCell",
+                        system->get_kdname(),
+                        symmetry->get_symnum_tran("super").size(),
+                        symmetry->get_map_trueprim_to_super(),
+                        fcs_unit_output);
+    // PrimitiveCell
+    write_structures_h5(file,
+                        system->get_primcell(),
+                        system->get_spin("prim"),
+                        "PrimitiveCell",
+                        system->get_kdname(),
+                        symmetry->get_symnum_tran("prim").size(),
+                        symmetry->get_map_trueprim_to_prim(),
+                        fcs_unit_output);
+
+    // Force Constants
+    for (auto order = 0; order < cluster->get_maxorder(); ++order) {
+
+        if (order >= get_output_maxorder()) break;
+
+        auto fc_cart = fcs->get_fc_cart()[order];
+        std::sort(fc_cart.begin(), fc_cart.end());
+
+        write_forceconstant_at_given_order_h5(file,
+                                              order,
+                                              fc_cart,
+                                              system->get_x_image(),
+                                              symmetry->get_map_super_to_trueprim(),
+                                              cluster,
+                                              fcs_unit_output,
+                                              compression_level);
+    }
+
+    // Schema identification (readers accept legacy files without it)
+    stamp_h5_schema(file, h5_schema_force_constants, h5_version_force_constants);
+
+    // ALAMODE version
+    dump(file, "/version", ALAMODE_VERSION);
+
+
+    // Hostname
+    // This part requires the program to be linked with boost libraries,
+    // so it is deactivated for the moment.
+#ifdef _BOOST_LIBRARY_LINKABLE
+    dump(file, "/hostname", static_cast<std::string>(boost::asio::ip::host_name()));
+#endif
+
+    // Finally, save the created date and time as attribute
+    const std::time_t result = std::time(nullptr);
+    std::string time_str;
+    time_str.resize(100);
+    std::strftime(&time_str[0], time_str.size(), "%Y-%b-%d %T", std::localtime(&result));
+    dump(file, "/created date", time_str);
+
+    if (verbosity > 0) {
+        std::cout << " Input data for the phonon code ANPHON      : " << fname_fcs << '\n';
+        if (fcs_unit_output == units::FcUnitSystem::ev_angstrom) {
+            std::cout << "                                               "
+                      << "(written in eV/angstrom units; .xml and .fcs stay in Ry/bohr)" << '\n';
+        }
+    }
+}
+
+auto Writer::write_structures_h5(H5Easy::File &file, const Cell &cell, const Spin &spin, const std::string &celltype,
+                                 const std::vector<std::string> &kdnames, const size_t ntran,
+                                 const std::vector<std::vector<int>> &mapping_info,
+                                 const units::FcUnitSystem unit_system) -> void
+{
+    // Adapt alm's structure classes to the shared schema writer.
+    std::vector<std::string> kind_names;
+    for (auto i = 0; i < cell.number_of_elems; ++i) {
+        kind_names.push_back(kdnames[i]);
+    }
+    std::vector<int> kind_copy(cell.kind);
+    for (auto &it: kind_copy) it -= 1;
+
+    write_cell_group_h5(file,
+                        celltype,
+                        cell.lattice_vector,
+                        cell.x_fractional,
+                        kind_copy,
+                        kind_names,
+                        spin.lspin ? 1 : 0,
+                        spin.magmom,
+                        spin.noncollinear,
+                        spin.time_reversal_symm,
+                        ntran,
+                        mapping_info,
+                        unit_system);
+}
+
+
+auto Writer::write_forceconstant_at_given_order_h5(
+    H5Easy::File &file, const int order, const std::vector<ForceConstantTable> &fc_cart,
+    const std::vector<Eigen::MatrixXd> &x_image, const std::vector<Maps> &map_s2tp,
+    const std::unique_ptr<Cluster> &cluster, const units::FcUnitSystem unit_system, const int compression_level) -> void
+{
+    using namespace H5Easy;
+    std::vector<ForceConstantsWithShifts> fc;
+    std::vector<int> atom_tmp;
+
+    Eigen::Vector3d xdiff;
+    std::vector<Eigen::Vector3d> xshifts;
+    double fcs_value_tmp;
+    std::vector<int> atoms_tmp;
+    std::vector<int> index_atoms_trueprim;
+    std::vector<int> index_atoms_prim;
+
+    fc.clear();
+
+    int i, j;
+
+    for (const auto &it: fc_cart) {
+
+        if (!it.is_ascending_order) continue;
+
+        index_atoms_trueprim.clear();
+
+        for (i = 0; i < order + 2; ++i) {
+            index_atoms_trueprim.push_back(map_s2tp[it.atoms[i]].atom_num);
+        }
+
+        j = index_atoms_trueprim[0];
+        atom_tmp.clear();
+        for (i = 0; i < order + 1; ++i) {
+            atom_tmp.push_back(it.atoms[i + 1]);
+        }
+        auto iter_cluster = cluster->get_interaction_cluster(order, j).find(InteractionCluster(atom_tmp));
+
+        if (iter_cluster != cluster->get_interaction_cluster(order, j).end()) {
+            auto multiplicity = iter_cluster->cell.size();
+
+            fcs_value_tmp = it.fc_value / static_cast<double>(multiplicity);
+
+            for (auto imulti = 0; imulti < multiplicity; ++imulti) {
+                auto cell_now = iter_cluster->cell[imulti];
+
+                xshifts.clear();
+                for (auto ishifts = 0; ishifts < order + 1; ++ishifts) {
+                    xdiff = x_image[cell_now[ishifts]].row(it.atoms[ishifts + 1]) - x_image[0].row(it.atoms[0]);
+                    xshifts.emplace_back(xdiff);
+                }
+
+                fc.emplace_back(index_atoms_trueprim, it.atoms, it.coords, xshifts, fcs_value_tmp);
+            }
+        }
+    }
+
+    std::sort(fc.begin(), fc.end());
+
+    const auto nrows = fc.size();
+    if (nrows == 0) {
+        const auto msg = "No nonzero force constants at order " + std::to_string(order + 2) +
+                         "; /ForceConstants/Order" + std::to_string(order + 2) + " is written empty.";
+        warn("write_forceconstant_at_given_order_h5", msg.c_str());
+    }
+    Eigen::MatrixXi atom_indices(nrows, order + 2), atom_indices_super(nrows, order + 2);
+    Eigen::MatrixXi coord_indices(nrows, order + 2);
+    Eigen::MatrixXd shift_vectors(nrows, 3 * (order + 1));
+    Eigen::ArrayXd fcs_arrays(nrows);
+
+    auto counter = 0;
+    for (const auto &it: fc) {
+        for (i = 0; i < order + 2; ++i) {
+            atom_indices(counter, i) = it.atoms_p[i];
+            atom_indices_super(counter, i) = it.atoms_s[i];
+            coord_indices(counter, i) = it.coords[i];
+        }
+        for (i = 0; i < order + 1; ++i) {
+            for (j = 0; j < 3; ++j) {
+                shift_vectors(counter, 3 * i + j) = it.shifts[i][j];
+            }
+        }
+        fcs_arrays[counter] = it.fcs_value;
+        ++counter;
+    }
+    write_fc_order_group_h5(file,
+                            order,
+                            atom_indices,
+                            atom_indices_super,
+                            coord_indices,
+                            std::move(shift_vectors),
+                            std::move(fcs_arrays),
+                            unit_system,
+                            compression_level);
+}
+
+
+auto Writer::write_hessian(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                           const std::unique_ptr<Fcs> &fcs, const std::string &fname_out,
+                           const int verbosity) const -> void
 {
     size_t i, j;
     int pair_tmp[2];
@@ -839,28 +1050,26 @@ void Writer::write_hessian(const System *system,
     ofs_hes.open(fname_out.c_str(), std::ios::out);
     if (!ofs_hes) exit("write_hessian", "cannot create hessian file");
 
-    ofs_hes << "# atom1, xyz1, atom2, xyz2, FC2 (Ryd/Bohr^2)" << std::endl;
+    ofs_hes << "# atom1, xyz1, atom2, xyz2, FC2 (Ryd/Bohr^2)" << '\n';
     for (i = 0; i < nat3; ++i) {
         for (j = 0; j < nat3; ++j) {
             ofs_hes << std::setw(5) << i / 3 + 1;
             ofs_hes << std::setw(5) << i % 3 + 1;
             ofs_hes << std::setw(6) << j / 3 + 1;
             ofs_hes << std::setw(5) << j % 3 + 1;
-            ofs_hes << std::setw(25) << std::setprecision(15)
-                    << std::scientific << hessian[i][j];
-            ofs_hes << std::endl;
+            ofs_hes << std::setw(25) << std::setprecision(15) << std::scientific << hessian[i][j];
+            ofs_hes << '\n';
         }
     }
     ofs_hes.close();
     deallocate(hessian);
 
     if (verbosity) {
-        std::cout << " Complete Hessian matrix                    : " << fname_out << std::endl;
+        std::cout << " Complete Hessian matrix                    : " << fname_out << '\n';
     }
 }
 
-std::string Writer::double2string(const double d,
-                                  const int nprec) const
+auto Writer::double2string(const double d, const int nprec) -> std::string
 {
     std::string rt;
     std::stringstream ss;
@@ -870,11 +1079,9 @@ std::string Writer::double2string(const double d,
     return rt;
 }
 
-void Writer::save_fc2_QEfc_format(const System *system,
-                                  const Symmetry *symmetry,
-                                  const Fcs *fcs,
-                                  const std::string fname_out,
-                                  const int verbosity) const
+auto Writer::save_fc2_QEfc_format(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                                  const std::unique_ptr<Fcs> &fcs, const std::string fname_out,
+                                  const int verbosity) -> void
 {
     size_t i, j;
     int pair_tmp[2];
@@ -901,12 +1108,12 @@ void Writer::save_fc2_QEfc_format(const System *system,
         }
     }
 
-//    auto file_fc = files->get_prefix() + ".fc";
+    //    auto file_fc = files->get_prefix() + ".fc";
 
     ofs_hes.open(fname_out.c_str(), std::ios::out);
     if (!ofs_hes) exit("save_fc2_QEfc_format", "cannot create fc file");
 
-    ofs_hes << "  1  1  1" << std::endl;
+    ofs_hes << "  1  1  1" << '\n';
     for (auto icrd = 0; icrd < 3; ++icrd) {
         for (auto jcrd = 0; jcrd < 3; ++jcrd) {
             for (i = 0; i < system->get_supercell().number_of_atoms; ++i) {
@@ -915,10 +1122,10 @@ void Writer::save_fc2_QEfc_format(const System *system,
                     ofs_hes << std::setw(6) << jcrd + 1;
                     ofs_hes << std::setw(6) << i + 1;
                     ofs_hes << std::setw(6) << j + 1;
-                    ofs_hes << std::endl;
-                    ofs_hes << "  1  1  1 " << std::setw(20) << std::setprecision(13)
-                            << std::scientific << hessian[3 * j + jcrd][3 * i + icrd];
-                    ofs_hes << std::endl;
+                    ofs_hes << '\n';
+                    ofs_hes << "  1  1  1 " << std::setw(20) << std::setprecision(13) << std::scientific
+                            << hessian[3 * j + jcrd][3 * i + icrd];
+                    ofs_hes << '\n';
                 }
             }
         }
@@ -927,38 +1134,32 @@ void Writer::save_fc2_QEfc_format(const System *system,
     deallocate(hessian);
 
     if (verbosity) {
-        std::cout << " Harmonic force constants in QE fc format     : " << fname_out << std::endl;
+        std::cout << " Harmonic force constants in QE fc format     : " << fname_out << '\n';
     }
 }
 
-void Writer::save_fc3_shengbte_format(const System *system,
-                                      const Symmetry *symmetry,
-                                      const Cluster *cluster,
-                                      const Constraint *constraint,
-                                      const Fcs *fcs,
-                                      const std::string fname_out,
-                                      const int verbosity) const
+auto Writer::save_fc3_shengbte_format(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                                      const std::unique_ptr<Cluster> &cluster,
+                                      const std::unique_ptr<Constraint> &constraint, const std::unique_ptr<Fcs> &fcs,
+                                      const std::string &fname_out, const int verbosity) -> void
 {
     size_t i, j, k;
     int pair_tmp[3], coord_tmp[3];
     std::ofstream ofs_fc3;
     size_t nelems = 0;
     const auto nat3 = 3 * system->get_supercell().number_of_atoms;
-    const auto natmin = symmetry->get_nat_prim();
+    const auto natmin = symmetry->get_nat_trueprim();
     const auto nat = system->get_supercell().number_of_atoms;
     const auto ntran = symmetry->get_ntran();
 
     std::vector<int> atom_tmp, flatten_array;
-    std::vector<std::vector<int>> cell_dummy;
     std::set<InteractionCluster>::iterator iter_cluster;
     atom_tmp.resize(2);
     flatten_array.resize(2);
-    cell_dummy.resize(2);
 
+    auto x_image = system->get_x_image();
     std::unordered_map<std::tuple<size_t, size_t, size_t>, size_t> has_element;
     std::unordered_map<std::tuple<size_t, size_t, size_t>, double> fc3;
-
-    double ***x_image = system->get_x_image();
 
     for (const auto &it: fcs->get_fc_cart()[1]) {
 
@@ -974,13 +1175,13 @@ void Writer::save_fc3_shengbte_format(const System *system,
             flatten_array[i] = it.flattenarray[i + 1];
         }
 
-        j = symmetry->get_map_s2p()[pair_tmp[0]].atom_num;
-        iter_cluster = cluster->get_interaction_cluster(1, j).find(InteractionCluster(atom_tmp, cell_dummy));
+        j = symmetry->get_map_super_to_trueprim()[pair_tmp[0]].atom_num;
+        iter_cluster = cluster->get_interaction_cluster(1, j).find(InteractionCluster(atom_tmp));
 
         do {
             std::tuple<int, int, int> atom_tuple(j, flatten_array[0] / 3, flatten_array[1] / 3);
             if (has_element.find(atom_tuple) == has_element.end()) {
-                nelems += (*iter_cluster).cell.size();
+                nelems += iter_cluster->cell.size();
                 has_element[atom_tuple] = 1;
             }
             fc3[std::make_tuple(3 * j + coord_tmp[0], flatten_array[0], flatten_array[1])] = it.fc_value;
@@ -989,13 +1190,13 @@ void Writer::save_fc3_shengbte_format(const System *system,
 
     ofs_fc3.open(fname_out.c_str(), std::ios::out);
     if (!ofs_fc3) exit("save_fc3_shengbte_format", "cannot create the file");
-    ofs_fc3 << nelems << std::endl;
+    ofs_fc3 << nelems << '\n';
 
     double vecs[2][3];
     std::vector<int> atom_tmp_orig(2), index_sort_atom(2);
     std::vector<int> index_found(2);
     auto ielem = 0;
-    const auto factor = Ryd / 1.6021766208e-19 / std::pow(Bohr_in_Angstrom, 3);
+    const auto factor = Ryd_in_eV / std::pow(Bohr_in_Angstrom, 3);
 
     for (i = 0; i < natmin; ++i) {
         for (auto jtran = 0; jtran < ntran; ++jtran) {
@@ -1003,8 +1204,8 @@ void Writer::save_fc3_shengbte_format(const System *system,
                 for (auto ktran = 0; ktran < ntran; ++ktran) {
                     for (k = 0; k < natmin; ++k) {
 
-                        const auto jat = symmetry->get_map_p2s()[j][jtran];
-                        const auto kat = symmetry->get_map_p2s()[k][ktran];
+                        const auto jat = symmetry->get_map_trueprim_to_super()[j][jtran];
+                        const auto kat = symmetry->get_map_trueprim_to_super()[k][ktran];
 
                         if (has_element.find(std::make_tuple(i, jat, kat)) == has_element.end()) continue;
 
@@ -1027,34 +1228,35 @@ void Writer::save_fc3_shengbte_format(const System *system,
                             }
                         }
 
-                        iter_cluster = cluster->get_interaction_cluster(1, i).find(
-                                InteractionCluster(atom_tmp, cell_dummy));
+                        iter_cluster = cluster->get_interaction_cluster(1, i).find(InteractionCluster(atom_tmp));
                         if (iter_cluster == cluster->get_interaction_cluster(1, i).end()) {
                             exit("save_fc3_shengbte_format", "This cannot happen.");
                         }
 
-                        const auto multiplicity = (*iter_cluster).cell.size();
+                        const auto multiplicity = iter_cluster->cell.size();
 
-                        const auto jat0 = symmetry->get_map_p2s()[symmetry->get_map_s2p()[atom_tmp[0]].atom_num][0];
-                        const auto kat0 = symmetry->get_map_p2s()[symmetry->get_map_s2p()[atom_tmp[1]].atom_num][0];
+                        const auto jat0 =
+                            symmetry->get_map_trueprim_to_super()[symmetry->get_map_super_to_trueprim()[atom_tmp[0]]
+                                                                      .atom_num][0];
+                        const auto kat0 =
+                            symmetry->get_map_trueprim_to_super()[symmetry->get_map_super_to_trueprim()[atom_tmp[1]]
+                                                                      .atom_num][0];
 
                         for (size_t imult = 0; imult < multiplicity; ++imult) {
-                            auto cell_now = (*iter_cluster).cell[imult];
+                            auto cell_now = iter_cluster->cell[imult];
 
                             for (auto m = 0; m < 3; ++m) {
-                                vecs[0][m] = (x_image[0][atom_tmp[0]][m]
-                                              - x_image[0][jat0][m]
-                                              + x_image[cell_now[0]][0][m]
-                                              - x_image[0][0][m]) * Bohr_in_Angstrom;
-                                vecs[1][m] = (x_image[0][atom_tmp[1]][m]
-                                              - x_image[0][kat0][m]
-                                              + x_image[cell_now[1]][0][m]
-                                              - x_image[0][0][m]) * Bohr_in_Angstrom;
+                                vecs[0][m] = (x_image[0](atom_tmp[0], m) - x_image[0](jat0, m) +
+                                              x_image[cell_now[0]](0, m) - x_image[0](0, m)) *
+                                             Bohr_in_Angstrom;
+                                vecs[1][m] = (x_image[0](atom_tmp[1], m) - x_image[0](kat0, m) +
+                                              x_image[cell_now[1]](0, m) - x_image[0](0, m)) *
+                                             Bohr_in_Angstrom;
                             }
 
                             ++ielem;
-                            ofs_fc3 << std::endl;
-                            ofs_fc3 << ielem << std::endl;
+                            ofs_fc3 << '\n';
+                            ofs_fc3 << ielem << '\n';
                             ofs_fc3 << std::scientific;
                             ofs_fc3 << std::setprecision(10);
 
@@ -1063,12 +1265,12 @@ void Writer::save_fc3_shengbte_format(const System *system,
                                 for (auto mm = 0; mm < 3; ++mm) {
                                     ofs_fc3 << std::setw(20) << vecs[m_map][mm];
                                 }
-                                ofs_fc3 << std::endl;
+                                ofs_fc3 << '\n';
                             }
 
                             ofs_fc3 << std::setw(5) << i + 1;
                             ofs_fc3 << std::setw(5) << j + 1;
-                            ofs_fc3 << std::setw(5) << k + 1 << std::endl;
+                            ofs_fc3 << std::setw(5) << k + 1 << '\n';
 
                             for (auto ii = 0; ii < 3; ++ii) {
                                 for (auto jj = 0; jj < 3; ++jj) {
@@ -1077,10 +1279,12 @@ void Writer::save_fc3_shengbte_format(const System *system,
                                         ofs_fc3 << std::setw(3) << jj + 1;
                                         ofs_fc3 << std::setw(3) << kk + 1;
                                         if (fc3.find(std::make_tuple(3 * i + ii, 3 * jat + jj, 3 * kat + kk)) !=
-                                            fc3.end()) {
+                                            fc3.end())
+                                        {
                                             ofs_fc3 << std::setw(20)
-                                                    << fc3[std::make_tuple(3 * i + ii, 3 * jat + jj, 3 * kat + kk)]
-                                                       * factor / static_cast<double>(multiplicity) << std::endl;
+                                                    << fc3[std::make_tuple(3 * i + ii, 3 * jat + jj, 3 * kat + kk)] *
+                                                           factor / static_cast<double>(multiplicity)
+                                                    << std::endl;
                                         } else {
                                             ofs_fc3 << std::setw(20) << 0.0 << std::endl;
                                         }
@@ -1097,40 +1301,33 @@ void Writer::save_fc3_shengbte_format(const System *system,
     ofs_fc3.close();
 
     if (verbosity) {
-        std::cout << " Third-order FCs in ShengBTE format         : " << fname_out << std::endl;
+        std::cout << " Third-order FCs in ShengBTE format         : " << fname_out << '\n';
     }
 }
 
 
-void Writer::save_fc4_shengbte_format(const System *system,
-                                      const Symmetry *symmetry,
-                                      const Cluster *cluster,
-                                      const Constraint *constraint,
-                                      const Fcs *fcs,
-                                      const std::string fname_out,
-                                      const int verbosity) const
+auto Writer::save_fc4_shengbte_format(const std::unique_ptr<System> &system, const std::unique_ptr<Symmetry> &symmetry,
+                                      const std::unique_ptr<Cluster> &cluster, const std::unique_ptr<Fcs> &fcs,
+                                      const std::string &fname_out, const int verbosity) -> void
 {
     size_t i, j, k, l;
     int pair_tmp[4], coord_tmp[4];
     std::ofstream ofs_fc4;
     size_t nelems = 0;
     const auto nat3 = 3 * system->get_supercell().number_of_atoms;
-    const auto natmin = symmetry->get_nat_prim();
+    const auto natmin = symmetry->get_nat_trueprim();
     const auto nat = system->get_supercell().number_of_atoms;
     const auto ntran = symmetry->get_ntran();
 
     std::vector<int> atom_tmp, flatten_array;
-    std::vector<std::vector<int>> cell_dummy;
     std::set<InteractionCluster>::iterator iter_cluster;
     atom_tmp.resize(3);
     flatten_array.resize(3);
-    cell_dummy.resize(3);
 
-    double ***x_image = system->get_x_image();
+    auto x_image = system->get_x_image();
 
     if (cluster->get_maxorder() < 3) {
-        exit("save_fc4_shengbte_format",
-             "No fourth-order terms when NORDER < 3.");
+        exit("save_fc4_shengbte_format", "No fourth-order terms when NORDER < 3.");
     }
 
     std::unordered_map<std::tuple<size_t, size_t, size_t, size_t>, size_t> has_element;
@@ -1145,14 +1342,14 @@ void Writer::save_fc4_shengbte_format(const System *system,
             coord_tmp[i] = it.coords[i];
         }
 
-        j = symmetry->get_map_s2p()[pair_tmp[0]].atom_num;
+        j = symmetry->get_map_super_to_trueprim()[pair_tmp[0]].atom_num;
 
         for (i = 0; i < 3; ++i) {
             atom_tmp[i] = pair_tmp[i + 1];
             flatten_array[i] = it.flattenarray[i + 1];
         }
 
-        iter_cluster = cluster->get_interaction_cluster(2, j).find(InteractionCluster(atom_tmp, cell_dummy));
+        iter_cluster = cluster->get_interaction_cluster(2, j).find(InteractionCluster(atom_tmp));
 
         do {
             std::tuple<size_t, size_t, size_t, size_t> atom_tuple(j,
@@ -1160,13 +1357,11 @@ void Writer::save_fc4_shengbte_format(const System *system,
                                                                   flatten_array[1] / 3,
                                                                   flatten_array[2] / 3);
             if (has_element.find(atom_tuple) == has_element.end()) {
-                nelems += (*iter_cluster).cell.size();
+                nelems += iter_cluster->cell.size();
                 has_element[atom_tuple] = 1;
             }
-            fc4[std::make_tuple(3 * j + coord_tmp[0],
-                                flatten_array[0],
-                                flatten_array[1],
-                                flatten_array[2])] = it.fc_value;
+            fc4[std::make_tuple(3 * j + coord_tmp[0], flatten_array[0], flatten_array[1], flatten_array[2])] =
+                it.fc_value;
         } while (std::next_permutation(flatten_array.begin(), flatten_array.end()));
     }
 
@@ -1178,7 +1373,7 @@ void Writer::save_fc4_shengbte_format(const System *system,
     std::vector<int> atom_tmp_orig(3), index_sort_atom(3);
     std::vector<int> index_found(3);
     auto ielem = 0;
-    const auto factor = Ryd / 1.6021766208e-19 / std::pow(Bohr_in_Angstrom, 4);
+    const auto factor = Ryd_in_eV / std::pow(Bohr_in_Angstrom, 4);
 
     for (i = 0; i < natmin; ++i) {
         for (auto jtran = 0; jtran < ntran; ++jtran) {
@@ -1187,9 +1382,9 @@ void Writer::save_fc4_shengbte_format(const System *system,
                     for (k = 0; k < natmin; ++k) {
                         for (auto ltran = 0; ltran < ntran; ++ltran) {
                             for (l = 0; l < natmin; ++l) {
-                                const auto jat = symmetry->get_map_p2s()[j][jtran];
-                                const auto kat = symmetry->get_map_p2s()[k][ktran];
-                                const auto lat = symmetry->get_map_p2s()[l][ltran];
+                                const auto jat = symmetry->get_map_trueprim_to_super()[j][jtran];
+                                const auto kat = symmetry->get_map_trueprim_to_super()[k][ktran];
+                                const auto lat = symmetry->get_map_trueprim_to_super()[l][ltran];
 
                                 if (has_element.find(std::make_tuple(i, jat, kat, lat)) == has_element.end()) continue;
 
@@ -1213,39 +1408,39 @@ void Writer::save_fc4_shengbte_format(const System *system,
                                     }
                                 }
 
-                                iter_cluster = cluster->get_interaction_cluster(2, i).find(
-                                        InteractionCluster(atom_tmp, cell_dummy));
+                                iter_cluster =
+                                    cluster->get_interaction_cluster(2, i).find(InteractionCluster(atom_tmp));
                                 if (iter_cluster == cluster->get_interaction_cluster(2, i).end()) {
                                     exit("save_fc4_shengbte_format", "This cannot happen.");
                                 }
 
-                                const auto multiplicity = (*iter_cluster).cell.size();
+                                const auto multiplicity = iter_cluster->cell.size();
 
-                                const auto jat0 = symmetry->get_map_p2s()[symmetry->get_map_s2p()[atom_tmp[0]].atom_num][0];
-                                const auto kat0 = symmetry->get_map_p2s()[symmetry->get_map_s2p()[atom_tmp[1]].atom_num][0];
-                                const auto lat0 = symmetry->get_map_p2s()[symmetry->get_map_s2p()[atom_tmp[2]].atom_num][0];
+                                const auto jat0 = symmetry->get_map_trueprim_to_super()
+                                                      [symmetry->get_map_super_to_trueprim()[atom_tmp[0]].atom_num][0];
+                                const auto kat0 = symmetry->get_map_trueprim_to_super()
+                                                      [symmetry->get_map_super_to_trueprim()[atom_tmp[1]].atom_num][0];
+                                const auto lat0 = symmetry->get_map_trueprim_to_super()
+                                                      [symmetry->get_map_super_to_trueprim()[atom_tmp[2]].atom_num][0];
 
                                 for (size_t imult = 0; imult < multiplicity; ++imult) {
-                                    auto cell_now = (*iter_cluster).cell[imult];
+                                    auto cell_now = iter_cluster->cell[imult];
 
                                     for (auto m = 0; m < 3; ++m) {
-                                        vecs[0][m] = (x_image[0][atom_tmp[0]][m]
-                                                      - x_image[0][jat0][m]
-                                                      + x_image[cell_now[0]][0][m]
-                                                      - x_image[0][0][m]) * Bohr_in_Angstrom;
-                                        vecs[1][m] = (x_image[0][atom_tmp[1]][m]
-                                                      - x_image[0][kat0][m]
-                                                      + x_image[cell_now[1]][0][m]
-                                                      - x_image[0][0][m]) * Bohr_in_Angstrom;
-                                        vecs[2][m] = (x_image[0][atom_tmp[2]][m]
-                                                      - x_image[0][lat0][m]
-                                                      + x_image[cell_now[2]][0][m]
-                                                      - x_image[0][0][m]) * Bohr_in_Angstrom;
+                                        vecs[0][m] = (x_image[0](atom_tmp[0], m) - x_image[0](jat0, m) +
+                                                      x_image[cell_now[0]](0, m) - x_image[0](0, m)) *
+                                                     Bohr_in_Angstrom;
+                                        vecs[1][m] = (x_image[0](atom_tmp[1], m) - x_image[0](kat0, m) +
+                                                      x_image[cell_now[1]](0, m) - x_image[0](0, m)) *
+                                                     Bohr_in_Angstrom;
+                                        vecs[2][m] = (x_image[0](atom_tmp[2], m) - x_image[0](lat0, m) +
+                                                      x_image[cell_now[2]](0, m) - x_image[0](0, m)) *
+                                                     Bohr_in_Angstrom;
                                     }
 
                                     ++ielem;
-                                    ofs_fc4 << std::endl;
-                                    ofs_fc4 << ielem << std::endl;
+                                    ofs_fc4 << '\n';
+                                    ofs_fc4 << ielem << '\n';
                                     ofs_fc4 << std::scientific;
                                     ofs_fc4 << std::setprecision(10);
 
@@ -1254,13 +1449,13 @@ void Writer::save_fc4_shengbte_format(const System *system,
                                         for (auto mm = 0; mm < 3; ++mm) {
                                             ofs_fc4 << std::setw(20) << vecs[m_map][mm];
                                         }
-                                        ofs_fc4 << std::endl;
+                                        ofs_fc4 << '\n';
                                     }
 
                                     ofs_fc4 << std::setw(5) << i + 1;
                                     ofs_fc4 << std::setw(5) << j + 1;
                                     ofs_fc4 << std::setw(5) << k + 1;
-                                    ofs_fc4 << std::setw(5) << l + 1 << std::endl;
+                                    ofs_fc4 << std::setw(5) << l + 1 << '\n';
 
                                     for (auto ii = 0; ii < 3; ++ii) {
                                         for (auto jj = 0; jj < 3; ++jj) {
@@ -1273,18 +1468,18 @@ void Writer::save_fc4_shengbte_format(const System *system,
                                                     if (fc4.find(std::make_tuple(3 * i + ii,
                                                                                  3 * jat + jj,
                                                                                  3 * kat + kk,
-                                                                                 3 * lat + ll)) != fc4.end()) {
+                                                                                 3 * lat + ll)) != fc4.end())
+                                                    {
                                                         ofs_fc4 << std::setw(20)
                                                                 << fc4[std::make_tuple(3 * i + ii,
                                                                                        3 * jat + jj,
                                                                                        3 * kat + kk,
-                                                                                       3 * lat + ll)]
-                                                                   * factor / static_cast<double>(multiplicity)
+                                                                                       3 * lat + ll)] *
+                                                                       factor / static_cast<double>(multiplicity)
                                                                 << std::endl;
                                                     } else {
                                                         ofs_fc4 << std::setw(20) << 0.0 << std::endl;
                                                     }
-
                                                 }
                                             }
                                         }
@@ -1301,11 +1496,11 @@ void Writer::save_fc4_shengbte_format(const System *system,
     ofs_fc4.close();
 
     if (verbosity) {
-        std::cout << " Fourth-order FCs in ShengBTE format        : " << fname_out << std::endl;
+        std::cout << " Fourth-order FCs in ShengBTE format        : " << fname_out << '\n';
     }
 }
 
-std::string Writer::easyvizint(const int n) const
+auto Writer::easyvizint(const int n) -> std::string
 {
     const auto atmn = n / 3 + 1;
     const auto crdn = n % 3;
@@ -1316,15 +1511,14 @@ std::string Writer::easyvizint(const int n) const
     return str_tmp;
 }
 
-void Writer::set_fcs_save_flag(const std::string key_str,
-                               const int val)
+auto Writer::set_fcs_save_flag(const std::string &key_str, const int val) -> void
 {
     if (save_format_flags.find(key_str) != save_format_flags.end()) {
         save_format_flags[key_str] = val;
     }
 }
 
-int Writer::get_fcs_save_flag(const std::string key_str)
+auto Writer::get_fcs_save_flag(const std::string &key_str) -> int
 {
     if (save_format_flags.find(key_str) != save_format_flags.end()) {
         return save_format_flags[key_str];
@@ -1332,23 +1526,90 @@ int Writer::get_fcs_save_flag(const std::string key_str)
     return -1;
 }
 
-void Writer::set_output_maxorder(const int maxorder)
+auto Writer::set_output_maxorder(const int maxorder) -> void
 {
     output_maxorder = maxorder;
 }
 
-int Writer::get_output_maxorder() const
+auto Writer::get_output_maxorder() const -> int
 {
     return output_maxorder;
 }
 
-void Writer::set_filename_fcs(const std::string filename_in)
+auto Writer::set_compression_level(const int level) -> void
+{
+    if (level > 9) {
+        warn("set_compression_level", "COMPRESSION is set to 9.");
+        compression_level = 9;
+    } else if (level < 0) {
+        warn("set_compression_level", "COMPRESSION is set to 0.");
+        compression_level = 0;
+    } else {
+        compression_level = level;
+    }
+}
+
+auto Writer::get_compression_level() const -> int
+{
+    return compression_level;
+}
+
+auto Writer::set_filename_fcs(const std::string &filename_in) -> void
 {
     filename_fcs = filename_in;
 }
 
-std::string Writer::get_filename_fcs() const
+auto Writer::get_filename_fcs() const -> std::string
 {
     return filename_fcs;
 }
 
+auto Writer::set_input_vars(const std::map<std::string, std::string> &input_var_dict) -> void
+{
+    input_variables.clear();
+    for (const auto &it: input_var_dict) {
+        input_variables.insert(it);
+    }
+}
+
+auto Writer::has_input_echo() const -> bool
+{
+    return !input_variables_echo.empty();
+}
+
+auto Writer::get_input_var(const std::string &key) const -> std::string
+{
+    const auto it = input_variables.find(key);
+    if (it != input_variables.end()) {
+        return it->second;
+    } else {
+        return "";
+    }
+}
+
+auto Writer::set_format_patternfile(const std::string &format_name) -> void
+{
+    auto format_lower = boost::algorithm::to_lower_copy(format_name);
+
+    if (format_name != "yaml" and format_name != "old") {
+        warn("set_format_patternfile", "Invalid format. The default YAML format will be used");
+        format_lower = "yaml";
+    }
+
+    format_pattern = format_lower;
+}
+
+auto Writer::get_format_patternfile() const -> std::string
+{
+    return format_pattern;
+}
+
+auto Writer::set_fcs_unit_output(const std::string &unit_system) -> void
+{
+    fcs_unit_output = units::parse_fc_unit_system(unit_system); // throws std::invalid_argument
+}
+
+auto Writer::get_fcs_unit_output() const -> std::string
+{
+    return units::canonical_name(fcs_unit_output);
+}

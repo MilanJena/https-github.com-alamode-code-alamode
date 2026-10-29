@@ -1,15 +1,27 @@
-.. _label_tutorial_sto_scph:
-
 .. raw:: html
 
     <style> .red {color:red} </style>
 
 .. role:: red
 
-.. |Angstrom|   unicode:: U+00C5 
+.. |Angstrom|   unicode:: U+00C5
+
+.. _label_tutorial_bto_scph_relax:
 
 BaTiO\ :sub:`3` : An SCPH-based structural optimization example
----------------------------------------------------
+--------------------------------------------------------------------
+
+.. admonition:: At a glance
+   :class: tip
+
+   :Goal: Calculate the temperature dependence of the atomic positions across the cubic-tetragonal phase transition of BaTiO\ :sub:`3` with the SCPH theory.
+   :You will learn:
+      - how to set :anphon:`RELAX_STR` and the ``&relax`` and ``&displace`` fields
+      - how to run cooling (``SET_INIT_STR = 3``) and heating (``SET_INIT_STR = 2``) calculations
+      - how to read the transition temperature from the atomic displacements and free energies
+   :Prerequisites: :ref:`The BaTiO3 IFC tutorial <label_tutorial_bto_ifc>` (the IFC file is provided) and :ref:`the SrTiO3 SCPH tutorial <label_tutorial_sto_scph>`.
+   :Example files: ``example/BaTiO3/scph_relax``
+   :Run time: A few minutes or less (about 20 s on a 64-core node).
 
 This page explains how to calculate crystal structures at finite temperatures based on the SCPH theory.
 We calculate the cubic-tetragonal structural phase transition of BaTiO\ :sub:`3`.
@@ -19,10 +31,9 @@ The example input files are provided in **example/BaTiO3/scph_relax**.
 
 Let's move to the example directory
 
-.. code-block:: bash
+.. code-block:: console
 
   $ cd ${ALAMODE_ROOT}/example/BaTiO3/scph_relax
-
 
 .. _tutorial_BTO_scph_relax_step1:
 
@@ -30,12 +41,11 @@ Let's move to the example directory
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This tutorial assumes that the harmonic and anharmonic force constants are already calculated up to the fourth order.
-Please copy the file of IFCs calculated in :ref:`Tutorial 7.5 <label_tutorial_bto_ifc>` to the current directory.
+Please copy the file of IFCs calculated in :ref:`label_tutorial_bto_ifc` to the current directory.
 
-.. code-block:: bash 
+.. code-block:: console
 
-  $ cp ../anharm_IFCs/4_optimize/reference/cBTO222.xml.zip ./
-  $ unzip cBTO222.xml.zip
+  $ cp ../anharm_IFCs/4_optimize/reference/cBTO222.h5 ./
 
 .. note::
 
@@ -53,73 +63,71 @@ Please copy the file of IFCs calculated in :ref:`Tutorial 7.5 <label_tutorial_bt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In addition to the input file of the SCPH calculation at the fixed reference structure 
-(See :ref:`Tutorial 7.4 <label_tutorial_sto_scph>` for example), 
-we need to set ``RELAX_STR``-tag in ``&scph``-field, ``&relax``-field, and ``&displace``-field properly.
+(See :ref:`label_tutorial_sto_scph` for example), 
+we need to set :anphon:`RELAX_STR`-tag in ``&scph``-field, ``&relax``-field, and ``&displace``-field properly.
 
 We specify the initial atomic displacements in ``&displace``-field, 
 which are added to the high-symmetry reference structure.
 This is necessary to induce spontaneous symmetry breaking from the cubic phase.
 
 The input file of the anphon calculation is :red:`BTO_scph_thermo.in`.
-The lines
+The line
 ::
-  SET_INIT_STR = 3
-  COOLING_U0_INDEX = 5
-  COOLING_U0_THR = 0.005
 
-are for the cooling calculation. 
+  SET_INIT_STR = 3
+
+is for the cooling calculation.
 With ``SET_INIT_STR = 3``, the initial structure of the SCPH-based structural optimization
-is set from ``&displace``-field if the structure at the previous temperature converges to the
-high-symmetry phase. 
-The structure is considered to be in the high-symmetry phase if the ``COOLING_U0_INDEX`` th component 
-of the atomic displacement is smaller than ``COOLING_U0_THR`` [Bohr].
-Because we count the components from zero, ``COOLING_U0_INDEX = 5`` means that we focus on 
-the :math:`z`-component of the second atom (Ti). 
-Please see :ref:`the documentation <anphon_cooling_u0_index>` for more detailed explanations.
+is set from the ``&displace``-field if the structure at the previous temperature converges to
+the high-symmetry phase.
+The structure is judged to be in the high-symmetry phase when spglib finds the space group of
+the undistorted reference cell for it, using the symmetry tolerance of the
+:anphon:`TOLERANCE` tag.
+Please see :ref:`the documentation <anphon_set_init_str>` for more detailed explanations.
+
+The ``COOLING_U0_INDEX`` and ``COOLING_U0_THR`` tags of ALAMODE 1.x are deprecated and ignored;
+the high-symmetry phase is detected automatically.
 
 To perform the heating calculation, set ``LOWER_TEMP = 0`` in ``&scph``-field and ``SET_INIT_STR = 2``.
 Then, write the low-temperature structure to the ``&displace``-field.
 
 .. note::
   We use a coarse SCPH :math:`q`-mesh of ``KMESH_SCPH = 4 4 4`` to save computational cost.
-  Convergence with respect to ``KMESH_SCPH`` and the threshold ``COORD_CONV_TOL`` needs 
+  Convergence with respect to :anphon:`KMESH_SCPH` and the threshold :anphon:`COORD_CONV_TOL` needs 
   to be carefully checked to obtain accurate calculation results.
 
 .. note::
 
-  The convergence of the structure gets significantly slower right at the vicinity of 
+  The convergence of the structure gets significantly slower in the vicinity of 
   the phase transition because the gradient of the free energy almost vanishes.
   In such cases, getting a smooth :math:`T`-dependence for materials 
-  with more complicated structures is sometimes difficult..
+  with more complicated structures is sometimes difficult.
   This problem can be partially avoided by choosing a larger :math:`T`-step 
   and estimating the transition temperature from the crossing point of
   the free energies with different phases.
 
 Now, run the calculation with 
 
-.. code-block:: bash
+.. code-block:: console
 
-  $ ${ALAMODE_ROOT}/anphon/anphon BTO_scph_thermo.in > BTO_scph_thermo.log
+  $ ${ALAMODE_ROOT}/_build/anphon/anphon BTO_scph_thermo.in > BTO_scph_thermo.log
 
-.. _tutorial_BTO_scph_relax_step3:
+:download:`Download BTO_scph_thermo.in <../../../example/BaTiO3/scph_relax/BTO_scph_thermo.in>`
 
 .. note::
-  The calculation can takes more than 10 minutes if you don't use parallelizations.
-  If you want to try the calculation in a shorter time, please use a larger value for 
-  ``COORD_CONV_TOL = 1.0e-5`` or ``DT = 25``,
-  or make ``TMAX = 400`` smaller.
-  The structure will not be completely convergent for large ``COORD_CONV_TOL``, 
+  If you want to try the calculation in a shorter time, use a larger :anphon:`COORD_CONV_TOL`
+  (1.0e-5 in the input) or :anphon:`DT` (25), or a smaller :anphon:`TMAX` (400).
+  The structure will not be completely convergent for large :anphon:`COORD_CONV_TOL`,
   but you will be able to get the overview of the calculation.
 
-  The calculation time may be shorter in the future as we will implement a more
-  sophisticated algorithm for the structure update.
+.. _tutorial_BTO_scph_relax_step3:
 
 3. Analyze the calculation results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Plotting the result with 
 
-.. code-block:: bash
+.. code-block:: console
 
   $ gnuplot plot_structure.plt
 
@@ -131,16 +139,36 @@ At low temperatures, the atoms are displaced along the :math:`z`-direction,
 and the structure is in the tetragonal phase.
 The estimated transition temperature (:math:`T_c`) is around 150~175 K.
 
-.. figure:: ../../img/BaTiO3_scph_relax.png
+.. interactive-plot::
+  :kind: xy
+  :series: ../../../example/BaTiO3/scph_relax/reference/cBTO222_scph.atom_disp 1:4 Ba(z)
+     ../../../example/BaTiO3/scph_relax/reference/cBTO222_scph.atom_disp 1:7 Ti(z)
+     ../../../example/BaTiO3/scph_relax/reference/cBTO222_scph.atom_disp 1:10 O(1,2,z)
+     ../../../example/BaTiO3/scph_relax/reference/cBTO222_scph.atom_disp 1:16 O(3,z)
+  :xlabel: Temperature (K)
+  :ylabel: Atomic displacements (Bohr)
+  :markers:
+  :fallback: ../../img/BaTiO3_scph_relax.png
   :scale: 40%
   :align: center
 
   The :math:`T`-dependence of the atomic displacements in cubic-tetragonal
   structural phase transition of BaTiO\ :sub:`3`.
 
+.. structure-viewer::
+  :structure: ../../tools/mode_animations/bto_G.in
+  :animation: ../../tools/mode_animations/bto_G_soft.xyz
+  :amplitude: 4
+  :bonds: Ti O
+  :fallback: ../../img/BTO_G_soft_mode.png
+  :width: 60%
+  :align: center
+
+  The polar soft mode of cubic BaTiO\ :sub:`3` at :math:`\Gamma` in the harmonic approximation: Ti moves against the O octahedra, predominantly along :math:`z` (displacements exaggerated).
+
 The plot of the free energy can be obtained with
 
-.. code-block:: bash
+.. code-block:: console
 
   $ gnuplot plot_free_energy.plt
 
@@ -166,8 +194,8 @@ of the crystal structure.
 
   If we perform the cooling calculation without initial displacement, we will get the free energy of the cubic phase with lower temperatures.
   If we perform the heating calculation, we may get the free energy of the tetragonal phase with higher temperatures.
-  Then, we can find the crossing point if the :math:`T`-step (``DT``) is small enough.
-  If ``DT`` is too large to see the crossing point and the hysteresis, 
+  Then, we can find the crossing point if the :math:`T`-step (:anphon:`DT`) is small enough.
+  If :anphon:`DT` is too large to see the crossing point and the hysteresis, 
   we can extrapolate the free energy difference :math:`F_{cubic}-F_{tetra}` from the low temperature to estimate :math:`T_c`.
 
 
@@ -175,7 +203,7 @@ of the crystal structure.
 
   BaTiO\ :sub:`3` shows a three-step structural phase transition between four different phases.
   For the other two phase transitions that occur at lower temperatures (tetragonal-orthorhombic and orthorhombic-rhombohedral transition),
-  the symmetry of the low-:math:`T` phases are not subgroups of the symmetry of the high-:math:`T` phases.
+  the symmetry of each low-:math:`T` phase is not a subgroup of that of the high-:math:`T` phase.
 
   In such cases, we recommend calculating cubic-orthorhombic and cubic-rhombohedral phase transitions separately 
   and comparing the free energies because
@@ -191,4 +219,6 @@ of the crystal structure.
   We will need to prepare additional inputs, the elastic constants, and the strain-harmonic-IFC coupling if we relax the unit cell as well.
   The strain-force coupling is not necessary for BaTiO\ :sub:`3` because they are zero from symmetry.
 
-  Please see the :ref:`Tutorial 7.8 <label_tutorial_zno_qha_relax>` for the details of the preparation of these inputs.
+  Please see :ref:`label_tutorial_zno_qha_relax` for the details of the preparation of these inputs;
+  the ``tools/elastic.py`` and ``tools/strainifc.py`` scripts generate them from DFT calculations of strained cells
+  and collect them in one HDF5 file given as :anphon:`STRAINFILE` in the ``&relax`` field.

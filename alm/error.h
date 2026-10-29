@@ -11,37 +11,30 @@
 #pragma once
 
 #include <iostream>
-#include <cstdlib>
 
+#include "fatal_error.h"
 
-namespace ALM_NS {
-inline void warn(const char *file,
-                 const char *message)
+namespace ALM_NS
 {
-    std::cout << std::endl << " WARNING in " << file << "  MESSAGE: " << message << std::endl;
+inline auto warn(const char *file, const char *message) -> void
+{
+    std::cout << alamode::log_message("WARNING", file, message);
 }
 
-inline void exit(const char *file,
-                 const char *message)
+// Fatal errors: print the wrapped message, then alamode::terminate (throws
+// when the Python module enabled it, std::exit otherwise; see
+// include/fatal_error.h). The exception text stays on one line.
+[[noreturn]] inline auto exit(const char *file, const char *message) -> void
 {
-    std::cout << std::endl << " ERROR in " << file << "  MESSAGE: " << message << std::endl;
-    std::exit(EXIT_FAILURE);
+    std::cout << alamode::log_message("ERROR", file, message);
+    alamode::terminate(alamode::format_message("ERROR in ", file, "  MESSAGE: ", message));
 }
 
-template<typename T>
-void exit(const char *file,
-          const char *message,
-          const T info)
+template <typename T>
+[[noreturn]] auto exit(const char *file, const char *message, const T info) -> void
 {
-    std::cout << std::endl << " ERROR in " << file << "  MESSAGE: " << message << info << std::endl;
-    std::exit(EXIT_FAILURE);
+    const auto text = alamode::format_message(message, info);
+    std::cout << alamode::log_message("ERROR", file, text);
+    alamode::terminate(alamode::format_message("ERROR in ", file, "  MESSAGE: ", text));
 }
-
-inline void exit(const char *file,
-                 const char *message,
-                 const char *info)
-{
-    std::cout << std::endl << " ERROR in " << file << "  MESSAGE: " << message << info << std::endl;
-    std::exit(EXIT_FAILURE);
-}
-}
+} // namespace ALM_NS

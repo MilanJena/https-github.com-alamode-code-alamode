@@ -10,16 +10,27 @@
 
 #pragma once
 
-#include "mpi_common.h"
-#include "pointers.h"
-#include <string>
-#include <fstream>
+#include <Eigen/Core>
 #include <complex>
+#include <fstream>
+#include <map>
+#include <string>
+#include <vector>
+#include "kpoint.h"
+#include "phonon.h"
 
-namespace PHON_NS {
-class Writes : protected Pointers {
+namespace PHON_NS
+{
+class FcsArrayWithCell;
+
+// One line of the "file : description" listing printed at the end of a run (rank 0, VERBOSITY > 0).
+void print_output_file(const RunInfo &run, const std::string &file, const std::string &description);
+
+// Application shell: the writers read from every object, so Writes keeps the owning
+// PHON instead of a list of collaborators. Physics classes must not do this.
+class Writes
+{
 public:
-
     Writes(class PHON *);
 
     ~Writes();
@@ -28,7 +39,30 @@ public:
 
     void printPhononEnergies() const;
 
+    void printModeIrrepsSummary() const;
+
     void writeGruneisen();
+
+    // Write an XML force-constant file of the deformed system (NEWFCS = 1):
+    // lattice vectors become (I + fc_scale * strain_dir) * A and the harmonic
+    // (and cubic) IFCs are corrected by fc_scale times the strain-derivative
+    // IFCs delta_fc2 (delta_fc3). The applied strain tensor is recorded in the
+    // Description section.
+    // sublattice_disp holds the strain-induced internal displacement of each
+    // primitive atom (natmin x 3, Cartesian bohr, per unit strain_dir; zero
+    // rows for the clamped-ion path). It is scaled by fc_scale and added to
+    // the written atomic positions (and, for the HDF5 format, to the stored
+    // shift vectors).
+    void writeNewFcsXml(const std::string &filename_xml, const std::vector<FcsArrayWithCell> &delta_fc2,
+                        const std::vector<FcsArrayWithCell> &delta_fc3, const Eigen::Matrix3d &strain_dir,
+                        double fc_scale, const Eigen::MatrixXd &sublattice_disp) const;
+
+    // HDF5 variant of writeNewFcsXml: the deformed system and corrected force
+    // constants in the shared ALAMODE force-constant HDF5 schema
+    // (fcs_hdf5_schema.h), readable as FCSFILE. Defined only with HDF5 support.
+    void writeNewFcsH5(const std::string &filename_h5, const std::vector<FcsArrayWithCell> &delta_fc2,
+                       const std::vector<FcsArrayWithCell> &delta_fc3, const Eigen::Matrix3d &strain_dir,
+                       double fc_scale, const Eigen::MatrixXd &sublattice_disp) const;
 
     void setupResultIo();
 
@@ -36,59 +70,38 @@ public:
 
     void writeKappa() const;
 
+    // .kl_iter written by the SOLVER = IBTE path (kappa owned by
+    // Iterativebte); header lines record the non-iterative extra channels
+    // and any temperatures whose iteration did not converge.
+    void writeKappaIterative(unsigned int ntemp_in, const double *temperature_in, const double *const *const *kappa_in,
+                             const std::vector<unsigned char> &converged_in) const;
+
     void writeSelfenergyIsotope() const;
 
     bool print_zmode;
 
-    double in_kayser(const double) const;
+    void setWriteOptions(const bool print_msd_, const bool print_xsf_, const bool print_anime_,
+                         const std::string &anime_format_, const int anime_steps_,
+                         const unsigned int anime_cellsize_[3], const double anime_kpoint_[3], const bool print_ucorr_,
+                         const int shift_ucorr_[3], const bool print_zmode_, const bool print_eval_);
 
-    void setWriteOptions(const bool print_msd_,
-                         const bool print_xsf_,
-                         const bool print_anime_,
-                         const std::string &anime_format_,
-                         const int anime_steps_,
-                         const unsigned int anime_cellsize_[3],
-                         const double anime_kpoint_[3],
-                         const bool print_ucorr_,
-                         const int shift_ucorr_[3],
-                         const bool print_zmode_);
-
-    void writePhononEnergies(const unsigned int nk_in,
-                             const double *const *const *eval_in,
-                             const bool is_qha = false,
+    void writePhononEnergies(const unsigned int nk_in, const double *const *const *eval_in, const bool is_qha = false,
                              const int bubble = 0) const;
 
-    void writePhononBands(const unsigned int nk_in,
-                          const double *kaxis_in,
-                          const double *const *const *eval_in,
-                          const bool is_qha = false,
-                          const int bubble = 0) const;
+    void writePhononBands(const unsigned int nk_in, const double *kaxis_in, const double *const *const *eval_in,
+                          const bool is_qha = false, const int bubble = 0) const;
 
-    void writePhononDos(double **dos_in,
-                        const bool is_qha = false,
-                        const int bubble = 0) const;
+    void writePhononDos(double **dos_in, const bool is_qha = false, const int bubble = 0) const;
 
-    void writeThermodynamicFunc(double *heat_capacity,
-                                double *heat_capacity_correction,
-                                double *FE_QHA,
-                                double *dFE_scph,
-                                double *FE_total,
+    void writeThermodynamicFunc(double *heat_capacity, double *heat_capacity_correction, double *FE_QHA,
+                                double *dFE_scph, double *FE_total, double *entropy, const double *v0_renorm,
                                 const bool is_qha = false) const;
 
-    void writeMSD(double **msd_in,
-                  const bool is_qha = false,
-                  const int bubble = 0) const;
+    void writeMSD(double **msd_in, const bool is_qha = false, const int bubble = 0) const;
 
-    void writeDispCorrelation(double ***ucorr_in,
-                              const bool is_qha = false,
-                              const int bubble = 0) const;
+    void writeDispCorrelation(double ***ucorr_in, const bool is_qha = false, const int bubble = 0) const;
 
-    void writeDielecFunc(double ****dielec_in,
-                         const bool is_qha = false) const;
-
-    unsigned int getVerbosity() const;
-
-    void setVerbosity(unsigned int verbosity_in);
+    void writeDielecFunc(double ****dielec_in, const bool is_qha = false) const;
 
     bool getPrintMSD() const;
 
@@ -96,12 +109,9 @@ public:
 
     std::array<int, 3> getShiftUcorr() const;
 
-    std::fstream fs_result;
-    std::string file_result;
     int nbands;
 
 private:
-
     void writePhononBands() const;
 
     void writePhononVel() const;
@@ -120,33 +130,37 @@ private:
 
     void writeNormalModeDirection() const;
 
-    void writeNormalModeDirectionEach(const std::string &fname_axsf,
-                                      const unsigned int nk_in,
+    void writeNormalModeDirectionEach(const std::string &fname_axsf, const unsigned int nk_in,
                                       const std::complex<double> *const *const *evec_in) const;
 
-    void writeNormalModeAnimation(const double [3],
-                                  const unsigned int [3]) const;
+    void writeNormalModeAnimation(const double[3], const unsigned int[3]) const;
 
     void writeEigenvectors() const;
 
-    void writeEigenvectorsEach(const std::string &fname_evec,
-                               const unsigned int nk_in,
-                               const double *const *xk_in,
-                               const double *const *eval_in,
-                               const std::complex<double> *const *const *evec_in) const;
+    void writeEigenvalues() const;
+
+    void writeEigenvectorsEach(const std::string &fname_evec, const unsigned int nk_in, const double *const *xk_in,
+                               const double *const *eval_in, const std::complex<double> *const *const *evec_in) const;
+
+    void writeEigenvaluesEach(const std::string &fname_eval, const unsigned int nk_in, const double *const *xk_in,
+                              const double *const *eval_in) const;
 
     void printNormalmodeBorncharge() const;
+
+    void writeModeIrreps() const;
 
 #ifdef _HDF5
 
     void writeEigenvectorsHdf5() const;
 
-    void writeEigenvectorsEachHdf5(const std::string &fname_evec,
-                                   const unsigned int nk_in,
-                                   const double *const *xk_in,
-                                   const double *const *eval_in,
-                                   const std::complex<double> *const *const *evec_in,
+    void writeEigenvectorsEachHdf5(const std::string &fname_evec, const unsigned int nk_in, const double *const *xk_in,
+                                   const double *const *eval_in, const std::complex<double> *const *const *evec_in,
                                    const unsigned int kpmode_in) const;
+
+    void writeEigenvaluesHdf5() const;
+
+    void writeEigenvaluesEachHdf5(const std::string &fname_eval, const unsigned int nk_in, const double *const *xk_in,
+                                  const double *const *eval_in, const unsigned int kpmode_in) const;
 
 #endif
 
@@ -158,23 +172,15 @@ private:
 
     void writeParticipationRatio() const;
 
-    void writeParticipationRatioEach(const std::string &fname_pr,
-                                     const std::string &fname_apr,
-                                     const unsigned int nk_in,
-                                     const double *const *xk_in,
-                                     const double *const *eval_in,
+    void writeParticipationRatioEach(const std::string &fname_pr, const std::string &fname_apr,
+                                     const unsigned int nk_in, const double *const *xk_in, const double *const *eval_in,
                                      const std::complex<double> *const *const *evec_in) const;
 
-    void writeParticipationRatioMesh(const std::string &fname_pr,
-                                     const std::string &fname_apr,
-                                     const KpointMeshUniform *kmesh_in,
-                                     const double *const *eval_in,
+    void writeParticipationRatioMesh(const std::string &fname_pr, const std::string &fname_apr,
+                                     const KpointMeshUniform *kmesh_in, const double *const *eval_in,
                                      const std::complex<double> *const *const *evec_in) const;
 
     void writeDielectricFunction() const;
-
-    double Ry_to_kayser;
-    unsigned int verbosity;
 
     int anime_frames;
 
@@ -182,6 +188,7 @@ private:
     bool print_msd;
     bool print_ucorr;
     bool print_anime;
+    bool print_eval;
 
     unsigned int anime_cellsize[3];
     double anime_kpoint[3];
@@ -189,7 +196,7 @@ private:
 
     std::string anime_format;
 
-public:
-
+    PHON *phon;
+    const RunInfo &run;
 };
-}
+} // namespace PHON_NS

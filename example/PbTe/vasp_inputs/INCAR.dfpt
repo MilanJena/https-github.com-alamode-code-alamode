@@ -1,0 +1,11 @@
+System = PbTe_dfpt
+ENCUT = 600
+PREC = Accurate
+ADDGRID = .True.
+LREAL = .False.
+GGA = PS
+ISMEAR = 0; SIGMA = 0.01
+EDIFF = 1.0E-9
+LEPSILON = .True.
+IBRION = -1; NSW = 0
+LWAVE = .False.; LCHARG = .False.

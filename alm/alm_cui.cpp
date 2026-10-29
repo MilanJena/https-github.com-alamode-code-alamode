@@ -9,12 +9,12 @@
 */
 
 #include "alm_cui.h"
+#include <iomanip>
+#include <iostream>
+#include <memory>
 #include "alm.h"
 #include "input_parser.h"
-#include "timer.h"
 #include "version.h"
-#include <iostream>
-#include <iomanip>
 
 #ifdef _OPENMP
 
@@ -24,56 +24,74 @@
 
 using namespace ALM_NS;
 
-ALMCUI::ALMCUI() {}
+ALMCUI::ALMCUI()
+{}
 
-ALMCUI::~ALMCUI() {}
+ALMCUI::~ALMCUI()
+{}
 
-void ALMCUI::run(const int narg,
-                 char **arg) const
+auto ALMCUI::run(const int narg, char **arg) const -> void
 {
     auto alm = new ALM();
 
     // alm->mode is set herein.
-    auto input_parser = new InputParser();
+    auto input_parser = std::make_unique<InputParser>();
     input_parser->run(alm, narg, arg);
-    auto run_mode = input_parser->get_run_mode();
-    delete input_parser;
+    const auto run_mode = input_parser->get_run_mode();
 
     if (alm->get_verbosity() > 0) {
-        std::cout << " +-----------------------------------------------------------------+" << std::endl;
-        std::cout << " +                         Program ALM                             +" << std::endl;
+        std::cout << " +-----------------------------------------------------------------+\n";
+        std::cout << " +                         Program ALM                             +\n";
         std::cout << " +                             Ver.";
         std::cout << std::setw(7) << ALAMODE_VERSION;
-        std::cout << "                         +" << std::endl;
-        std::cout << " +-----------------------------------------------------------------+" << std::endl;
-        std::cout << std::endl;
+        std::cout << "                         +\n";
+        const std::string commit = std::string("Commit: ") + ALAMODE_GIT_COMMIT;
+        const auto npad = commit.size() < 65 ? 65 - commit.size() : 0;
+        std::cout << " +" << std::string(npad / 2, ' ') << commit << std::string(npad - npad / 2, ' ') << "+\n";
+        std::cout << " +-----------------------------------------------------------------+\n\n";
 #ifdef _OPENMP
-        std::cout << " Number of OpenMP threads = "
-                  << omp_get_max_threads() << std::endl << std::endl;
+        std::cout << " Number of OpenMP threads = " << omp_get_max_threads() << "\n\n";
 #endif
 
-        std::cout << " Job started at " << alm->timer->DateAndTime() << std::endl;
+        std::cout << " Job started at " << alm->timer->DateAndTime() << '\n';
     }
 
-    if (alm->get_verbosity() > 0) {
-        alm->writer->write_input_vars(alm->system,
-                                      alm->symmetry,
-                                      alm->cluster,
-                                      alm->displace,
-                                      alm->fcs,
-                                      alm->constraint,
-                                      alm->optimize,
-                                      alm->files,
-                                      run_mode);
+    // The default FCSYM_BASIS changed from Lattice to Cartesian in 2.0. When FCSYM_BASIS is not
+    // given, use the basis of an XML FC2FIX/FC3FIX file so that files made with the old default
+    // still work. (The Python API sets the basis in define(), before the file is known.)
+    if (!alm->fcs->is_basis_given()) {
+        for (const auto order: {2, 3}) {
+            if (order > alm->get_maxorder() + 1) break; // FC3FIX is ignored without cubic terms
+            const auto basis = alm->constraint->get_fc_basis_in_xml(order);
+            if (basis.empty() || basis == alm->fcs->get_forceconstant_basis()) continue;
+            alm->fcs->set_forceconstant_basis(basis);
+            if (alm->get_verbosity() > 0) {
+                std::cout << "\n NOTE: FCSYM_BASIS is not given; FCSYM_BASIS = " << basis << " is used to match "
+                          << alm->constraint->get_fc_file(order) << ".\n";
+            }
+            break;
+        }
     }
+
+    // Build the echo for HDF5 metadata even when quiet.
+    alm->writer->write_input_vars(alm->system,
+                                  alm->symmetry,
+                                  alm->cluster,
+                                  alm->displace,
+                                  alm->fcs,
+                                  alm->constraint,
+                                  alm->optimize,
+                                  alm->files,
+                                  run_mode,
+                                  alm->get_verbosity() > 0);
 
     alm->init_fc_table();
 
     if (run_mode == "optimize") {
         alm->run_optimize();
         if (alm->get_optimizer_control().linear_model == 1 ||
-            (alm->get_optimizer_control().linear_model >= 2
-             && alm->get_optimizer_control().cross_validation == 0)) {
+            (alm->get_optimizer_control().linear_model >= 2 && alm->get_optimizer_control().cross_validation == 0))
+        {
             alm->writer->writeall(alm->system,
                                   alm->symmetry,
                                   alm->cluster,
@@ -85,15 +103,15 @@ void ALMCUI::run(const int narg,
         }
     } else if (run_mode == "suggest") {
         alm->run_suggest();
-        alm->writer->write_displacement_pattern(alm->cluster,
+        alm->writer->write_displacement_pattern(alm->system,
+                                                alm->cluster,
                                                 alm->displace,
                                                 alm->files->get_prefix(),
                                                 alm->get_verbosity());
     }
 
     if (alm->get_verbosity() > 0) {
-        std::cout << std::endl << " Job finished at "
-                  << alm->timer->DateAndTime() << std::endl;
+        std::cout << '\n' << " Job finished at " << alm->timer->DateAndTime() << '\n';
     }
 
     delete alm;

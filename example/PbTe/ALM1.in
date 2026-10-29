@@ -1,0 +1,18 @@
+&general
+ PREFIX = pbte444
+ MODE = optimize
+ STRUCTURE_FILE = POSCAR
+ SUPERCELL = 4
+/
+
+&interaction
+ NORDER = 1
+/
+
+&cutoff
+ *-* None
+/
+
+&optimize
+ DFSET = DFSET_harmonic
+/

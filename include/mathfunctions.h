@@ -10,12 +10,25 @@
 
 #pragma once
 
-#include <iostream>
+#include <Eigen/Core>
+#include <Eigen/LU>
 #include <cstdlib>
+#include <iostream>
 #include <vector>
 
-template<typename T>
-inline void matmul3(T ret[3][3], const T amat[3][3], const T bmat[3][3])
+#include "fatal_error.h"
+
+// Square of a scalar: a single multiplication instead of a general power
+// call (faster than raising to the power of two), with the argument
+// evaluated exactly once. Works for double and std::complex<double>.
+template <typename T>
+inline auto pow2(const T x) -> T
+{
+    return x * x;
+}
+
+template <typename T>
+inline auto matmul3(T ret[3][3], const T amat[3][3], const T bmat[3][3]) -> void
 {
     int i, j, k;
 
@@ -35,7 +48,7 @@ inline void matmul3(T ret[3][3], const T amat[3][3], const T bmat[3][3])
     }
 }
 
-inline void transpose3(double ret[3][3], const double mat[3][3])
+inline auto transpose3(double ret[3][3], const double mat[3][3]) -> void
 {
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
@@ -44,8 +57,8 @@ inline void transpose3(double ret[3][3], const double mat[3][3])
     }
 }
 
-template<typename T>
-inline void rotvec(T vec_out[3], const T vec_in[3], const double mat[3][3], char mode = 'N')
+template <typename T>
+inline auto rotvec(T vec_out[3], const T vec_in[3], const double mat[3][3], char mode = 'N') -> void
 {
     // Perform matrix x vector multiplication.
     //
@@ -69,12 +82,11 @@ inline void rotvec(T vec_out[3], const T vec_in[3], const double mat[3][3], char
             vec_out[i] = mat[0][i] * vec_tmp[0] + mat[1][i] * vec_tmp[1] + mat[2][i] * vec_tmp[2];
         }
     } else {
-        std::cout << "Invalid mode " << mode << std::endl;
-        exit(1);
+        alamode::fatal("Invalid mode ", mode, '\n');
     }
 }
 
-inline void rotvec(double vec_out[3], double vec_in[3], double **mat, char mode = 'N')
+inline auto rotvec(double vec_out[3], const double vec_in[3], double **mat, char mode = 'N') -> void
 {
     // Perform matrix x vector multiplication.
     //
@@ -98,15 +110,46 @@ inline void rotvec(double vec_out[3], double vec_in[3], double **mat, char mode 
             vec_out[i] = mat[0][i] * vec_tmp[0] + mat[1][i] * vec_tmp[1] + mat[2][i] * vec_tmp[2];
         }
     } else {
-        std::cout << "Invalid mode " << mode << std::endl;
-        exit(1);
+        alamode::fatal("Invalid mode ", mode, '\n');
     }
 }
 
-inline void invmat3(double invmat[3][3], const double mat[3][3])
+inline auto rotvec(double vec_out[3], const double vec_in[3], const Eigen::Matrix3d &mat_in, char mode = 'N') -> void
+{
+    Eigen::Vector3d vec_tmp;
+
+    for (auto i = 0; i < 3; ++i) vec_tmp[i] = vec_in[i];
+
+    if (mode == 'N') {
+        vec_tmp = mat_in * vec_tmp;
+    } else if (mode == 'T') {
+        vec_tmp = mat_in.transpose() * vec_tmp;
+    } else {
+        alamode::fatal("Invalid mode ", mode, '\n');
+    }
+    for (auto i = 0; i < 3; ++i) vec_out[i] = vec_tmp[i];
+}
+
+inline auto rotvec(std::complex<double> vec_out[3], const std::complex<double> vec_in[3], const Eigen::Matrix3d &mat_in,
+                   char mode = 'N') -> void
+{
+    Eigen::Vector3cd vec_tmp;
+
+    for (auto i = 0; i < 3; ++i) vec_tmp[i] = vec_in[i];
+
+    if (mode == 'N') {
+        vec_tmp = mat_in * vec_tmp;
+    } else if (mode == 'T') {
+        vec_tmp = mat_in.transpose() * vec_tmp;
+    } else {
+        alamode::fatal("Invalid mode ", mode, '\n');
+    }
+    for (auto i = 0; i < 3; ++i) vec_out[i] = vec_tmp[i];
+}
+
+inline auto invmat3(double invmat[3][3], const double mat[3][3]) -> void
 {
     unsigned int i, j;
-    double det;
     double mat_tmp[3][3];
 
     for (i = 0; i < 3; ++i) {
@@ -115,16 +158,12 @@ inline void invmat3(double invmat[3][3], const double mat[3][3])
         }
     }
 
-    det = mat_tmp[0][0] * mat_tmp[1][1] * mat_tmp[2][2]
-          + mat_tmp[1][0] * mat_tmp[2][1] * mat_tmp[0][2]
-          + mat_tmp[2][0] * mat_tmp[0][1] * mat_tmp[1][2]
-          - mat_tmp[0][0] * mat_tmp[2][1] * mat_tmp[1][2]
-          - mat_tmp[2][0] * mat_tmp[1][1] * mat_tmp[0][2]
-          - mat_tmp[1][0] * mat_tmp[0][1] * mat_tmp[2][2];
+    double det = mat_tmp[0][0] * mat_tmp[1][1] * mat_tmp[2][2] + mat_tmp[1][0] * mat_tmp[2][1] * mat_tmp[0][2] +
+                 mat_tmp[2][0] * mat_tmp[0][1] * mat_tmp[1][2] - mat_tmp[0][0] * mat_tmp[2][1] * mat_tmp[1][2] -
+                 mat_tmp[2][0] * mat_tmp[1][1] * mat_tmp[0][2] - mat_tmp[1][0] * mat_tmp[0][1] * mat_tmp[2][2];
 
     if (std::abs(det) < 1.0e-12) {
-        std::cout << "invmat3: Given matrix is singular" << std::endl;
-        exit(1);
+        alamode::fatal("invmat3: Given matrix is singular\n");
     }
 
     double factor = 1.0 / det;
@@ -142,20 +181,15 @@ inline void invmat3(double invmat[3][3], const double mat[3][3])
     invmat[2][2] = (mat_tmp[0][0] * mat_tmp[1][1] - mat_tmp[0][1] * mat_tmp[1][0]) * factor;
 }
 
-inline void invmat3_i(int invmat[3][3], int mat[3][3])
+inline auto invmat3_i(int invmat[3][3], int mat[3][3]) -> void
 {
-    int det;
 
-    det = mat[0][0] * mat[1][1] * mat[2][2]
-          + mat[1][0] * mat[2][1] * mat[0][2]
-          + mat[2][0] * mat[0][1] * mat[1][2]
-          - mat[0][0] * mat[2][1] * mat[1][2]
-          - mat[2][0] * mat[1][1] * mat[0][2]
-          - mat[1][0] * mat[0][1] * mat[2][2];
+    int det = mat[0][0] * mat[1][1] * mat[2][2] + mat[1][0] * mat[2][1] * mat[0][2] +
+              mat[2][0] * mat[0][1] * mat[1][2] - mat[0][0] * mat[2][1] * mat[1][2] -
+              mat[2][0] * mat[1][1] * mat[0][2] - mat[1][0] * mat[0][1] * mat[2][2];
 
     if (std::abs(det) == 0) {
-        std::cout << "invmat3_i: Given matrix is singular" << std::endl;
-        exit(1);
+        alamode::fatal("invmat3_i: Given matrix is singular\n");
     }
 
     invmat[0][0] = (mat[1][1] * mat[2][2] - mat[1][2] * mat[2][1]) / det;
@@ -169,16 +203,15 @@ inline void invmat3_i(int invmat[3][3], int mat[3][3])
     invmat[2][0] = (mat[1][0] * mat[2][1] - mat[1][1] * mat[2][0]) / det;
     invmat[2][1] = (mat[0][1] * mat[2][0] - mat[0][0] * mat[2][1]) / det;
     invmat[2][2] = (mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0]) / det;
-
 }
 
-inline int nint(double x)
+inline auto nint(double x) -> int
 {
     return int(x + 0.5 - (x < 0.0));
 }
 
-template<typename T>
-void insort(int n, T *arr)
+template <typename T>
+auto insort(int n, T *arr) -> void
 {
     int i, j;
     T tmp;
@@ -192,7 +225,7 @@ void insort(int n, T *arr)
     }
 }
 
-inline void sort_tail(const int n, int *arr)
+inline auto sort_tail(const int n, int *arr) -> void
 {
     int i, m;
 
@@ -214,12 +247,9 @@ inline void sort_tail(const int n, int *arr)
 }
 
 
-inline double distance(double *x1,
-                       double *x2)
+inline auto distance(double *x1, double *x2) -> double
 {
-    auto dist = std::pow(x1[0] - x2[0], 2)
-                + std::pow(x1[1] - x2[1], 2)
-                + std::pow(x1[2] - x2[2], 2);
+    auto dist = pow2(x1[0] - x2[0]) + pow2(x1[1] - x2[1]) + pow2(x1[2] - x2[2]);
     dist = std::sqrt(dist);
 
     return dist;

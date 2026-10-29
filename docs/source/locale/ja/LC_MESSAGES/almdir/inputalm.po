@@ -1,0 +1,2779 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-28 09:57+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/almdir/inputalm.rst:10
+msgid "ALM: Input files"
+msgstr "ALM: 入力ファイル"
+
+#: ../../source/almdir/inputalm.rst:15
+msgid "Format of input files"
+msgstr "入力ファイルの書式"
+
+#: ../../source/almdir/inputalm.rst:17
+msgid "Each input file should consist of entry fields. Available entry fields are"
+msgstr "各入力ファイルはエントリーフィールドから構成されます。利用可能なエントリーフィールドは"
+
+#: ../../source/almdir/inputalm.rst:20
+msgid ""
+"**&general**, **&interaction**, **&cutoff**, **&cell**, **&position**, "
+"and **&optimize**."
+msgstr ""
+"**&general**、**&interaction**、**&cutoff**、**&cell**、**&position**、および "
+"**&optimize** です。"
+
+#: ../../source/almdir/inputalm.rst:23
+msgid ""
+"Each entry field starts from the key label **&field** and ends at the "
+"terminate character \"/\". (This is equivalent to Fortran namelist.)"
+msgstr ""
+"各エントリーフィールドはキーラベル **&field** から始まり、終端文字 \"/\" で終わります。(これは Fortran "
+"のネームリストに相当します。)"
+
+#: ../../source/almdir/inputalm.rst:25
+msgid "For example, &general entry field of program *alm* should be given like"
+msgstr "例えば、プログラム *alm* の &general エントリーフィールドは次のように与えます"
+
+#: ../../source/almdir/inputalm.rst:35
+msgid ""
+"Multiple entries can be put in a single line. Also, characters put on the"
+" right of sharp (“#”) are neglected. Therefore, the above example is "
+"equivalent to the following::"
+msgstr ""
+"複数のエントリーを1行に書くこともできます。また、シャープ (“#”) "
+"の右側に書かれた文字は無視されます。したがって、上記の例は次のものと等価です::"
+
+#: ../../source/almdir/inputalm.rst:41
+msgid "Each variable must be given inside the appropriate entry field."
+msgstr "各変数は適切なエントリーフィールド内で与える必要があります。"
+
+#: ../../source/almdir/inputalm.rst:47
+msgid "List of supported input variables"
+msgstr "サポートされている入力変数の一覧"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid "**&general**"
+msgstr "**&general**"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FCS_ALAMODE <alm_fcs_alamode>`"
+msgstr ":ref:`FCS_ALAMODE <alm_fcs_alamode>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FCS_UNIT_OUTPUT <alm_fcs_unit_output>`"
+msgstr ":ref:`FCS_UNIT_OUTPUT <alm_fcs_unit_output>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FORCE_UNIT <alm_force_unit>`"
+msgstr ":ref:`FORCE_UNIT <alm_force_unit>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FORMAT_PATTERN <alm_format_pattern>`"
+msgstr ":ref:`FORMAT_PATTERN <alm_format_pattern>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`HESSIAN <alm_hessian>`"
+msgstr ":ref:`HESSIAN <alm_hessian>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FC3_SHENGBTE <alm_fc3_shengbte>`"
+msgstr ":ref:`FC3_SHENGBTE <alm_fc3_shengbte>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FC4_SHENGBTE <alm_fc4_shengbte>`"
+msgstr ":ref:`FC4_SHENGBTE <alm_fc4_shengbte>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FCSYM_BASIS <alm_fcsym_basis>`"
+msgstr ":ref:`FCSYM_BASIS <alm_fcsym_basis>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FC_ZERO_THR <alm_fc_zero_thr>`"
+msgstr ":ref:`FC_ZERO_THR <alm_fc_zero_thr>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`KD <alm_kd>`"
+msgstr ":ref:`KD <alm_kd>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`LENGTH_UNIT <alm_length_unit>`"
+msgstr ":ref:`LENGTH_UNIT <alm_length_unit>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`MAGMOM <alm_magmom>`"
+msgstr ":ref:`MAGMOM <alm_magmom>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`MODE <alm_mode>`"
+msgstr ":ref:`MODE <alm_mode>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NAT <alm_nat>`"
+msgstr ":ref:`NAT <alm_nat>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NMAXSAVE <alm_nmaxsave>`"
+msgstr ":ref:`NMAXSAVE <alm_nmaxsave>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NONCOLLINEAR <alm_noncollinear>`"
+msgstr ":ref:`NONCOLLINEAR <alm_noncollinear>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`PERIODIC <alm_periodic>`"
+msgstr ":ref:`PERIODIC <alm_periodic>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`PREFIX <alm_prefix>`"
+msgstr ":ref:`PREFIX <alm_prefix>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`PRIMCELL <alm_primcell>`"
+msgstr ":ref:`PRIMCELL <alm_primcell>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`PRINTSYM <alm_printsym>`"
+msgstr ":ref:`PRINTSYM <alm_printsym>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`STRUCTURE_FILE <alm_structure_file>`"
+msgstr ":ref:`STRUCTURE_FILE <alm_structure_file>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`SUPERCELL <alm_supercell>`"
+msgstr ":ref:`SUPERCELL <alm_supercell>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`SYMMETRIZE_STRUCTURE <alm_symmetrize_structure>`"
+msgstr ":ref:`SYMMETRIZE_STRUCTURE <alm_symmetrize_structure>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`TOLERANCE <alm_tolerance>`"
+msgstr ":ref:`TOLERANCE <alm_tolerance>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`TOL_CONST <alm_tol_const>`"
+msgstr ":ref:`TOL_CONST <alm_tol_const>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid "**&interaction**"
+msgstr "**&interaction**"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NBODY <alm_nbody>`"
+msgstr ":ref:`NBODY <alm_nbody>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NORDER <alm_norder>`"
+msgstr ":ref:`NORDER <alm_norder>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid "**&optimize**"
+msgstr "**&optimize**"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`ALGO_REDUCTION <alm_algo_reduction>`"
+msgstr ":ref:`ALGO_REDUCTION <alm_algo_reduction>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`CHUNKSIZE <alm_chunksize>`"
+msgstr ":ref:`CHUNKSIZE <alm_chunksize>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`CONV_TOL <alm_conv_tol>`"
+msgstr ":ref:`CONV_TOL <alm_conv_tol>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`CV <alm_cv>`"
+msgstr ":ref:`CV <alm_cv>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`CV_MINALPHA <alm_cv_minalpha>`"
+msgstr ":ref:`CV_MINALPHA <alm_cv_minalpha>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`DEBIAS_OLS <alm_debias_ols>`"
+msgstr ":ref:`DEBIAS_OLS <alm_debias_ols>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`DFSET <alm_dfset>`"
+msgstr ":ref:`DFSET <alm_dfset>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`DFSET_CV <alm_dfset_cv>`"
+msgstr ":ref:`DFSET_CV <alm_dfset_cv>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`ENET_DNORM <alm_enet_dnorm>`"
+msgstr ":ref:`ENET_DNORM <alm_enet_dnorm>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FC2FIX <alm_fc2fix>`"
+msgstr ":ref:`FC2FIX <alm_fc2fix>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`FC3FIX <alm_fc3fix>`"
+msgstr ":ref:`FC3FIX <alm_fc3fix>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`ICONST <alm_iconst>`"
+msgstr ":ref:`ICONST <alm_iconst>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`L1_ALPHA <alm_l1_alpha>`"
+msgstr ":ref:`L1_ALPHA <alm_l1_alpha>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`L1_RATIO <alm_l1_ratio>`"
+msgstr ":ref:`L1_RATIO <alm_l1_ratio>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`L1_SOLVER <alm_l1_solver>`"
+msgstr ":ref:`L1_SOLVER <alm_l1_solver>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`LMODEL <alm_lmodel>`"
+msgstr ":ref:`LMODEL <alm_lmodel>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`MAXITER <alm_maxiter>`"
+msgstr ":ref:`MAXITER <alm_maxiter>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NDATA <alm_ndata>`"
+msgstr ":ref:`NDATA <alm_ndata>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NDATA_CV <alm_ndata_cv>`"
+msgstr ":ref:`NDATA_CV <alm_ndata_cv>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NSTART NEND <alm_nstart>`"
+msgstr ":ref:`NSTART NEND <alm_nstart>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NSTART_CV NEND_CV <alm_nstart_cv>`"
+msgstr ":ref:`NSTART_CV NEND_CV <alm_nstart_cv>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`NWRITE <alm_nwrite>`"
+msgstr ":ref:`NWRITE <alm_nwrite>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`PERIODIC_IMAGE_CONV<alm_periodic_image_conv>`"
+msgstr ":ref:`PERIODIC_IMAGE_CONV<alm_periodic_image_conv>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`ROTAXIS <alm_rotaxis>`"
+msgstr ":ref:`ROTAXIS <alm_rotaxis>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`SKIP <alm_skip>`"
+msgstr ":ref:`SKIP <alm_skip>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`SOLUTION_PATH <alm_solution_path>`"
+msgstr ":ref:`SOLUTION_PATH <alm_solution_path>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`SPARSE <alm_sparse>`"
+msgstr ":ref:`SPARSE <alm_sparse>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`SPARSESOLVER <alm_sparsesolver>`"
+msgstr ":ref:`SPARSESOLVER <alm_sparsesolver>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`STANDARDIZE <alm_standardize>`"
+msgstr ":ref:`STANDARDIZE <alm_standardize>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`STOP_CRITERION <alm_stop_criterion>`"
+msgstr ":ref:`STOP_CRITERION <alm_stop_criterion>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`STRESS <alm_stress>`"
+msgstr ":ref:`STRESS <alm_stress>`"
+
+#: ../../source/almdir/inputalm.rst:1
+msgid ":ref:`USE_CHOLESKY <alm_use_cholesky>`"
+msgstr ":ref:`USE_CHOLESKY <alm_use_cholesky>`"
+
+#: ../../source/almdir/inputalm.rst:76
+msgid "Description of input variables"
+msgstr "入力変数の説明"
+
+#: ../../source/almdir/inputalm.rst:79
+msgid "\"&general\"-field"
+msgstr "\"&general\" フィールド"
+
+#: ../../source/almdir/inputalm.rst:83
+msgid "**PREFIX**-tag : Job prefix to be used for names of output files"
+msgstr "**PREFIX** タグ: 出力ファイルの名前に使用されるジョブの接頭辞"
+
+#: ../../source/almdir/inputalm.rst
+msgid "Default"
+msgstr "デフォルト"
+
+#: ../../source/almdir/inputalm.rst:85 ../../source/almdir/inputalm.rst:102
+#: ../../source/almdir/inputalm.rst:120 ../../source/almdir/inputalm.rst:130
+#: ../../source/almdir/inputalm.rst:481 ../../source/almdir/inputalm.rst:634
+#: ../../source/almdir/inputalm.rst:644 ../../source/almdir/inputalm.rst:664
+#: ../../source/almdir/inputalm.rst:753 ../../source/almdir/inputalm.rst:822
+#: ../../source/almdir/inputalm.rst:840 ../../source/almdir/inputalm.rst:1083
+msgid "None"
+msgstr "なし"
+
+#: ../../source/almdir/inputalm.rst
+msgid "Type"
+msgstr "型"
+
+#: ../../source/almdir/inputalm.rst:86 ../../source/almdir/inputalm.rst:103
+#: ../../source/almdir/inputalm.rst:131 ../../source/almdir/inputalm.rst:254
+#: ../../source/almdir/inputalm.rst:435 ../../source/almdir/inputalm.rst:448
+#: ../../source/almdir/inputalm.rst:458 ../../source/almdir/inputalm.rst:468
+#: ../../source/almdir/inputalm.rst:623 ../../source/almdir/inputalm.rst:635
+#: ../../source/almdir/inputalm.rst:754 ../../source/almdir/inputalm.rst:823
+#: ../../source/almdir/inputalm.rst:841 ../../source/almdir/inputalm.rst:891
+#: ../../source/almdir/inputalm.rst:1014 ../../source/almdir/inputalm.rst:1074
+msgid "String"
+msgstr "文字列"
+
+#: ../../source/almdir/inputalm.rst:92
+msgid "**MODE**-tag = optimize | suggest"
+msgstr "**MODE** タグ = optimize | suggest"
+
+#: ../../source/almdir/inputalm.rst:95
+msgid "optimize"
+msgstr "optimize"
+
+#: ../../source/almdir/inputalm.rst:95
+msgid "Estimate harmonic and anharmonic IFCs."
+msgstr "調和および非調和の原子間力定数 (interatomic force constants; IFCs) を推定します。"
+
+#: ../../source/almdir/inputalm.rst:96
+msgid "This mode requires an appropriate &optimize field."
+msgstr "このモードには適切な &optimize フィールドが必要です。"
+
+#: ../../source/almdir/inputalm.rst:98
+msgid "suggest"
+msgstr "suggest"
+
+#: ../../source/almdir/inputalm.rst:98
+msgid "Suggests the displacement patterns necessary"
+msgstr "必要な変位パターンを提案します"
+
+#: ../../source/almdir/inputalm.rst:99
+msgid "to estimate harmonic and anharmonic IFCs."
+msgstr "調和および非調和の原子間力定数を推定するために。"
+
+#: ../../source/almdir/inputalm.rst:109
+msgid "NAT-tag : Number of atoms in the supercell"
+msgstr "NAT タグ: スーパーセル内の原子数"
+
+#: ../../source/almdir/inputalm.rst:111
+msgid ""
+"The number of entries in the ``&position`` field (or in "
+"``STRUCTURE_FILE``)"
+msgstr "``&position`` フィールド (または ``STRUCTURE_FILE``) のエントリー数"
+
+#: ../../source/almdir/inputalm.rst:112 ../../source/almdir/inputalm.rst:211
+#: ../../source/almdir/inputalm.rst:239 ../../source/almdir/inputalm.rst:288
+#: ../../source/almdir/inputalm.rst:320 ../../source/almdir/inputalm.rst:336
+#: ../../source/almdir/inputalm.rst:355 ../../source/almdir/inputalm.rst:384
+#: ../../source/almdir/inputalm.rst:403 ../../source/almdir/inputalm.rst:482
+#: ../../source/almdir/inputalm.rst:645 ../../source/almdir/inputalm.rst:655
+#: ../../source/almdir/inputalm.rst:725 ../../source/almdir/inputalm.rst:744
+#: ../../source/almdir/inputalm.rst:813 ../../source/almdir/inputalm.rst:861
+#: ../../source/almdir/inputalm.rst:916 ../../source/almdir/inputalm.rst:941
+#: ../../source/almdir/inputalm.rst:963 ../../source/almdir/inputalm.rst:973
+#: ../../source/almdir/inputalm.rst:1063 ../../source/almdir/inputalm.rst:1084
+#: ../../source/almdir/inputalm.rst:1094 ../../source/almdir/inputalm.rst:1125
+#: ../../source/almdir/inputalm.rst:1154 ../../source/almdir/inputalm.rst:1172
+#: ../../source/almdir/inputalm.rst:1183
+msgid "Integer"
+msgstr "整数"
+
+#: ../../source/almdir/inputalm.rst:118
+msgid "**KD**-tag : List of atomic species"
+msgstr "**KD** タグ: 原子種のリスト"
+
+#: ../../source/almdir/inputalm.rst:121
+msgid "Array of strings"
+msgstr "文字列の配列"
+
+#: ../../source/almdir/inputalm.rst
+msgid "Example"
+msgstr "例"
+
+#: ../../source/almdir/inputalm.rst:122
+msgid "In the case of GaAs, it should be ``KD = Ga As``."
+msgstr "GaAs の場合、``KD = Ga As`` とします。"
+
+#: ../../source/almdir/inputalm.rst:128
+msgid "**STRUCTURE_FILE**-tag : File containing the input structure"
+msgstr "**STRUCTURE_FILE** タグ: 入力構造を含むファイル"
+
+#: ../../source/almdir/inputalm.rst
+msgid "Description"
+msgstr "説明"
+
+#: ../../source/almdir/inputalm.rst:132
+msgid ""
+"When this tag is given, *alm* reads the lattice vectors, atomic species, "
+"and atomic coordinates from the specified file in the VASP POSCAR format."
+" In this case, the ``&cell`` and ``&position`` fields are ignored, and "
+"``NAT`` and ``KD`` are inferred from the structure file."
+msgstr ""
+"このタグが与えられると、*alm* は指定された VASP POSCAR "
+"形式のファイルから格子ベクトル、原子種、原子座標を読み込みます。この場合、``&cell`` および ``&position`` "
+"フィールドは無視され、``NAT`` と ``KD`` は構造ファイルから推定されます。"
+
+#: ../../source/almdir/inputalm.rst:134
+msgid ""
+"The POSCAR file may use direct or Cartesian coordinates. A ``Selective "
+"dynamics`` line is accepted, but the selective-dynamics flags themselves "
+"are ignored."
+msgstr ""
+"POSCAR ファイルは direct 座標または Cartesian 座標のいずれを使用しても構いません。``Selective "
+"dynamics`` 行は受け付けられますが、selective-dynamics のフラグ自体は無視されます。"
+
+#: ../../source/almdir/inputalm.rst:137
+msgid ""
+"A POSCAR is always interpreted in Angstrom (the VASP convention), "
+"independent of the :ref:`LENGTH_UNIT <alm_length_unit>` tag."
+msgstr ""
+"POSCAR は :ref:`LENGTH_UNIT <alm_length_unit>` タグとは無関係に、常に Angstrom 単位 "
+"(VASP の規約) として解釈されます。"
+
+#: ../../source/almdir/inputalm.rst:143
+msgid ""
+"**SUPERCELL**-tag : Transformation matrix from the input cell to the "
+"supercell"
+msgstr "**SUPERCELL** タグ: 入力セルからスーパーセルへの変換行列"
+
+#: ../../source/almdir/inputalm.rst:145 ../../source/almdir/inputalm.rst:162
+#: ../../source/almdir/inputalm.rst:203 ../../source/almdir/inputalm.rst:235
+#: ../../source/almdir/inputalm.rst:305 ../../source/almdir/inputalm.rst:331
+#: ../../source/almdir/inputalm.rst:351 ../../source/almdir/inputalm.rst:380
+#: ../../source/almdir/inputalm.rst:399 ../../source/almdir/inputalm.rst:676
+#: ../../source/almdir/inputalm.rst:736 ../../source/almdir/inputalm.rst:743
+#: ../../source/almdir/inputalm.rst:801 ../../source/almdir/inputalm.rst:857
+#: ../../source/almdir/inputalm.rst:912 ../../source/almdir/inputalm.rst:1120
+#: ../../source/almdir/inputalm.rst:1124 ../../source/almdir/inputalm.rst:1149
+#: ../../source/almdir/inputalm.rst:1165
+msgid "1"
+msgstr "1"
+
+#: ../../source/almdir/inputalm.rst:146
+msgid "Integer matrix"
+msgstr "整数行列"
+
+#: ../../source/almdir/inputalm.rst:147
+msgid ""
+"This tag specifies the target supercell as :math:`(\\boldsymbol{a}_{s}, "
+"\\boldsymbol{b}_{s}, \\boldsymbol{c}_{s})^{T} = M "
+"(\\boldsymbol{a}_{\\mathrm{in}}, \\boldsymbol{b}_{\\mathrm{in}}, "
+"\\boldsymbol{c}_{\\mathrm{in}})^{T}`. If the input structure is already "
+"the supercell used for the force calculations, keep the default value."
+msgstr ""
+"このタグは対象のスーパーセルを :math:`(\\boldsymbol{a}_{s}, \\boldsymbol{b}_{s}, "
+"\\boldsymbol{c}_{s})^{T} = M (\\boldsymbol{a}_{\\mathrm{in}}, "
+"\\boldsymbol{b}_{\\mathrm{in}}, \\boldsymbol{c}_{\\mathrm{in}})^{T}` "
+"として指定します。入力構造がすでに力の計算に用いるスーパーセルである場合は、デフォルト値のままにしてください。"
+
+#: ../../source/almdir/inputalm.rst:152
+msgid ""
+"The matrix can be written as one, three, or nine entries. One entry ``n``"
+" means ``n n n``; three entries ``n1 n2 n3`` mean a diagonal matrix; nine"
+" entries give the full matrix in row-major order. The determinant must be"
+" a nonzero integer."
+msgstr ""
+"行列は1個、3個、または9個の要素として書くことができます。1個の要素 ``n`` は ``n n n`` を意味します。3個の要素 ``n1 "
+"n2 n3`` は対角行列を意味します。9個の要素は行優先順 (row-major) "
+"で完全な行列を与えます。行列式は非ゼロの整数でなければなりません。"
+
+#: ../../source/almdir/inputalm.rst:154
+msgid ""
+"``SUPERCELL = 2 2 2`` creates a 2x2x2 supercell from the input cell. "
+"``SUPERCELL = 2 0 0 0 2 0 0 0 1`` creates a 2x2x1 supercell."
+msgstr ""
+"``SUPERCELL = 2 2 2`` は入力セルから 2x2x2 のスーパーセルを作成します。``SUPERCELL = 2 0 0 0 2"
+" 0 0 0 1`` は 2x2x1 のスーパーセルを作成します。"
+
+#: ../../source/almdir/inputalm.rst:160
+msgid ""
+"**PRIMCELL**-tag : Transformation matrix from the input cell to the "
+"primitive cell"
+msgstr "**PRIMCELL** タグ: 入力セルから基本セル (primitive cell) への変換行列"
+
+#: ../../source/almdir/inputalm.rst:163
+msgid "Matrix or ``Auto``"
+msgstr "行列または ``Auto``"
+
+#: ../../source/almdir/inputalm.rst:164
+msgid ""
+"This tag specifies the primitive cell as :math:`(\\boldsymbol{a}_{p}, "
+"\\boldsymbol{b}_{p}, \\boldsymbol{c}_{p})^{T} = M "
+"(\\boldsymbol{a}_{\\mathrm{in}}, \\boldsymbol{b}_{\\mathrm{in}}, "
+"\\boldsymbol{c}_{\\mathrm{in}})^{T}`. The matrix can be written as one, "
+"three, or nine entries, using the same convention as ``SUPERCELL``. "
+"Fractional entries such as ``1/2`` are accepted. The determinant of the "
+"inverse matrix must be a nonzero integer."
+msgstr ""
+"このタグは基本セルを :math:`(\\boldsymbol{a}_{p}, \\boldsymbol{b}_{p}, "
+"\\boldsymbol{c}_{p})^{T} = M (\\boldsymbol{a}_{\\mathrm{in}}, "
+"\\boldsymbol{b}_{\\mathrm{in}}, \\boldsymbol{c}_{\\mathrm{in}})^{T}` "
+"として指定します。行列は ``SUPERCELL`` と同じ規則を用いて1個、3個、または9個の要素として書くことができます。``1/2`` "
+"のような分数の要素も受け付けられます。逆行列の行列式は非ゼロの整数でなければなりません。"
+
+#: ../../source/almdir/inputalm.rst:169
+msgid ""
+"``PRIMCELL = Auto`` uses spglib to detect the primitive cell from the "
+"input structure. This is useful when the input structure is a "
+"conventional cell or a supercell and the primitive-cell transformation is"
+" not obvious."
+msgstr ""
+"``PRIMCELL = Auto`` は spglib を用いて入力構造から基本セルを検出します。これは、入力構造が慣用セル "
+"(conventional cell) やスーパーセルであり、基本セルへの変換が自明でない場合に便利です。"
+
+#: ../../source/almdir/inputalm.rst:171
+msgid ""
+"``PRIMCELL = 1/2 0 0 0 1/2 0 0 0 1/2`` defines a primitive cell whose "
+"lattice vectors are one half of the corresponding input-cell lattice "
+"vectors."
+msgstr ""
+"``PRIMCELL = 1/2 0 0 0 1/2 0 0 0 1/2`` "
+"は、格子ベクトルが対応する入力セルの格子ベクトルの半分である基本セルを定義します。"
+
+#: ../../source/almdir/inputalm.rst:177
+msgid "TOLERANCE-tag : Tolerance for finding symmetry operations"
+msgstr "TOLERANCE タグ: 対称操作を見つけるための許容誤差"
+
+#: ../../source/almdir/inputalm.rst:179
+msgid "1.0e-3"
+msgstr "1.0e-3"
+
+#: ../../source/almdir/inputalm.rst:180 ../../source/almdir/inputalm.rst:189
+#: ../../source/almdir/inputalm.rst:417 ../../source/almdir/inputalm.rst:983
+#: ../../source/almdir/inputalm.rst:998 ../../source/almdir/inputalm.rst:1032
+#: ../../source/almdir/inputalm.rst:1136
+msgid "Double"
+msgstr "倍精度実数"
+
+#: ../../source/almdir/inputalm.rst:186
+msgid ""
+"TOL_CONST-tag : Tolerance used when reducing the constraints between "
+"force constants"
+msgstr "TOL_CONST タグ: 力定数間の制約を縮約する際に用いる許容値"
+
+#: ../../source/almdir/inputalm.rst:188
+msgid "1.0e-6"
+msgstr "1.0e-6"
+
+#: ../../source/almdir/inputalm.rst:190
+msgid ""
+"Numerical tolerance used to detect linearly dependent constraints (the "
+"rank of the constraint matrix) when the constraints of ``ICONST`` and the"
+" symmetry relations are reduced. The default value is usually sufficient;"
+" see also the note on the input precision under :ref:`ICONST "
+"<alm_iconst>`."
+msgstr ""
+"``ICONST`` の制約と対称性の関係式を縮約する際に、線形従属な制約 (制約行列のランク) "
+"を検出するために用いる数値的な許容値です。通常はデフォルト値で十分です。:ref:`ICONST <alm_iconst>` "
+"の入力精度に関する注意も参照してください。"
+
+#: ../../source/almdir/inputalm.rst:199
+msgid "SYMMETRIZE_STRUCTURE-tag = 0 | 1"
+msgstr "SYMMETRIZE_STRUCTURE タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:202 ../../source/almdir/inputalm.rst:210
+#: ../../source/almdir/inputalm.rst:234 ../../source/almdir/inputalm.rst:238
+#: ../../source/almdir/inputalm.rst:287 ../../source/almdir/inputalm.rst:302
+#: ../../source/almdir/inputalm.rst:330 ../../source/almdir/inputalm.rst:335
+#: ../../source/almdir/inputalm.rst:350 ../../source/almdir/inputalm.rst:354
+#: ../../source/almdir/inputalm.rst:379 ../../source/almdir/inputalm.rst:383
+#: ../../source/almdir/inputalm.rst:398 ../../source/almdir/inputalm.rst:402
+#: ../../source/almdir/inputalm.rst:675 ../../source/almdir/inputalm.rst:735
+#: ../../source/almdir/inputalm.rst:799 ../../source/almdir/inputalm.rst:856
+#: ../../source/almdir/inputalm.rst:860 ../../source/almdir/inputalm.rst:911
+#: ../../source/almdir/inputalm.rst:915 ../../source/almdir/inputalm.rst:1042
+#: ../../source/almdir/inputalm.rst:1062 ../../source/almdir/inputalm.rst:1119
+#: ../../source/almdir/inputalm.rst:1148 ../../source/almdir/inputalm.rst:1153
+#: ../../source/almdir/inputalm.rst:1164 ../../source/almdir/inputalm.rst:1171
+msgid "0"
+msgstr "0"
+
+#: ../../source/almdir/inputalm.rst:202
+msgid "Use the input structure as given."
+msgstr "入力構造をそのまま用います。"
+
+#: ../../source/almdir/inputalm.rst:203
+msgid ""
+"Symmetrize the lattice vectors and atomic positions to the space group "
+"that spglib detects"
+msgstr "spglib が ``TOLERANCE`` の範囲で検出した空間群に合わせて、格子ベクトルと原子位置を"
+
+#: ../../source/almdir/inputalm.rst:204
+msgid ""
+"within ``TOLERANCE``. The structure is not standardized: the cell choice,"
+" atom order, and"
+msgstr "対称化します。構造の標準化は行わず、セルの取り方・原子の順序・向きは保持されます。"
+
+#: ../../source/almdir/inputalm.rst:205
+msgid ""
+"orientation are kept, the lattice changes only by a symmetric (rotation-"
+"free) strain, and"
+msgstr "格子は対称な（回転を含まない）歪みによってのみ変化し、"
+
+#: ../../source/almdir/inputalm.rst:206
+msgid ""
+"the atoms are not shifted as a whole. The symmetrized structure is used "
+"for all later steps"
+msgstr "原子全体の並進も行いません。対称化した構造がその後のすべての計算に用いられ、"
+
+#: ../../source/almdir/inputalm.rst:207
+msgid "and written to the output files."
+msgstr "出力ファイルにも書き出されます。"
+
+#: ../../source/almdir/inputalm.rst:212
+msgid ""
+"Useful when the input coordinates are given with only a few digits, e.g. "
+"``0.3333333333`` instead of 1/3. The changes of the lattice vectors and "
+"atomic positions are printed to the standard output. The input "
+"displacements in ``DFSET`` are not modified. Not available with "
+"``NONCOLLINEAR = 1`` or with ``PERIODIC = 0`` in any direction."
+msgstr ""
+"入力座標が 1/3 の代わりに ``0.3333333333`` "
+"のように限られた桁数で与えられている場合に有用です。格子ベクトルと原子位置の変化量は標準出力に表示されます。 ``DFSET`` "
+"に与えた変位は変更されません。 ``NONCOLLINEAR = 1`` の場合や、いずれかの方向で ``PERIODIC = 0`` "
+"の場合には使用できません。"
+
+#: ../../source/almdir/inputalm.rst:217
+msgid ""
+"The symmetrization is applied to the input cell, i.e., the structure "
+"given by ``&cell`` and ``&position`` or by ``STRUCTURE_FILE``, right "
+"after it is read. The supercell (``SUPERCELL``) and the primitive cell "
+"(``PRIMCELL``, including ``PRIMCELL = Auto``) are then built from the "
+"symmetrized input cell, so they are symmetric as well."
+msgstr ""
+"対称化は入力セル、すなわち ``&cell`` と ``&position`` 、または ``STRUCTURE_FILE`` "
+"で与えた構造に対して、読み込み直後に行われます。スーパーセル（ ``SUPERCELL`` ）とプリミティブセル（ ``PRIMCELL`` 、 "
+"``PRIMCELL = Auto`` を含む）は対称化された入力セルから構築されるため、これらも対称になります。"
+
+#: ../../source/almdir/inputalm.rst:222
+#, python-brace-format
+msgid ""
+"When ``SYMMETRIZE_STRUCTURE = 0``, ALM checks how far the input structure"
+" deviates from the ideal structure of its space group and prints a "
+"warning recommending ``SYMMETRIZE_STRUCTURE = 1`` if a lattice-vector "
+"component or an atomic position deviates by more than :math:`10^{-6}` "
+"bohr."
+msgstr ""
+"``SYMMETRIZE_STRUCTURE = 0`` の場合、ALM "
+"は入力構造が空間群の理想的な構造からどれだけずれているかを調べ、格子ベクトルの成分または原子位置のずれが :math:`10^{-6}` bohr"
+" を超えると、``SYMMETRIZE_STRUCTURE = 1`` を推奨する警告を出力します。"
+
+#: ../../source/almdir/inputalm.rst:231
+msgid "PRINTSYM-tag = 0 | 1"
+msgstr "PRINTSYM タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:234
+msgid "Symmetry operations won’t be saved in “SYMM_INFO”"
+msgstr "対称操作は “SYMM_INFO” に保存されません"
+
+#: ../../source/almdir/inputalm.rst:235
+msgid "Symmetry operations will be saved in “SYMM_INFO”"
+msgstr "対称操作は “SYMM_INFO” に保存されます"
+
+#: ../../source/almdir/inputalm.rst
+msgid "type"
+msgstr "型"
+
+#: ../../source/almdir/inputalm.rst:245
+msgid "FCSYM_BASIS-tag = Cartesian | Lattice"
+msgstr "FCSYM_BASIS タグ = Cartesian | Lattice"
+
+#: ../../source/almdir/inputalm.rst:248
+msgid "Cartesian, C"
+msgstr "Cartesian, C"
+
+#: ../../source/almdir/inputalm.rst:248
+msgid "Symmetry reduction of force constant is performed in the Cartesian basis"
+msgstr "力定数 (force constant) の対称性による簡約が Cartesian 基底で行われます"
+
+#: ../../source/almdir/inputalm.rst:250
+msgid "Lattice, L"
+msgstr "Lattice, L"
+
+#: ../../source/almdir/inputalm.rst:250
+#, python-brace-format
+msgid ""
+"Symmetry reduction of force constant is performed in the "
+":math:`\\boldsymbol{a}_1, \\boldsymbol{a}_2, \\boldsymbol{a}_3` basis"
+msgstr ""
+"力定数の対称性による簡約が :math:`\\boldsymbol{a}_1, \\boldsymbol{a}_2, "
+"\\boldsymbol{a}_3` 基底で行われます"
+
+#: ../../source/almdir/inputalm.rst:253
+msgid "Cartesian (changed from Lattice in version 2.0)"
+msgstr "Cartesian (バージョン 2.0 で Lattice から変更)"
+
+#: ../../source/almdir/inputalm.rst:255
+msgid ""
+"The calculation results should not depend on the choice of "
+"``FCSYM_BASIS`` when ``LMODEL = ols``. For other regression methods "
+"(enet, adaptive LASSO), an optimal value of the ``L1_ALPHA`` changes when"
+" you change the ``FCSYM_BASIS`` option."
+msgstr ""
+"``LMODEL = ols`` の場合、計算結果は ``FCSYM_BASIS`` の選択に依存しないはずです。その他の回帰手法 "
+"(enet、adaptive LASSO) では、``FCSYM_BASIS`` オプションを変更すると ``L1_ALPHA`` "
+"の最適値が変わります。"
+
+#: ../../source/almdir/inputalm.rst:257
+#, python-brace-format
+msgid ""
+"``FCSYM_BASIS = Cartesian`` is the default because it is required for the"
+" rotational invariance constraints. ``FCSYM_BASIS = Lattice`` can be more"
+" robust when the input structure is given with only a few digits, e.g., "
+"hexagonal cells with :math:`\\sqrt{3}/2` written as 0.866025. In such "
+"cases, setting ``SYMMETRIZE_STRUCTURE = 1`` is recommended instead of, or"
+" in addition to, ``FCSYM_BASIS = Lattice``."
+msgstr ""
+"回転不変性の制約に必要なため、``FCSYM_BASIS = Cartesian`` がデフォルトです。入力構造が少ない桁数で与えられている場合 "
+"(例えば :math:`\\sqrt{3}/2` を 0.866025 と書いた六方晶のセル) には、``FCSYM_BASIS = "
+"Lattice`` の方が安定なことがあります。そのような場合は、``FCSYM_BASIS = Lattice`` "
+"の代わりに、あるいはそれと併せて、``SYMMETRIZE_STRUCTURE = 1`` を設定することを推奨します。"
+
+#: ../../source/almdir/inputalm.rst:259
+msgid ""
+"For more details about the symmetry reduction of force constants, please "
+"see :ref:`here <IFC_crystal_symmetry>`."
+msgstr "力定数の対称性による簡約の詳細については、:ref:`here <IFC_crystal_symmetry>` を参照してください。"
+
+#: ../../source/almdir/inputalm.rst:263
+#, python-brace-format
+msgid ""
+"When ``FCSYM_BASIS = Lattice``, the basis of force constants saved in "
+"``PREFIX``.fcs becomes the :math:`\\boldsymbol{a}_1, \\boldsymbol{a}_2, "
+"\\boldsymbol{a}_3` basis. Hence, to compare the values of force constants"
+" saved in ``PREFIX``.fcs, you will have to change their basis to the "
+"Cartesian basis manually. The basis of force constants saved in "
+"``PREFIX``.xml is Cartesian irrespective of the ``FCSYM_BASIS`` value."
+msgstr ""
+"``FCSYM_BASIS = Lattice`` の場合、``PREFIX``.fcs に保存される力定数の基底は "
+":math:`\\boldsymbol{a}_1, \\boldsymbol{a}_2, \\boldsymbol{a}_3` "
+"基底になります。したがって、``PREFIX``.fcs に保存された力定数の値を比較するには、それらの基底を手動で Cartesian "
+"基底に変換する必要があります。``PREFIX``.xml に保存される力定数の基底は、``FCSYM_BASIS`` の値によらず "
+"Cartesian です。"
+
+#: ../../source/almdir/inputalm.rst:265
+msgid ""
+"Also, imposing the constraints for rotational invariance with "
+"``FCSYM_BASIS = Lattice`` is not supported. Therefore, if you want to "
+"apply the constraints for rotational invariance, please use ``FCSYM_BASIS"
+" = Cartesian``."
+msgstr ""
+"また、``FCSYM_BASIS = Lattice`` "
+"で回転不変性の制約を課すことはサポートされていません。したがって、回転不変性の制約を適用したい場合は、``FCSYM_BASIS = "
+"Cartesian`` を使用してください。"
+
+#: ../../source/almdir/inputalm.rst:271
+msgid "MAGMOM-tag : List of magnetic moments"
+msgstr "MAGMOM タグ: 磁気モーメントのリスト"
+
+#: ../../source/almdir/inputalm.rst:273
+msgid ""
+"0 ... 0 (``NAT`` entries when ``NONCOLLINEAR = 0``, 3x\\ ``NAT`` entries "
+"when ``NONCOLLINEAR = 1``.)"
+msgstr ""
+"0 ... 0 (``NONCOLLINEAR = 0`` のとき ``NAT`` 個の要素、``NONCOLLINEAR = 1`` のとき "
+"3x\\ ``NAT`` 個の要素。)"
+
+#: ../../source/almdir/inputalm.rst:274
+msgid "Array of double"
+msgstr "倍精度実数の配列"
+
+#: ../../source/almdir/inputalm.rst:275
+msgid ""
+"When a supercell contains 64 atoms and the local magnetic moments of the "
+"first 32 atoms are up and those of the last 32 atoms are down, please set"
+" the ``MAGMOM`` tag as ``MAGMOM = 32*1 32*-1``. The wildcard (``*``) is "
+"available when ``NONCOLLINEAR = 0``. For the noncollinear case "
+"(``NONCOLLINEAR = 1``), the wildcard is not supported. So, please give "
+"the magnetic moment explicitly as ``MAGMOM = 0 0 1 0 0 1 0 0 1 ... 0 0 -1"
+" 0 0 -1 ...`` (3\\ :math:`\\times`\\ ``NAT`` entries in *one line*)."
+msgstr ""
+"スーパーセルが 64 原子を含み、最初の 32 原子の局所磁気モーメントが上向き、最後の 32 原子のものが下向きの場合、``MAGMOM`` "
+"タグを ``MAGMOM = 32*1 32*-1`` と設定してください。ワイルドカード (``*``) は ``NONCOLLINEAR = "
+"0`` のときに利用できます。非共線 (noncollinear) の場合 (``NONCOLLINEAR = 1``) "
+"はワイルドカードはサポートされていません。そのため、磁気モーメントを ``MAGMOM = 0 0 1 0 0 1 0 0 1 ... 0 0 "
+"-1 0 0 -1 ...`` のように明示的に与えてください (*1行に* 3\\ :math:`\\times`\\ ``NAT`` "
+"個の要素)。"
+
+#: ../../source/almdir/inputalm.rst:279
+msgid ""
+"``MAGMOM`` information is used only for generating space group "
+"operations. So, the values of the magnetic moment are somewhat arbitrary."
+" For the 4\\ :math:`\\times` 4\\ :math:`\\times` 4 supercell of "
+"ferromagnetic bcc Fe (64 atoms), for instance, ``MAGMOM = 64*1`` and "
+"``MAGMOM = 64*2`` give the same results. By contrast, ``MAGMOM = 32*1 "
+"32*2`` of course gives a different result because it breaks the symmetry "
+"of the original lattice."
+msgstr ""
+"``MAGMOM`` の情報は空間群操作の生成にのみ使用されます。そのため、磁気モーメントの値はある程度任意です。例えば、強磁性 bcc Fe の"
+" 4\\ :math:`\\times` 4\\ :math:`\\times` 4 スーパーセル (64 原子) では、``MAGMOM = "
+"64*1`` と ``MAGMOM = 64*2`` は同じ結果を与えます。対照的に、``MAGMOM = 32*1 32*2`` "
+"はもちろん異なる結果を与えます。なぜなら、元の格子の対称性を破るからです。"
+
+#: ../../source/almdir/inputalm.rst:285
+msgid "NONCOLLINEAR-tag = 0 | 1"
+msgstr "NONCOLLINEAR タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:289
+msgid ""
+"When ``NONCOLLINEAR = 1``, the code accepts a noncollinear magnetic "
+"structure as an input to the ``MAGMOM`` tag and uses it for generating "
+"space group operations. The spin quantization axis is fixed to the "
+"(0,0,1) direction of the Cartesian axis."
+msgstr ""
+"``NONCOLLINEAR = 1`` の場合、コードは ``MAGMOM`` "
+"タグへの入力として非共線磁気構造を受け付け、それを空間群操作の生成に使用します。スピン量子化軸は Cartesian 軸の (0,0,1) "
+"方向に固定されます。"
+
+#: ../../source/almdir/inputalm.rst:293
+msgid "Still experimental. Please use with care."
+msgstr "まだ実験的な機能です。注意してご利用ください。"
+
+#: ../../source/almdir/inputalm.rst:299
+msgid "PERIODIC-tag = PERIODIC[1], PERIODIC[2], PERIODIC[3]"
+msgstr "PERIODIC タグ = PERIODIC[1], PERIODIC[2], PERIODIC[3]"
+
+#: ../../source/almdir/inputalm.rst:302
+msgid "Do not consider periodic boundary conditions when"
+msgstr "周期境界条件を考慮しません。対象は"
+
+#: ../../source/almdir/inputalm.rst:303 ../../source/almdir/inputalm.rst:306
+msgid "searching for interacting atoms."
+msgstr "相互作用する原子の探索です。"
+
+#: ../../source/almdir/inputalm.rst:305
+msgid "Consider periodic boundary conditions when"
+msgstr "周期境界条件を考慮します。対象は"
+
+#: ../../source/almdir/inputalm.rst:309
+msgid "1 1 1"
+msgstr "1 1 1"
+
+#: ../../source/almdir/inputalm.rst:310 ../../source/almdir/inputalm.rst:493
+msgid "Array of integers"
+msgstr "整数の配列"
+
+#: ../../source/almdir/inputalm.rst:311
+#, python-brace-format
+msgid ""
+"This tag is useful for generating interacting atoms in low dimensional "
+"systems. When ``PERIODIC[i]`` is zero, periodic boundary condition is "
+"turned off along the direction of the lattice vector "
+":math:`\\boldsymbol{a}_{i}`."
+msgstr ""
+"このタグは低次元系で相互作用する原子を生成する際に便利です。``PERIODIC[i]`` がゼロの場合、格子ベクトル "
+":math:`\\boldsymbol{a}_{i}` の方向に沿った周期境界条件がオフになります。"
+
+#: ../../source/almdir/inputalm.rst:317
+msgid ""
+"NMAXSAVE-tag : The maximum order of anharmonic force constants written to"
+" the force-constant files (``PREFIX``.h5 and ``PREFIX``.xml)"
+msgstr ""
+"NMAXSAVE タグ: 力定数ファイル (``PREFIX``.h5 および ``PREFIX``.xml) に出力される非調和力定数 "
+"(anharmonic force constants) の最大次数"
+
+#: ../../source/almdir/inputalm.rst:319
+msgid "min(5, ``NORDER``)"
+msgstr "min(5, ``NORDER``)"
+
+#: ../../source/almdir/inputalm.rst:321
+msgid ""
+"If your model includes anharmonic terms up to the sixth-order (``NORDER ="
+" 5``), but you want to avoid printing out the fifth-order and sixth-order"
+" IFCs, please set ``NMAXSAVE = 3``."
+msgstr ""
+"モデルが6次まで (``NORDER = 5``) の非調和項を含むが、5次および6次の原子間力定数を出力したくない場合は、``NMAXSAVE "
+"= 3`` を設定してください。"
+
+#: ../../source/almdir/inputalm.rst:327
+msgid "FCS_ALAMODE-tag = 0 | 1"
+msgstr "FCS_ALAMODE タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:330
+msgid "Write the force constants to ``PREFIX``.h5 only"
+msgstr "力定数を ``PREFIX``.h5 にのみ書き出します"
+
+#: ../../source/almdir/inputalm.rst:331
+msgid ""
+"Additionally write the legacy ``PREFIX``.xml file and the plain-text "
+"``PREFIX``.fcs listing"
+msgstr "従来の ``PREFIX``.xml ファイルとプレーンテキストの ``PREFIX``.fcs 一覧も追加で書き出します"
+
+#: ../../source/almdir/inputalm.rst:337
+msgid ""
+"The HDF5 file ``PREFIX``.h5 is the standard force-constant output and is "
+"always written. Set ``FCS_ALAMODE = 1`` to also produce the legacy XML "
+"file and the human-readable ``PREFIX``.fcs listing, e.g. for external "
+"tools that have not migrated to the HDF5 format yet. *anphon* reads both "
+"formats."
+msgstr ""
+"HDF5 ファイル ``PREFIX``.h5 が標準の力定数出力であり、常に書き出されます。``FCS_ALAMODE = 1`` "
+"を設定すると、従来の XML ファイルと人間が読める ``PREFIX``.fcs 一覧も生成されます (例えば、まだ HDF5 "
+"形式に移行していない外部ツールのためなどに)。*anphon* はどちらの形式も読むことができます。"
+
+#: ../../source/almdir/inputalm.rst:347
+msgid "HESSIAN-tag = 0 | 1"
+msgstr "HESSIAN タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:350
+msgid "Do not save the Hessian matrix"
+msgstr "ヘッセ行列を保存しません"
+
+#: ../../source/almdir/inputalm.rst:351
+msgid "Save the entire Hessian matrix of the supercell as PREFIX.hessian."
+msgstr "スーパーセルのヘッセ行列全体を PREFIX.hessian として保存します。"
+
+#: ../../source/almdir/inputalm.rst:376
+msgid "FC3_SHENGBTE-tag = 0 | 1"
+msgstr "FC3_SHENGBTE タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:379
+msgid "Do not save the third-order force constants for the ShengBTE code"
+msgstr "ShengBTE コード用の3次力定数を保存しません"
+
+#: ../../source/almdir/inputalm.rst:380
+msgid ""
+"Save the third-order force constants for the ShengBTE code in "
+"PREFIX.FORCE_CONSTANTS_3RD."
+msgstr "ShengBTE コード用の3次力定数を PREFIX.FORCE_CONSTANTS_3RD に保存します。"
+
+#: ../../source/almdir/inputalm.rst:385
+msgid ""
+"The file has the layout of ShengBTE's ``FORCE_CONSTANTS_3RD``: the force "
+"constants in eV/|Angstrom|\\ :sup:`3` and the lattice vectors of the "
+"periodic images in |Angstrom|, independent of ``FCS_UNIT_OUTPUT``. It is "
+"written only when ``NORDER >= 2``; otherwise a warning is printed and no "
+"file is written. ShengBTE reads a file named ``FORCE_CONSTANTS_3RD``, so "
+"remove the ``PREFIX.`` part or link the file. To convert existing force "
+"constants instead, see :ref:`label_fc_conversion`."
+msgstr ""
+"このファイルは ShengBTE の ``FORCE_CONSTANTS_3RD`` の形式に従います。``FCS_UNIT_OUTPUT`` "
+"によらず、力定数は eV/|Angstrom|\\ :sup:`3` 単位、周期像の格子ベクトルは |Angstrom| "
+"単位で書かれます。このファイルは ``NORDER >= 2`` "
+"のときにのみ書き出され、それ以外の場合は警告が出力されてファイルは書き出されません。ShengBTE は "
+"``FORCE_CONSTANTS_3RD`` という名前のファイルを読み込むため、``PREFIX.`` "
+"の部分を取り除くか、ファイルへのリンクを作成してください。既存の力定数を変換する場合は :ref:`label_fc_conversion` "
+"を参照してください。"
+
+#: ../../source/almdir/inputalm.rst:395
+msgid "FC4_SHENGBTE-tag = 0 | 1"
+msgstr "FC4_SHENGBTE タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:398
+msgid "Do not save the fourth-order force constants for the FourPhonon code"
+msgstr "FourPhonon コード用の4次力定数を保存しません"
+
+#: ../../source/almdir/inputalm.rst:399
+msgid ""
+"Save the fourth-order force constants for the FourPhonon code in "
+"PREFIX.FORCE_CONSTANTS_4TH."
+msgstr "FourPhonon コード用の4次力定数を PREFIX.FORCE_CONSTANTS_4TH に保存します。"
+
+#: ../../source/almdir/inputalm.rst:404
+msgid ""
+"The file has the layout of ``FORCE_CONSTANTS_4TH`` read by FourPhonon, "
+"the four-phonon extension of ShengBTE: the force constants in "
+"eV/|Angstrom|\\ :sup:`4` and the lattice vectors of the periodic images "
+"in |Angstrom|, independent of ``FCS_UNIT_OUTPUT``. It is written only "
+"when ``NORDER >= 3``; otherwise a warning is printed and no file is "
+"written. Remove the ``PREFIX.`` part or link the file to "
+"``FORCE_CONSTANTS_4TH``."
+msgstr ""
+"このファイルは、ShengBTE の4フォノン拡張である FourPhonon が読み込む ``FORCE_CONSTANTS_4TH`` "
+"の形式に従います。``FCS_UNIT_OUTPUT`` によらず、力定数は eV/|Angstrom|\\ :sup:`4` "
+"単位、周期像の格子ベクトルは |Angstrom| 単位で書かれます。このファイルは ``NORDER >= 3`` "
+"のときにのみ書き出され、それ以外の場合は警告が出力されてファイルは書き出されません。``PREFIX.`` の部分を取り除くか、ファイルを "
+"``FORCE_CONSTANTS_4TH`` にリンクしてください。"
+
+#: ../../source/almdir/inputalm.rst:414
+msgid ""
+"FC_ZERO_THR-tag : Threshold value used when trimming force constants "
+"written to the force-constant files"
+msgstr "FC_ZERO_THR タグ: 力定数ファイルに書き出す力定数を切り捨てる際に使用される閾値"
+
+#: ../../source/almdir/inputalm.rst:416
+msgid "1.0e-12"
+msgstr "1.0e-12"
+
+#: ../../source/almdir/inputalm.rst:418
+msgid ""
+"``FC_ZERO_THR`` defines the threshold of force constants to be saved in "
+"``PREFIX``.h5 (and ``PREFIX``.xml). If the absolute value of a force "
+"constant is smaller than ``FC_ZERO_THR``, it will NOT be printed out."
+msgstr ""
+"``FC_ZERO_THR`` は ``PREFIX``.h5 (および ``PREFIX``.xml) "
+"に保存される力定数の閾値を定義します。力定数の絶対値が ``FC_ZERO_THR`` より小さい場合、それは出力されません。"
+
+#: ../../source/almdir/inputalm.rst:421
+msgid ""
+"If the harmonic force constants are calculated using a model potential "
+"(e.g., classical FF) where the interaction becomes zero beyond a certain "
+"cutoff radius, the default value of ``FC_ZERO_THR`` may drop small but "
+"nonzero force constants. This issue may be resolved by using a smaller "
+"``FC_ZERO_THR``, say ``FC_ZERO_THR = 1.0e-15``. The force constants that "
+"become exactly zero due to symmetry and acoustic sum rule constraints "
+"will not be printed even when setting ``FC_ZERO_THR = 0``."
+msgstr ""
+"ある特定のカットオフ半径を超えると相互作用がゼロになるモデルポテンシャル (例: 古典的な力場) "
+"を用いて調和力定数を計算する場合、``FC_ZERO_THR`` "
+"のデフォルト値では、小さいながらもゼロではない力定数が切り捨てられることがあります。この問題は、より小さい ``FC_ZERO_THR`` "
+"(例えば ``FC_ZERO_THR = 1.0e-15``) "
+"を使用することで解決される場合があります。対称性および音響和則の制約により厳密にゼロとなる力定数は、``FC_ZERO_THR = 0`` "
+"を設定しても出力されません。"
+
+#: ../../source/almdir/inputalm.rst:427
+msgid "FORMAT_PATTERN-tag = yaml | old"
+msgstr "FORMAT_PATTERN タグ = yaml | old"
+
+#: ../../source/almdir/inputalm.rst:430 ../../source/almdir/inputalm.rst:434
+msgid "yaml"
+msgstr "yaml"
+
+#: ../../source/almdir/inputalm.rst:430
+msgid "Write the displacement-pattern files in the YAML format"
+msgstr "変位パターンファイルを YAML 形式で出力します"
+
+#: ../../source/almdir/inputalm.rst:431
+msgid "old"
+msgstr "old"
+
+#: ../../source/almdir/inputalm.rst:431
+msgid "Write them in the plain-text format of ALAMODE 1.x"
+msgstr "ALAMODE 1.x のプレーンテキスト形式で出力します"
+
+#: ../../source/almdir/inputalm.rst:436
+msgid ""
+"Format of the displacement-pattern files ``PREFIX``.pattern_HARMONIC, "
+"``PREFIX``.pattern_ANHARM3, ... written with ``MODE = suggest``. "
+"``displace.py --pattern_file`` reads both formats; ``old`` is kept for "
+"external scripts written for the 1.x format."
+msgstr ""
+"``MODE = suggest`` で出力される変位パターンファイル "
+"``PREFIX``.pattern_HARMONIC、``PREFIX``.pattern_ANHARM3、... "
+"の形式を指定します。``displace.py --pattern_file`` はどちらの形式も読み込めます。``old`` は 1.x "
+"の形式を前提とした外部スクリプトのために残しています。"
+
+#: ../../source/almdir/inputalm.rst:445
+msgid "LENGTH_UNIT-tag = bohr | angstrom"
+msgstr "LENGTH_UNIT タグ = bohr | angstrom"
+
+#: ../../source/almdir/inputalm.rst:447
+msgid "bohr"
+msgstr "bohr"
+
+#: ../../source/almdir/inputalm.rst:449
+msgid ""
+"Unit of the length-type input data: the ``&cell`` lattice vectors, the "
+"displacements in the ``DFSET`` file, and the ``&cutoff`` radii. The data "
+"are converted to Bohr internally, so the internal model and all outputs "
+"are unaffected. A ``STRUCTURE_FILE`` (POSCAR) is always interpreted in "
+"Angstrom, independent of this tag."
+msgstr ""
+"長さの次元を持つ入力データ (``&cell`` の格子ベクトル、``DFSET`` ファイル内の変位、``&cutoff`` の半径) "
+"の単位。データは内部で Bohr に変換されるため、内部モデルとすべての出力には影響しません。``STRUCTURE_FILE`` "
+"(POSCAR) は、このタグとは無関係に常に Angstrom として解釈されます。"
+
+#: ../../source/almdir/inputalm.rst:455
+msgid "FORCE_UNIT-tag = Ry/bohr | eV/angstrom | Ha/bohr"
+msgstr "FORCE_UNIT タグ = Ry/bohr | eV/angstrom | Ha/bohr"
+
+#: ../../source/almdir/inputalm.rst:457 ../../source/almdir/inputalm.rst:467
+msgid "Ry/bohr"
+msgstr "Ry/bohr"
+
+#: ../../source/almdir/inputalm.rst:459
+msgid "Unit of the forces in the ``DFSET`` file, converted to Ry/bohr internally."
+msgstr "``DFSET`` ファイル内の力の単位。内部で Ry/bohr に変換されます。"
+
+#: ../../source/almdir/inputalm.rst:465
+msgid "FCS_UNIT_OUTPUT-tag = Ry/bohr | eV/angstrom"
+msgstr "FCS_UNIT_OUTPUT タグ = Ry/bohr | eV/angstrom"
+
+#: ../../source/almdir/inputalm.rst:469
+msgid ""
+"Unit system of the force constants written to the HDF5 file "
+"(``PREFIX``.h5). With ``eV/angstrom``, the force constant values "
+"(eV/angstrom\\ :sup:`n`\\ ), the lattice vectors, and the shift vectors "
+"(angstrom) are converted consistently, and the ``unit`` attributes stored"
+" in the file are updated accordingly; *anphon* reads these attributes and"
+" converts the data back internally. The XML (``PREFIX``.xml) and "
+"``PREFIX``.fcs outputs always stay in Rydberg atomic units."
+msgstr ""
+"HDF5 ファイル (``PREFIX``.h5) に書き出す力定数の単位系。``eV/angstrom`` を指定すると、力定数の値 "
+"(eV/angstrom\\ :sup:`n`\\ )、格子ベクトル、並進ベクトル (angstrom) が一貫して変換され、ファイルに保存される"
+" ``unit`` 属性もそれに合わせて更新されます。*anphon* はこれらの属性を読み取り、内部でデータを逆変換します。XML "
+"(``PREFIX``.xml) および ``PREFIX``.fcs の出力は常に Rydberg 原子単位系のままです。"
+
+#: ../../source/almdir/inputalm.rst:474
+msgid "\"&interaction\"-field"
+msgstr "\"&interaction\" フィールド"
+
+#: ../../source/almdir/inputalm.rst:479
+msgid ""
+"**NORDER**-tag : The order of force constants to be calculated. "
+"Anharmonic terms up to :math:`(m+1)`\\ th order will be considered with "
+"``NORDER`` = :math:`m`."
+msgstr ""
+"**NORDER** タグ: 計算する力定数の次数。``NORDER`` = :math:`m` とすると、:math:`(m+1)`\\ "
+"次までの非調和項が考慮されます。"
+
+#: ../../source/almdir/inputalm.rst:483
+msgid ""
+"``NORDER = 1`` to calculate harmonic terms only, ``NORDER = 2`` to "
+"include cubic terms as well, and so on."
+msgstr "調和項のみを計算するには ``NORDER = 1``、3次項も含めるには ``NORDER = 2``、というように設定します。"
+
+#: ../../source/almdir/inputalm.rst:490
+msgid ""
+"NBODY-tag : Entry for excluding multiple-body interactions from "
+"anharmonic force constants"
+msgstr "NBODY タグ: 非調和力定数から多体相互作用を除外するためのエントリー"
+
+#: ../../source/almdir/inputalm.rst:492
+msgid "``NBODY`` = [2, 3, 4, ..., ``NORDER`` + 1]"
+msgstr "``NBODY`` = [2, 3, 4, ..., ``NORDER`` + 1]"
+
+#: ../../source/almdir/inputalm.rst:494
+msgid ""
+"This tag may be useful for excluding multi-body clusters which are "
+"supposedly less important. For example, a set of fourth-order IFCs "
+":math:`\\{\\Phi_{ijkl}\\}`, where :math:`i, j, k`, and :math:`l` label "
+"atoms in the supercell, can be categorized into four different subsets; "
+"**on-site**, **two-body**, **three-body**, and **four-body** terms. "
+"Neglecting the Cartesian coordinates of IFCs for simplicity, each subset "
+"contains the IFC elements shown as follows:"
+msgstr ""
+"このタグは、相対的に重要性が低いと思われる多体クラスターを除外するのに便利な場合があります。例えば、4次の原子間力定数の集合 "
+":math:`\\{\\Phi_{ijkl}\\}` (:math:`i, j, k` および :math:`l` はスーパーセル内の原子を表す)"
+" は、4つの異なる部分集合、すなわち **on-site (オンサイト)**、**two-body (2体)**、**three-body (3体"
+")**、**four-body (4体)** の項に分類できます。簡単のため原子間力定数の Cartesian "
+"座標を無視すると、各部分集合は以下に示す原子間力定数の要素を含みます:"
+
+#: ../../source/almdir/inputalm.rst:497
+msgid "on-site"
+msgstr "オンサイト (on-site)"
+
+#: ../../source/almdir/inputalm.rst:497
+msgid ":math:`\\{\\Phi_{iiii}\\}`"
+msgstr ":math:`\\{\\Phi_{iiii}\\}`"
+
+#: ../../source/almdir/inputalm.rst:498
+msgid "two-body"
+msgstr "2体 (two-body)"
+
+#: ../../source/almdir/inputalm.rst:498
+msgid ":math:`\\{\\Phi_{iijj}\\}`, :math:`\\{\\Phi_{iiij}\\}` (:math:`i\\neq j`)"
+msgstr ":math:`\\{\\Phi_{iijj}\\}`, :math:`\\{\\Phi_{iiij}\\}` (:math:`i\\neq j`)"
+
+#: ../../source/almdir/inputalm.rst:499
+msgid "three-body"
+msgstr "3体 (three-body)"
+
+#: ../../source/almdir/inputalm.rst:499
+msgid ":math:`\\{\\Phi_{iijk}\\}` (:math:`i\\neq j, i\\neq k, j \\neq k`)"
+msgstr ":math:`\\{\\Phi_{iijk}\\}` (:math:`i\\neq j, i\\neq k, j \\neq k`)"
+
+#: ../../source/almdir/inputalm.rst:500
+msgid "four-body"
+msgstr "4体 (four-body)"
+
+#: ../../source/almdir/inputalm.rst:500
+msgid ":math:`\\{\\Phi_{ijkl}\\}` (all subscripts are different from each other)"
+msgstr ":math:`\\{\\Phi_{ijkl}\\}` (すべての添字が互いに異なる)"
+
+#: ../../source/almdir/inputalm.rst:503
+msgid ""
+"Since the four-body clusters are expected to be less important than the "
+"three-body and less-body clusters, you may want to exclude the four-body "
+"terms from the Taylor expansion potential because the number of such "
+"terms is huge. This can be done by setting the ``NBODY`` tag as ``NBODY ="
+" 2 3 3`` together with ``NORDER = 3``."
+msgstr ""
+"4体クラスターは3体やそれより少数体のクラスターよりも重要性が低いと予想されるため、そのような項の数が膨大であることから、テイラー展開ポテンシャルから4体項を除外したい場合があります。これは"
+" ``NORDER = 3`` とともに ``NBODY`` タグを ``NBODY = 2 3 3`` と設定することで実現できます。"
+
+#: ../../source/almdir/inputalm.rst
+msgid "More examples"
+msgstr "その他の例"
+
+#: ../../source/almdir/inputalm.rst:505
+msgid ""
+"``NORDER = 2; NBODY = 2 2`` includes harmonic and cubic IFCs but excludes"
+" three-body clusters from the cubic terms."
+msgstr "``NORDER = 2; NBODY = 2 2`` は調和および3次の原子間力定数を含みますが、3次項から3体クラスターを除外します。"
+
+#: ../../source/almdir/inputalm.rst:507
+msgid ""
+"``NORDER = 5; NBODY = 2 3 3 2 2`` includes anharmonic terms up to the "
+"sixth-order, where the four-body clusters are excluded from the fourth-"
+"order IFCs, and the multi (:math:`\\geq 3`)-body clusters are excluded "
+"from the fifth- and sixth-order IFCs."
+msgstr ""
+"``NORDER = 5; NBODY = 2 3 3 2 2`` "
+"は6次までの非調和項を含み、4次の原子間力定数からは4体クラスターが除外され、5次および6次の原子間力定数からは多体 (:math:`\\geq "
+"3` 体) クラスターが除外されます。"
+
+#: ../../source/almdir/inputalm.rst:512
+msgid "\"&cutoff\"-field"
+msgstr "\"&cutoff\" フィールド"
+
+#: ../../source/almdir/inputalm.rst:514
+msgid ""
+"In this entry field, one needs to specify cutoff radii of interaction for"
+" each order in units of bohr (or of :ref:`LENGTH_UNIT <alm_length_unit>` "
+"if given). In the current implementation, cutoff radii should be defined "
+"for every possible pair of atomic elements. For example, the cutoff entry"
+" for a harmonic calculation (``NORDER = 1``) of Si should be like ::"
+msgstr ""
+"このエントリーフィールドでは、各次数について相互作用のカットオフ半径を bohr 単位 (:ref:`LENGTH_UNIT "
+"<alm_length_unit>` が指定されている場合はその単位) "
+"で指定する必要があります。現在の実装では、カットオフ半径はすべての可能な原子元素の組について定義する必要があります。例えば、Si の調和計算 "
+"(``NORDER = 1``) のカットオフエントリーは次のようになります::"
+
+#: ../../source/almdir/inputalm.rst:523
+#, python-brace-format
+msgid ""
+"This means that the cutoff radius of 10 :math:`a_{0}` is used for "
+"harmonic Si-Si terms. Please note that the first column should be two "
+"character strings, which are contained in the ``KD``-tag, connected by a "
+"hyphen (’-’)."
+msgstr ""
+"これは、調和の Si-Si 項に対して 10 :math:`a_{0}` のカットオフ半径が使用されることを意味します。最初の列は、``KD`` "
+"タグに含まれる2つの文字列をハイフン (’-’) で連結したものでなければならないことに注意してください。"
+
+#: ../../source/almdir/inputalm.rst:527
+msgid ""
+"When one wants to consider cubic terms (``NORDER = 2``), please specify "
+"the cutoff radius for cubic terms in the third column as the following::"
+msgstr "3次項を考慮したい場合 (``NORDER = 2``)、次のように3列目に3次項のカットオフ半径を指定してください::"
+
+#: ../../source/almdir/inputalm.rst:534
+msgid ""
+"Instead of giving specific cutoff radii, one can write \"None\" as "
+"follows::"
+msgstr "特定のカットオフ半径を与える代わりに、次のように \"None\" と書くこともできます::"
+
+#: ../../source/almdir/inputalm.rst:540
+msgid ""
+"which means that all possible harmonic terms between Si-Si atoms will be "
+"included."
+msgstr "これは Si-Si 原子間のすべての可能な調和項が含まれることを意味します。"
+
+#: ../../source/almdir/inputalm.rst:544
+msgid ""
+"Setting 'None' for anharmonic terms can greatly increase the number of "
+"parameters and thereby increase the computational cost."
+msgstr "非調和項に 'None' を設定すると、パラメータの数が大幅に増加し、それによって計算コストが増大する可能性があります。"
+
+#: ../../source/almdir/inputalm.rst:546
+msgid ""
+"When there are more than two atomic elements, please specify the cutoff "
+"radii between every possible pair of atomic elements. In the case of MgO,"
+" the cutoff entry should be like ::"
+msgstr ""
+"3つ以上の原子元素がある場合は、すべての可能な原子元素の組の間のカットオフ半径を指定してください。MgO "
+"の場合、カットオフエントリーは次のようになります::"
+
+#: ../../source/almdir/inputalm.rst:555
+msgid "which can equivalently be written by using the wild card (’*’) as ::"
+msgstr "これはワイルドカード (’*’) を使って次のように等価に書くことができます::"
+
+#: ../../source/almdir/inputalm.rst:565
+msgid ""
+"Cutoff radii specified by an earlier entry are overwritten by a new entry"
+" that comes later."
+msgstr "先のエントリーで指定されたカットオフ半径は、後から来る新しいエントリーによって上書きされます。"
+
+#: ../../source/almdir/inputalm.rst:567
+msgid ""
+"Once the cutoff radii are properly given, harmonic force constants "
+":math:`\\Phi_{i,j}^{\\mu,\\nu}` satisfying :math:`r_{ij} \\le "
+"r_{c}^{\\mathrm{KD}[i]-\\mathrm{KD}[j]}` will be searched."
+msgstr ""
+"カットオフ半径が適切に与えられると、:math:`r_{ij} \\le "
+"r_{c}^{\\mathrm{KD}[i]-\\mathrm{KD}[j]}` を満たす調和力定数 "
+":math:`\\Phi_{i,j}^{\\mu,\\nu}` が探索されます。"
+
+#: ../../source/almdir/inputalm.rst:570
+msgid ""
+"In the case of cubic terms, force constants "
+":math:`\\Phi_{ijk}^{\\mu\\nu\\lambda}` satisfying :math:`r_{ij} \\le "
+"r_{c}^{\\mathrm{KD}[i]-\\mathrm{KD}[j]}`, :math:`r_{ik} \\le "
+"r_{c}^{\\mathrm{KD}[i]-\\mathrm{KD}[k]}`, and :math:`r_{jk} \\le "
+"r_{c}^{\\mathrm{KD}[j]-\\mathrm{KD}[k]}` will be searched and determined "
+"by fitting."
+msgstr ""
+"3次項の場合、:math:`r_{ij} \\le "
+"r_{c}^{\\mathrm{KD}[i]-\\mathrm{KD}[j]}`、:math:`r_{ik} \\le "
+"r_{c}^{\\mathrm{KD}[i]-\\mathrm{KD}[k]}`、:math:`r_{jk} \\le "
+"r_{c}^{\\mathrm{KD}[j]-\\mathrm{KD}[k]}` を満たす力定数 "
+":math:`\\Phi_{ijk}^{\\mu\\nu\\lambda}` が探索され、フィッティングによって決定されます。"
+
+#: ../../source/almdir/inputalm.rst:576
+msgid "\"&cell\"-field"
+msgstr "\"&cell\" フィールド"
+
+#: ../../source/almdir/inputalm.rst:578
+msgid ""
+"Please give the cell parameters in this entry in units of bohr (or of "
+":ref:`LENGTH_UNIT <alm_length_unit>` if given) as the following::"
+msgstr ""
+"このエントリーでは、セルパラメータを bohr 単位 (:ref:`LENGTH_UNIT <alm_length_unit>` "
+"が指定されている場合はその単位) で次のように与えてください::"
+
+#: ../../source/almdir/inputalm.rst:587
+#, python-brace-format
+msgid ""
+"The cell parameters are then given by :math:`\\vec{a}_{1} = a \\times "
+"(a_{11}, a_{12}, a_{13})`, :math:`\\vec{a}_{2} = a \\times (a_{21}, "
+"a_{22}, a_{23})`, and :math:`\\vec{a}_{3} = a \\times (a_{31}, a_{32}, "
+"a_{33})`."
+msgstr ""
+"セルパラメータは :math:`\\vec{a}_{1} = a \\times (a_{11}, a_{12}, "
+"a_{13})`、:math:`\\vec{a}_{2} = a \\times (a_{21}, a_{22}, "
+"a_{23})`、:math:`\\vec{a}_{3} = a \\times (a_{31}, a_{32}, a_{33})` "
+"で与えられます。"
+
+#: ../../source/almdir/inputalm.rst:593
+msgid "\"&position\"-field"
+msgstr "\"&position\" フィールド"
+
+#: ../../source/almdir/inputalm.rst:595
+msgid ""
+"In this field, one needs to specify the atomic element and fractional "
+"coordinate of atoms in the supercell. Each line should be ::"
+msgstr "このフィールドでは、スーパーセル内の原子の原子元素と分数座標を指定する必要があります。各行は次のようにします::"
+
+#: ../../source/almdir/inputalm.rst:601
+msgid ""
+"where `ikd` is an integer specifying the atomic element in the order of "
+"the ``KD`` tag and `xf[i]` is the fractional coordinate of an atom. There"
+" should be ``NAT`` such lines in the &position entry field."
+msgstr ""
+"ここで `ikd` は ``KD`` タグの順序で原子元素を指定する整数であり、`xf[i]` は原子の分数座標です。&position "
+"エントリーフィールドには ``NAT`` 行のこのような行が必要です。"
+
+#: ../../source/almdir/inputalm.rst:608
+msgid "\"&optimize\"-field"
+msgstr "\"&optimize\" フィールド"
+
+#: ../../source/almdir/inputalm.rst:610
+msgid "This field is necessary when ``MODE = optimize``."
+msgstr "このフィールドは ``MODE = optimize`` のときに必要です。"
+
+#: ../../source/almdir/inputalm.rst:614
+msgid ""
+"LMODEL-tag : Choice of the linear model used for estimating force "
+"constants"
+msgstr "LMODEL タグ: 力定数の推定に用いる線形モデルの選択"
+
+#: ../../source/almdir/inputalm.rst:617
+msgid "\"least-squares\", \"LS\", \"OLS\",  1"
+msgstr "\"least-squares\", \"LS\", \"OLS\",  1"
+
+#: ../../source/almdir/inputalm.rst:617
+msgid "Ordinary least square"
+msgstr "通常の最小二乗法 (ordinary least squares)"
+
+#: ../../source/almdir/inputalm.rst:618
+msgid "\"elastic-net\", \"enet\", 2"
+msgstr "\"elastic-net\", \"enet\", 2"
+
+#: ../../source/almdir/inputalm.rst:618
+msgid "Elastic net"
+msgstr "Elastic net (エラスティックネット)"
+
+#: ../../source/almdir/inputalm.rst:619
+msgid "\"adaptive-lasso\", 3"
+msgstr "\"adaptive-lasso\", 3"
+
+#: ../../source/almdir/inputalm.rst:619
+msgid "Adaptive LASSO"
+msgstr "Adaptive LASSO (適応的 LASSO)"
+
+#: ../../source/almdir/inputalm.rst:622
+msgid "least-squares"
+msgstr "least-squares"
+
+#: ../../source/almdir/inputalm.rst:624
+msgid ""
+"When ``LMODEL = ols``, the force constants are estimated from the "
+"displacement-force datasets via the ordinary least-squares (OLS), which "
+"is usually sufficient to calculate harmonic and third-order force "
+"constants."
+msgstr ""
+"``LMODEL = ols`` の場合、力定数は変位-力データセットから通常の最小二乗法 (OLS) "
+"によって推定されます。これは通常、調和および3次の力定数を計算するのに十分です。"
+
+#: ../../source/almdir/inputalm.rst:626
+msgid ""
+"The elastic net (``LMODEL = enet``) or adaptive LASSO (``LMODEL = "
+"adaptive-lasso``) are useful for calculating fourth-order (and higher-"
+"order) force constants. When the elastic net or adaptive LASSO is "
+"selected, the users have to set the following related tags: ``CV``, "
+"``L1_RATIO``, ``L1_ALPHA``, ``CV_MAXALPHA``, ``CV_MINALPHA``, "
+"``CV_NALPHA``, ``STANDARDIZE``, ``ENET_DNORM``, ``MAXITER``, "
+"``CONV_TOL``, ``NWRITE``, ``SOLUTION_PATH``, ``DEBIAS_OLS``, "
+"``STOP_CRITERION``."
+msgstr ""
+"elastic net (``LMODEL = enet``) または adaptive LASSO (``LMODEL = adaptive-"
+"lasso``) は、4次 (およびそれ以上の高次) の力定数を計算するのに便利です。elastic net または adaptive LASSO"
+" を選択した場合、ユーザーは次の関連タグを設定する必要があります: "
+"``CV``、``L1_RATIO``、``L1_ALPHA``、``CV_MAXALPHA``、``CV_MINALPHA``、``CV_NALPHA``、``STANDARDIZE``、``ENET_DNORM``、``MAXITER``、``CONV_TOL``、``NWRITE``、``SOLUTION_PATH``、``DEBIAS_OLS``、``STOP_CRITERION``。"
+
+#: ../../source/almdir/inputalm.rst:632
+msgid ""
+"**DFSET**-tag: File name containing displacement-force datasets for "
+"training"
+msgstr "**DFSET** タグ: 学習用の変位-力データセットを含むファイル名"
+
+#: ../../source/almdir/inputalm.rst:636
+msgid "The format of ``DFSET`` can be found :ref:`here <label_format_DFSET>`"
+msgstr "``DFSET`` の書式は :ref:`here <label_format_DFSET>` にあります"
+
+#: ../../source/almdir/inputalm.rst:642
+msgid "NDATA-tag : Number of displacement-force data sets"
+msgstr "NDATA タグ: 変位-力データセットの数"
+
+#: ../../source/almdir/inputalm.rst:646
+msgid ""
+"If ``NDATA`` is not given, the code reads all lines of ``DFSET`` "
+"(excluding comment lines) and estimates ``NDATA`` by dividing the line "
+"number by ``NAT``. If the number of lines is not divisible by ``NAT``, an"
+" error is raised. ``DFSET`` should contain at least "
+"``NDATA``:math:`\\times` ``NAT`` lines."
+msgstr ""
+"``NDATA`` が与えられない場合、コードは ``DFSET`` の全行 (コメント行を除く) を読み込み、行数を ``NAT`` で割って "
+"``NDATA`` を推定します。行数が ``NAT`` で割り切れない場合はエラーが発生します。``DFSET`` には少なくとも "
+"``NDATA``:math:`\\times` ``NAT`` 行が含まれている必要があります。"
+
+#: ../../source/almdir/inputalm.rst:652
+msgid "NSTART, NEND-tags : Specifies the range of data to be used for training"
+msgstr "NSTART, NEND タグ: 学習に使用するデータの範囲を指定します"
+
+#: ../../source/almdir/inputalm.rst:654
+msgid "``NSTART = 1``, ``NEND = NDATA``"
+msgstr "``NSTART = 1``, ``NEND = NDATA``"
+
+#: ../../source/almdir/inputalm.rst:656
+msgid ""
+"To use the data in the range of [20:30] out of 50 entries, the tags "
+"should be ``NSTART = 20`` and ``NEND = 30``."
+msgstr ""
+"50 個のエントリーのうち [20:30] の範囲のデータを使用するには、タグを ``NSTART = 20`` および ``NEND = "
+"30`` とします。"
+
+#: ../../source/almdir/inputalm.rst:662
+msgid "SKIP-tag : Specifies the range of data to be skipped for training"
+msgstr "SKIP タグ: 学習でスキップするデータの範囲を指定します"
+
+#: ../../source/almdir/inputalm.rst:665
+msgid "Two integers connected by a hyphen"
+msgstr "ハイフンで連結された2つの整数"
+
+#: ../../source/almdir/inputalm.rst:666
+msgid ""
+"``SKIP`` =\\ :math:`i`-:math:`j` skips the data in the range of "
+"[:math:`i`:\\ :math:`j`]. The :math:`i` and :math:`j` must satisfy "
+":math:`1\\leq i \\leq j \\leq` ``NDATA``.  This option may be useful when"
+" doing cross-validation manually (``CV=-1``)."
+msgstr ""
+"``SKIP`` =\\ :math:`i`-:math:`j` は [:math:`i`:\\ :math:`j`] "
+"の範囲のデータをスキップします。:math:`i` と :math:`j` は :math:`1\\leq i \\leq j \\leq` "
+"``NDATA`` を満たす必要があります。このオプションは交差検証を手動で行う (``CV=-1``) 場合に便利です。"
+
+#: ../../source/almdir/inputalm.rst:672
+msgid "ICONST-tag = 0 | 1 | 2 | 3 | 4 | 11 | 12 | 13 | 14"
+msgstr "ICONST タグ = 0 | 1 | 2 | 3 | 4 | 11 | 12 | 13 | 14"
+
+#: ../../source/almdir/inputalm.rst:675
+msgid "No constraints"
+msgstr "制約なし"
+
+#: ../../source/almdir/inputalm.rst:676
+msgid "Constraint for translational invariance is imposed between IFCs."
+msgstr "原子間力定数間に並進不変性の制約が課されます。"
+
+#: ../../source/almdir/inputalm.rst:677 ../../source/almdir/inputalm.rst:684
+msgid "Available only when ``LMODEL = ols``."
+msgstr "``LMODEL = ols`` のときのみ利用可能です。"
+
+#: ../../source/almdir/inputalm.rst:678 ../../source/almdir/inputalm.rst:724
+msgid "11"
+msgstr "11"
+
+#: ../../source/almdir/inputalm.rst:678
+msgid ""
+"Same as ``ICONST = 1`` but the constraint is imposed *algebraically* "
+"rather than numerically."
+msgstr "``ICONST = 1`` と同じですが、制約は数値的にではなく *代数的に* 課されます。"
+
+#: ../../source/almdir/inputalm.rst:679
+msgid "Select this option when ``LMODEL = enet`` or ``adaptive-lasso``."
+msgstr "``LMODEL = enet`` または ``adaptive-lasso`` のときはこのオプションを選択してください。"
+
+#: ../../source/almdir/inputalm.rst:680 ../../source/almdir/inputalm.rst:802
+msgid "2"
+msgstr "2"
+
+#: ../../source/almdir/inputalm.rst:680
+msgid ""
+"In addition to ``ICONST = 1``, constraints for rotational invariance will"
+" be"
+msgstr "``ICONST = 1`` に加えて、回転不変性の制約が"
+
+#: ../../source/almdir/inputalm.rst:681
+msgid ""
+"imposed up to (``NORDER`` + 1)th order. Available only when ``LMODEL = "
+"ols``."
+msgstr "(``NORDER`` + 1) 次まで課されます。``LMODEL = ols`` のときのみ利用可能です。"
+
+#: ../../source/almdir/inputalm.rst:682 ../../source/almdir/inputalm.rst:803
+#: ../../source/almdir/inputalm.rst:812
+msgid "3"
+msgstr "3"
+
+#: ../../source/almdir/inputalm.rst:682
+msgid ""
+"In addition to ``ICONST = 2``, constraints for rotational invariance "
+"between (``NORDER`` + 1)th order"
+msgstr "``ICONST = 2`` に加えて、(``NORDER`` + 1) 次と"
+
+#: ../../source/almdir/inputalm.rst:683
+msgid "and (``NORDER`` + 2)th order, which are zero, will be considered."
+msgstr "ゼロである (``NORDER`` + 2) 次の間の回転不変性の制約が考慮されます。"
+
+#: ../../source/almdir/inputalm.rst:685 ../../source/almdir/inputalm.rst:808
+msgid "4"
+msgstr "4"
+
+#: ../../source/almdir/inputalm.rst:685
+msgid ""
+"In addition to ``ICONST = 2``, constraints for the Huang invariance will "
+"be imposed."
+msgstr "``ICONST = 2`` に加えて、Huang 不変性の制約が課されます。"
+
+#: ../../source/almdir/inputalm.rst:686
+msgid ""
+"Available only when ``LMODEL = ols``. For a stressed reference structure,"
+" see ``STRESS``."
+msgstr "``LMODEL = ols`` のときのみ利用可能です。応力のかかった参照構造については ``STRESS`` を参照してください。"
+
+#: ../../source/almdir/inputalm.rst:687
+msgid "12"
+msgstr "12"
+
+#: ../../source/almdir/inputalm.rst:687
+msgid ""
+"Same as ``ICONST = 2`` but imposed algebraically. Usable with any "
+"``LMODEL``."
+msgstr "``ICONST = 2`` と同じですが、代数的に課されます。どの ``LMODEL`` とも併用できます。"
+
+#: ../../source/almdir/inputalm.rst:688
+msgid "13"
+msgstr "13"
+
+#: ../../source/almdir/inputalm.rst:688
+msgid ""
+"Same as ``ICONST = 3`` but imposed algebraically. Usable with any "
+"``LMODEL``."
+msgstr "``ICONST = 3`` と同じですが、代数的に課されます。どの ``LMODEL`` とも併用できます。"
+
+#: ../../source/almdir/inputalm.rst:689
+msgid "14"
+msgstr "14"
+
+#: ../../source/almdir/inputalm.rst:689
+msgid ""
+"Same as ``ICONST = 4`` but imposed algebraically. Usable with any "
+"``LMODEL``."
+msgstr "``ICONST = 4`` と同じですが、代数的に課されます。どの ``LMODEL`` とも併用できます。"
+
+#: ../../source/almdir/inputalm.rst:694
+msgid ""
+"When ``LMODEL = enet`` or ``adaptive-lasso``, ``ICONST = 1, 2, 3, 4`` are"
+" not rejected but are treated as ``ICONST = 11, 12, 13, 14``, "
+"respectively, i.e., the constraints are imposed algebraically."
+msgstr ""
+"``LMODEL = enet`` または ``adaptive-lasso`` の場合、``ICONST = 1, 2, 3, 4`` "
+"は拒否されず、それぞれ ``ICONST = 11, 12, 13, 14`` として扱われます。すなわち、制約は代数的に課されます。"
+
+#: ../../source/almdir/inputalm.rst:699
+msgid ""
+"With ``ICONST = 12, 13, 14``, the inter-order rotational constraints make"
+" some higher-order IFCs linear functions of lower-order ones. These "
+"dependent IFCs are eliminated before the fit, so they are not penalized "
+"by the L1 term of ``LMODEL = enet`` or ``adaptive-lasso``. As in ``ICONST"
+" = 2, 3, 4``, inter-order constraints involving an order fixed by "
+"``FC2FIX`` or ``FC3FIX`` are not imposed."
+msgstr ""
+"``ICONST = 12, 13, 14`` では、異なる次数間の回転不変性の制約により、一部の高次の IFC が低次の IFC "
+"の線形結合で表されます。これらの従属な IFC はフィッティングの前に消去されるため、``LMODEL = enet`` や "
+"``adaptive-lasso`` の L1 項によるペナルティを受けません。``ICONST = 2, 3, 4`` "
+"と同様に、``FC2FIX`` や ``FC3FIX`` で固定した次数を含む次数間の制約は課されません。"
+
+#: ../../source/almdir/inputalm.rst:707
+msgid ""
+"The rotational constraints (``ICONST = 2, 3, 4, 12, 13, 14``) are built "
+"from the Cartesian atomic positions, so the input structure must be "
+"symmetric to nearly machine precision. If the lattice vectors or "
+"positions are given with only about 10 digits, the inter-order "
+"constraints have no clear rank, and the number of free parameters and the"
+" resulting IFCs may depend on ``ICONST``, ``ALGO_REDUCTION``, and "
+"``TOL_CONST``. Give the structure with full double precision or set "
+"``SYMMETRIZE_STRUCTURE = 1``."
+msgstr ""
+"回転不変性の拘束条件（ ``ICONST = 2, 3, 4, 12, 13, 14`` "
+"）はデカルト座標の原子位置から構築されるため、入力構造はほぼ計算機精度で対称である必要があります。格子ベクトルや原子位置が 10 "
+"桁程度しか与えられていない場合、次数間の拘束条件のランクが明確に定まらず、自由パラメータの数や得られる IFC が ``ICONST`` 、 "
+"``ALGO_REDUCTION`` 、 ``TOL_CONST`` に依存して変わることがあります。構造を倍精度の桁数で与えるか、 "
+"``SYMMETRIZE_STRUCTURE = 1`` を指定してください。"
+
+#: ../../source/almdir/inputalm.rst:714
+msgid ""
+"Even with an exact structure, a structure with internal relaxation (atoms"
+" off high-symmetry positions) combined with a short cutoff of the highest"
+" order can give nearly dependent rotational constraints. ``ICONST = 2, 3,"
+" 4`` and, with the default ``ALGO_REDUCTION = 3``, ``ICONST = 12, 13, "
+"14`` drop those weaker than ``TOL_CONST`` (relative, row by row). The "
+"other ``ALGO_REDUCTION`` options, and ``ALGO_REDUCTION = 3`` for "
+"constraint blocks too large for the dense QR in ALM built without "
+"``USE_SUITESPARSE_BACKEND``, decide the rank in several Gauss-Jordan "
+"stages and may keep some of them, which shows up as a fitting error "
+"larger than with ``ICONST = 2, 3, 4``. In that case, use ``ICONST = 2, 3,"
+" 4`` (with ``LMODEL = ols``), or increase ``TOL_CONST`` or the cutoff "
+"radius."
+msgstr ""
+"構造が厳密であっても、内部緩和のある構造 (原子が高対称位置からずれている構造) "
+"と最高次の短いカットオフを組み合わせると、回転不変性の拘束条件がほぼ線形従属になることがあります。``ICONST = 2, 3, 4`` "
+"と、デフォルトの ``ALGO_REDUCTION = 3`` での ``ICONST = 12, 13, 14`` "
+"は、``TOL_CONST`` より弱い拘束条件を (行ごとの相対値で判定して) 除外します。それ以外の ``ALGO_REDUCTION`` "
+"のオプション、および ``USE_SUITESPARSE_BACKEND`` なしでビルドした ALM で密行列の QR "
+"分解には大きすぎる拘束条件ブロックに対する ``ALGO_REDUCTION = 3`` "
+"では、ランクをガウス・ジョルダン消去の複数の段階で決定するため、それらの一部が残ることがあり、``ICONST = 2, 3, 4`` "
+"の場合よりも大きなフィッティング誤差として現れます。その場合は ``ICONST = 2, 3, 4`` を (``LMODEL = ols`` "
+"とともに) 使用するか、``TOL_CONST`` またはカットオフ半径を大きくしてください。"
+
+#: ../../source/almdir/inputalm.rst:726
+msgid "See :ref:`this page<constraint_IFC>` for the numerical formulae."
+msgstr "数値的な式については :ref:`this page<constraint_IFC>` を参照してください。"
+
+#: ../../source/almdir/inputalm.rst:732
+msgid "PERIODIC_IMAGE_CONV-tag = 0 | 1"
+msgstr "PERIODIC_IMAGE_CONV タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:735
+msgid ""
+"Impose the constraints on IFCs (acoustic sum rule) in the considering "
+"supercell."
+msgstr "対象のスーパーセルにおいて原子間力定数に制約 (音響和則) を課します。"
+
+#: ../../source/almdir/inputalm.rst:736
+msgid "Consider the periodic images when generating the constraints."
+msgstr "制約を生成する際に周期像を考慮します。"
+
+#: ../../source/almdir/inputalm.rst:737
+msgid "The resultant IFCs simultaneously satisfy the permutation symmetry, ASR,"
+msgstr "得られる原子間力定数は、置換対称性、音響和則 (ASR)、"
+
+#: ../../source/almdir/inputalm.rst:738
+msgid "and the space group symmetry in the infinite space."
+msgstr "および無限空間における空間群対称性を同時に満たします。"
+
+#: ../../source/almdir/inputalm.rst:739
+msgid ""
+"For more details, please see Appendix D of the `original paper "
+"<https://arxiv.org/abs/2205.08789>`_."
+msgstr ""
+"詳細については、`original paper <https://arxiv.org/abs/2205.08789>`_ の付録 D "
+"を参照してください。"
+
+#: ../../source/almdir/inputalm.rst:740
+msgid ""
+"(Note that we use the term \"mirror image\" instead of \"periodic image\""
+" in the paper.)"
+msgstr "(論文中では \"periodic image\" の代わりに \"mirror image\" という用語を使用していることに注意してください。)"
+
+#: ../../source/almdir/inputalm.rst:751
+msgid ""
+"ROTAXIS-tag : Rotation axis used to estimate constraints for rotational "
+"invariance. This entry is necessary when ``ICONST = 2, 3, 4, 12, 13, "
+"14``."
+msgstr ""
+"ROTAXIS タグ: 回転不変性の制約を推定するために使用する回転軸。このエントリーは ``ICONST = 2, 3, 4, 12, 13, "
+"14`` のときに必要です。"
+
+#: ../../source/almdir/inputalm.rst:755
+msgid ""
+"When one wants to consider the rotational invariance around the "
+":math:`x`\\ -axis, one should give ``ROTAXIS = x``. If one needs "
+"additional constraints for the rotation around the :math:`y`\\ -axis, "
+"``ROTAXIS`` should be ``ROTAXIS = xy``."
+msgstr ""
+":math:`x`\\ 軸まわりの回転不変性を考慮したい場合は、``ROTAXIS = x`` を与えます。:math:`y`\\ "
+"軸まわりの回転に対する追加の制約が必要な場合は、``ROTAXIS`` を ``ROTAXIS = xy`` とします。"
+
+#: ../../source/almdir/inputalm.rst:761
+msgid ""
+"STRESS-tag : Cauchy stress :math:`\\sigma` of the reference structure (in"
+" GPa) used to generalize the Huang invariance"
+msgstr "STRESS タグ: Huang 不変性の一般化に用いる参照構造のコーシー応力 :math:`\\sigma` (単位: GPa)"
+
+#: ../../source/almdir/inputalm.rst:763
+msgid "None (stress-free Huang invariance)"
+msgstr "なし (応力のない場合の Huang 不変性)"
+
+#: ../../source/almdir/inputalm.rst:764
+msgid "Array of double (6 or 9 values)"
+msgstr "倍精度実数の配列 (6 個または 9 個の値)"
+
+#: ../../source/almdir/inputalm.rst:765
+msgid ""
+"The Huang invariance imposed with ``ICONST = 4`` or ``14`` assumes a "
+"stress-free reference structure. When the reference structure is under a "
+"stress :math:`\\sigma`, the long-wavelength condition becomes"
+msgstr ""
+"``ICONST = 4`` または ``14`` で課される Huang 不変性は、応力のない参照構造を仮定しています。参照構造に応力 "
+":math:`\\sigma` がかかっている場合、長波長の条件は次のようになります"
+
+#: ../../source/almdir/inputalm.rst:769
+#, python-brace-format
+msgid ""
+"[\\alpha\\beta,\\gamma\\delta] - [\\gamma\\delta,\\alpha\\beta] = "
+"\\sigma_{\\gamma\\delta}\\delta_{\\alpha\\beta} - "
+"\\sigma_{\\alpha\\beta}\\delta_{\\gamma\\delta},\n"
+"\\quad\n"
+"[\\alpha\\beta,\\gamma\\delta] = "
+"-\\frac{1}{2\\Omega}\\sum_{\\kappa,\\ell\\kappa'} "
+"\\Phi_{\\alpha\\beta}(0\\kappa;\\ell\\kappa')\\, x_{\\gamma} x_{\\delta},"
+msgstr ""
+"[\\alpha\\beta,\\gamma\\delta] - [\\gamma\\delta,\\alpha\\beta] = "
+"\\sigma_{\\gamma\\delta}\\delta_{\\alpha\\beta} - "
+"\\sigma_{\\alpha\\beta}\\delta_{\\gamma\\delta},\n"
+"\\quad\n"
+"[\\alpha\\beta,\\gamma\\delta] = "
+"-\\frac{1}{2\\Omega}\\sum_{\\kappa,\\ell\\kappa'} "
+"\\Phi_{\\alpha\\beta}(0\\kappa;\\ell\\kappa')\\, x_{\\gamma} x_{\\delta},"
+
+#: ../../source/almdir/inputalm.rst:775
+#, python-brace-format
+msgid ""
+"where :math:`\\boldsymbol{x} = \\boldsymbol{r}(\\ell\\kappa') - "
+"\\boldsymbol{r}(0\\kappa)` and :math:`\\Omega` is the volume of the "
+"primitive cell. ``STRESS`` gives :math:`\\sigma` either as 9 values (the "
+":math:`3\\times 3` tensor, row by row) or as 6 Voigt values in the order "
+"``xx yy zz yz xz xy``, in the Cartesian frame of the input lattice "
+"vectors."
+msgstr ""
+"ここで :math:`\\boldsymbol{x} = \\boldsymbol{r}(\\ell\\kappa') - "
+"\\boldsymbol{r}(0\\kappa)`、:math:`\\Omega` は基本セルの体積です。``STRESS`` "
+"では、入力した格子ベクトルのデカルト座標系における :math:`\\sigma` を、9 個の値 (:math:`3\\times 3` "
+"テンソルを行ごとに) または ``xx yy zz yz xz xy`` の順の 6 個の Voigt 成分として与えます。"
+
+#: ../../source/almdir/inputalm.rst:780
+msgid ""
+"The sign convention is **tension positive**. Note that the stress printed"
+" by VASP (``in kB`` line of OUTCAR) is positive under compression: "
+"convert it as :math:`\\sigma = -0.1 \\times` (VASP value) GPa. ASE's "
+"``get_stress()`` is already tension positive (in eV/Å\\ :sup:`3`). LAMMPS"
+" reports the pressure tensor, so :math:`\\sigma = -p`."
+msgstr ""
+"符号は\\ **引張りを正**\\ とします。VASP が出力する応力 (OUTCAR の ``in kB`` の行) "
+"は圧縮で正になることに注意してください。:math:`\\sigma = -0.1 \\times` (VASP の値) GPa "
+"と変換してください。ASE の ``get_stress()`` はすでに引張りが正です (単位は eV/Å\\ :sup:`3`)。LAMMPS"
+" は圧力テンソルを出力するので、:math:`\\sigma = -p` となります。"
+
+#: ../../source/almdir/inputalm.rst:785
+#, python-brace-format
+msgid ""
+"The input tensor is symmetrized, :math:`(\\sigma + \\sigma^{T})/2`, and "
+"averaged over the point group of the structure; the input and symmetrized"
+" tensors are printed, and a warning is shown when the removed part "
+"exceeds 1% of :math:`|\\sigma|`. A hydrostatic stress does not change the"
+" Huang conditions. ``STRESS`` is ignored (with a warning) unless ``ICONST"
+" = 4`` or ``14``."
+msgstr ""
+"入力したテンソルは対称化 (:math:`(\\sigma + \\sigma^{T})/2`) "
+"され、構造の点群について平均されます。入力したテンソルと対称化後のテンソルが出力され、取り除かれた成分が :math:`|\\sigma|` の "
+"1% を超える場合は警告が表示されます。静水圧の応力は Huang 条件を変えません。``ICONST = 4`` または ``14`` "
+"以外では、``STRESS`` は (警告を出して) 無視されます。"
+
+#: ../../source/almdir/inputalm.rst:790
+msgid "``STRESS = 1.2 0.1 0.7 0 0 0.2`` (Voigt, GPa)"
+msgstr "``STRESS = 1.2 0.1 0.7 0 0 0.2`` (Voigt 表記、GPa)"
+
+#: ../../source/almdir/inputalm.rst:796
+msgid "ALGO_REDUCTION-tag = 0 | 1 | 2 | 3 | 4"
+msgstr "ALGO_REDUCTION タグ = 0 | 1 | 2 | 3 | 4"
+
+#: ../../source/almdir/inputalm.rst:799
+msgid "No separate reduction step; the elimination map is built by sparse"
+msgstr "独立した縮約ステップを行わず、消去写像を疎行列の"
+
+#: ../../source/almdir/inputalm.rst:800
+msgid "Gauss-Jordan elimination, i.e., the same result as ``ALGO_REDUCTION = 1``"
+msgstr "ガウス・ジョルダン消去法で構築します。すなわち ``ALGO_REDUCTION = 1`` と同じ結果になります"
+
+#: ../../source/almdir/inputalm.rst:801
+msgid "Sparse Gauss-Jordan elimination (legacy)"
+msgstr "疎行列のガウス・ジョルダン消去法 (旧方式)"
+
+#: ../../source/almdir/inputalm.rst:802
+msgid ""
+"Rank-revealing QR row selection followed by sparse Gauss-Jordan "
+"elimination"
+msgstr "ランク判定付き QR 分解で行を選択した後、疎行列のガウス・ジョルダン消去法を適用"
+
+#: ../../source/almdir/inputalm.rst:803
+msgid ""
+"Rank-revealing QR row selection with the scale-free ``TOL_CONST`` test, "
+"followed by sparse"
+msgstr "スケールに依存しない ``TOL_CONST`` 判定によるランク判定付き QR 分解で行を選択した後、"
+
+#: ../../source/almdir/inputalm.rst:804
+msgid ""
+"Gauss-Jordan elimination with threshold pivoting. Higher-order IFCs are "
+"expressed through"
+msgstr "しきい値ピボット選択付きの疎行列のガウス・ジョルダン消去法を適用。ピボットの大きさが許す限り"
+
+#: ../../source/almdir/inputalm.rst:805
+msgid ""
+"lower-order ones where the pivot size allows; the log reports how many "
+"relations go the other"
+msgstr "高次の IFC は低次の IFC を用いて表されます。逆向きになった関係式の数はログに出力されます。"
+
+#: ../../source/almdir/inputalm.rst:806
+msgid ""
+"way. Without ``USE_SUITESPARSE_BACKEND``, blocks above 5e7 matrix "
+"elements use the Gauss-Jordan"
+msgstr "``USE_SUITESPARSE_BACKEND`` なしの場合、行列要素数が 5e7 を超えるブロックには"
+
+#: ../../source/almdir/inputalm.rst:807
+msgid "elimination with partial pivoting of earlier versions."
+msgstr "以前のバージョンの部分ピボット選択付きガウス・ジョルダン消去法が使われます。"
+
+#: ../../source/almdir/inputalm.rst:808
+msgid ""
+"Reduced echelon form from a sparse Householder QR (SuiteSparseQR) with "
+"scale-aware rank"
+msgstr "疎行列のハウスホルダー QR 分解 (SuiteSparseQR) とスケールを考慮したランク判定"
+
+#: ../../source/almdir/inputalm.rst:809
+msgid "detection. Requires ALM built with ``USE_SUITESPARSE_BACKEND``."
+msgstr "により簡約階段形を求めます。``USE_SUITESPARSE_BACKEND`` 付きでビルドした ALM が必要です。"
+
+#: ../../source/almdir/inputalm.rst:814
+msgid ""
+"Algorithm used to reduce the constraints to an elimination map when "
+"``ICONST >= 11``. All options keep the independent parameters as "
+"individual IFCs; ``ICONST = 1, 2, 3, 4`` always use a rank-revealing QR."
+msgstr ""
+"``ICONST >= 11`` のとき、制約を消去写像に縮約するアルゴリズム。どのオプションでも独立なパラメータは個々の IFC "
+"のまま保たれます。``ICONST = 1, 2, 3, 4`` では常にランク判定付き QR 分解が使われます。"
+
+#: ../../source/almdir/inputalm.rst:820
+msgid "FC2FIX-tag : File to which the harmonic terms are fixed upon training"
+msgstr "FC2FIX タグ: 学習時に調和項を固定するファイル"
+
+#: ../../source/almdir/inputalm.rst:824
+msgid ""
+"When the ``FC2FIX``-tag is given, harmonic force constants are fixed to "
+"the values stored in the ``FC2FIX`` file. This may be useful for "
+"optimizing cubic and higher-order terms without changing the harmonic "
+"terms. Please make sure that the number of harmonic terms in the new "
+"computational condition is the same as that in the ``FC2FIX`` file."
+msgstr ""
+"``FC2FIX`` タグが与えられると、調和力定数は ``FC2FIX`` "
+"ファイルに保存された値に固定されます。これは、調和項を変更せずに3次および高次の項を最適化するのに便利な場合があります。新しい計算条件における調和項の数が"
+" ``FC2FIX`` ファイル内のものと同じであることを確認してください。"
+
+#: ../../source/almdir/inputalm.rst:828
+msgid ""
+"``FC2XML`` is a deprecated alias of ``FC2FIX`` kept for backward "
+"compatibility. It will be removed in a future release, so please use "
+"``FC2FIX`` instead."
+msgstr ""
+"``FC2XML`` は後方互換性のために残されている ``FC2FIX`` "
+"の非推奨のエイリアスです。将来のリリースで削除される予定なので、代わりに ``FC2FIX`` を使用してください。"
+
+#: ../../source/almdir/inputalm.rst:832
+msgid ""
+"When ``FC2FIX`` is an XML file, the ``FCSYM_BASIS`` option must be the "
+"same as the one used when creating it. If ``FCSYM_BASIS`` is not given, "
+"the basis recorded in the XML file is used, so files created with the old"
+" default (Lattice, before version 2.0) still work. An explicitly given "
+"``FCSYM_BASIS`` that differs from the file raises an error. An HDF5 "
+"(``.h5``) file can be used with either basis."
+msgstr ""
+"``FC2FIX`` が XML ファイルの場合、``FCSYM_BASIS`` "
+"オプションはそのファイルを作成したときと同じでなければなりません。``FCSYM_BASIS`` を指定しない場合は XML "
+"ファイルに記録された基底が使われるため、旧デフォルト (バージョン 2.0 より前の Lattice) "
+"で作成したファイルもそのまま使えます。ファイルと異なる ``FCSYM_BASIS`` を明示的に指定した場合はエラーになります。HDF5 "
+"(``.h5``) ファイルはどちらの基底でも使用できます。"
+
+#: ../../source/almdir/inputalm.rst:838
+msgid "FC3FIX-tag : File to which the cubic terms are fixed upon training"
+msgstr "FC3FIX タグ: 学習時に3次項を固定するファイル"
+
+#: ../../source/almdir/inputalm.rst:842
+msgid ""
+"Same as the ``FC2FIX``-tag, but ``FC3FIX`` is used to fix cubic force "
+"constants. (``FC3XML`` is a deprecated alias of ``FC3FIX``.)"
+msgstr ""
+"``FC2FIX`` タグと同じですが、``FC3FIX`` は3次力定数を固定するために使用されます。(``FC3XML`` は "
+"``FC3FIX`` の非推奨のエイリアスです。)"
+
+#: ../../source/almdir/inputalm.rst:846
+msgid ""
+"When ``FC3FIX`` is an XML file, the ``FCSYM_BASIS`` option must be the "
+"same as the one used when creating it. If ``FCSYM_BASIS`` is not given, "
+"the basis recorded in the XML file is used, so files created with the old"
+" default (Lattice, before version 2.0) still work. An explicitly given "
+"``FCSYM_BASIS`` that differs from the file raises an error. An HDF5 "
+"(``.h5``) file can be used with either basis."
+msgstr ""
+"``FC3FIX`` が XML ファイルの場合、``FCSYM_BASIS`` "
+"オプションはそのファイルを作成したときと同じでなければなりません。``FCSYM_BASIS`` を指定しない場合は XML "
+"ファイルに記録された基底が使われるため、旧デフォルト (バージョン 2.0 より前の Lattice) "
+"で作成したファイルもそのまま使えます。ファイルと異なる ``FCSYM_BASIS`` を明示的に指定した場合はエラーになります。HDF5 "
+"(``.h5``) ファイルはどちらの基底でも使用できます。"
+
+#: ../../source/almdir/inputalm.rst:853
+msgid "SPARSE-tag = 0 | 1"
+msgstr "SPARSE タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:856 ../../source/almdir/inputalm.rst:911
+msgid "Use a direct solver (SVD or QRD) to estimate force constants"
+msgstr "直接ソルバー (SVD または QRD) を使用して力定数を推定します"
+
+#: ../../source/almdir/inputalm.rst:857
+msgid "Use a sparse solver to estimate force constants"
+msgstr "疎ソルバーを使用して力定数を推定します"
+
+#: ../../source/almdir/inputalm.rst:862
+msgid ""
+"When you want to calculate force constants of a large system and generate"
+" training datasets by displacing only a few atoms from equilibrium "
+"positions, the resulting sensing matrix becomes large but sparse. For "
+"such matrices, a sparse solver is expected to be more efficient than SVD "
+"or QRD in terms of both memory usage and computational time. Effective "
+"when ``LMODEL = ols``."
+msgstr ""
+"大きな系の力定数を計算し、平衡位置からわずかな原子のみを変位させて学習データセットを生成する場合、得られるセンシング行列は大きいが疎になります。そのような行列に対しては、疎ソルバーはメモリ使用量と計算時間の両面で"
+" SVD や QRD よりも効率的であると期待されます。``LMODEL = ols`` のときに有効です。"
+
+#: ../../source/almdir/inputalm.rst:864
+msgid ""
+"**When to use:** prefer ``SPARSE = 1`` for large systems whose sensing "
+"matrix is genuinely sparse (only a handful of atoms displaced per "
+"configuration). For small or dense problems the default direct solvers "
+"(``SPARSE = 0``) are usually faster, and the sparse factorization can "
+"even use more memory because of fill-in. When the sensing matrix is dense"
+" but large, consider :ref:`USE_CHOLESKY <alm_use_cholesky>` instead."
+msgstr ""
+"**使用する場面:** センシング行列が本当に疎である (構成ごとにごくわずかな原子しか変位しない) 大きな系には ``SPARSE = 1`` "
+"を選ぶとよいです。小さい問題や密な問題では、デフォルトの直接ソルバー (``SPARSE = 0``) の方が通常は高速であり、疎分解はフィルイン"
+" (fill-in) のためにかえって多くのメモリを使うことがあります。センシング行列が密だが大きい場合は、代わりに "
+":ref:`USE_CHOLESKY <alm_use_cholesky>` を検討してください。"
+
+#: ../../source/almdir/inputalm.rst:868
+msgid ""
+"The sparse path has two different solver routes. With algebraic "
+"constraints (``ICONST >= 10``; the default is ``ICONST = 11``), the "
+"reduced sparse least-squares problem is solved by the ``SPARSESOLVER`` "
+"selected below. With constraints imposed numerically (``ICONST = 1, 2, 3,"
+" 4``), the sparse path instead assembles the symmetric-indefinite KKT "
+"system. The merged constraint matrix is first reduced to full row rank by"
+" a rank-revealing QR (essential: a rank-deficient constraint matrix makes"
+" the KKT singular and the fitted IFCs violate the acoustic-sum-rule / "
+"rotational invariance). The KKT solver is then chosen by build: Intel MKL"
+" **PARDISO** (``-DUSE_MKL_BACKEND=yes``) or Apple **Accelerate** "
+"(``-DUSE_ACCEL_BACKEND=yes``) use a symmetric-indefinite ``LDLT``; "
+"**SuiteSparse** (``-DUSE_SUITESPARSE_BACKEND=yes``) adds the "
+"multithreaded **SuiteSparseQR** fallback; otherwise Eigen's serial "
+"``SparseLU`` and ``SparseQR`` fallbacks are used. See :ref:`Optional "
+"linear-algebra backends <install_backends>` on the installation page."
+msgstr ""
+"疎な経路には2つの異なるソルバールートがあります。代数的制約 (``ICONST >= 10``; デフォルトは ``ICONST = 11``)"
+" の場合、簡約された疎な最小二乗問題は以下で選択する ``SPARSESOLVER`` によって解かれます。制約が数値的に課される場合 "
+"(``ICONST = 1, 2, 3, 4``)、疎な経路は代わりに対称不定 (symmetric-indefinite) の KKT "
+"系を組み立てます。統合された制約行列は、まずランク明示 (rank-revealing) QR によって行フルランクに簡約されます "
+"(これは必須です: ランク落ちした制約行列は KKT を特異にし、フィッティングされた原子間力定数が音響和則 / "
+"回転不変性を満たさなくなります)。続いて KKT ソルバーはビルドに応じて選ばれます: Intel MKL **PARDISO** "
+"(``-DUSE_MKL_BACKEND=yes``) または Apple **Accelerate** "
+"(``-DUSE_ACCEL_BACKEND=yes``) は対称不定の ``LDLT`` を使用します。**SuiteSparse** "
+"(``-DUSE_SUITESPARSE_BACKEND=yes``) はマルチスレッドの **SuiteSparseQR** "
+"フォールバックを追加します。それ以外の場合は Eigen の逐次 ``SparseLU`` および ``SparseQR`` "
+"フォールバックが使用されます。インストールページの :ref:`Optional linear-algebra backends "
+"<install_backends>` を参照してください。"
+
+#: ../../source/almdir/inputalm.rst:888
+msgid "SPARSESOLVER-tag : Type of the sparse solver to use"
+msgstr "SPARSESOLVER タグ: 使用する疎ソルバーの種類"
+
+#: ../../source/almdir/inputalm.rst:890
+msgid "SimplicialLDLT"
+msgstr "SimplicialLDLT"
+
+#: ../../source/almdir/inputalm.rst:892
+msgid ""
+"Selects the sparse solver used for the unconstrained or algebraically "
+"constrained sparse OLS fit (``LMODEL = ols``, ``SPARSE = 1``, and "
+"``ICONST >= 10``). Available options are `SimplicialLDLT` (sparse "
+"Cholesky on the normal matrix, direct), `SparseQR` (direct sparse QR), "
+"and the iterative Krylov solvers `ConjugateGradient`, "
+"`LeastSquaresConjugateGradient`, and `BiCGSTAB`. When an iterative solver"
+" is selected, the stopping criterion is controlled by the ``CONV_TOL`` "
+"and ``MAXITER`` tags. As a rule of thumb, use `SimplicialLDLT` (the "
+"default) for well-conditioned problems, `SparseQR` when the direct "
+"factorization fails or the matrix is poorly conditioned, and the "
+"iterative solvers when even the sparse factorization is too large to "
+"store."
+msgstr ""
+"制約なし、または代数的に制約された疎な OLS フィッティング (``LMODEL = ols``、``SPARSE = 1``、``ICONST"
+" >= 10``) に使用される疎ソルバーを選択します。利用可能なオプションは、`SimplicialLDLT` "
+"(正規行列に対する疎なコレスキー分解、直接法)、`SparseQR` (直接的な疎 QR)、および反復的な Krylov ソルバー "
+"`ConjugateGradient`、`LeastSquaresConjugateGradient`、`BiCGSTAB` "
+"です。反復ソルバーを選択した場合、停止判定基準は ``CONV_TOL`` および ``MAXITER`` "
+"タグで制御されます。目安として、条件の良い問題には `SimplicialLDLT` (デフォルト) "
+"を、直接分解が失敗する場合や行列の条件が悪い場合には `SparseQR` "
+"を、疎分解さえ大きすぎて保存できない場合には反復ソルバーを使用してください。"
+
+#: ../../source/almdir/inputalm.rst:894
+#, python-brace-format
+msgid ""
+"Two additional high-performance solvers are available when ALM is built "
+"with the SuiteSparse backend (``-DUSE_SUITESPARSE_BACKEND=yes``; see "
+":ref:`Optional linear-algebra backends <install_backends>`): "
+"`SuiteSparseQR`, a multithreaded rank-revealing multifrontal sparse QR "
+"that factorizes the rectangular sensing matrix directly (a faster, "
+"parallel alternative to `SparseQR` for large or ill-conditioned "
+"problems), and `CHOLMOD`, a supernodal sparse Cholesky on the normal "
+"matrix :math:`A^{\\mathsf T}A` (a faster alternative to `SimplicialLDLT` "
+"for well-conditioned problems). Selecting either of these without "
+"building the SuiteSparse backend stops with an error."
+msgstr ""
+"ALM を SuiteSparse バックエンド付きでビルドした場合 (``-DUSE_SUITESPARSE_BACKEND=yes``; "
+":ref:`Optional linear-algebra backends <install_backends>` "
+"を参照)、2つの追加の高性能ソルバーが利用可能になります: `SuiteSparseQR` "
+"は、長方形のセンシング行列を直接分解するマルチスレッドのランク明示マルチフロンタル疎 QR です (大きい問題や条件の悪い問題に対する "
+"`SparseQR` のより高速で並列な代替)。`CHOLMOD` は、正規行列 :math:`A^{\\mathsf T}A` "
+"に対するスーパーノード型の疎コレスキー分解です (条件の良い問題に対する `SimplicialLDLT` "
+"のより高速な代替)。SuiteSparse バックエンドをビルドせずにこれらのいずれかを選択すると、エラーで停止します。"
+
+#: ../../source/almdir/inputalm.rst:896
+#, python-brace-format
+msgid ""
+"With numerically imposed constraints (``ICONST = 1, 2, 3, 4``), most "
+"values of ``SPARSESOLVER`` do **not** select the KKT direct solver. The "
+"code first tries the KKT backend compiled into the executable "
+"(MKL/PARDISO or Apple/Accelerate LDLT), then SuiteSparseQR if the "
+"SuiteSparse backend is enabled, then Eigen's built-in sparse fallbacks. "
+"`MINRES` is the special exception (experimental): selecting "
+"``SPARSESOLVER = MINRES`` chooses an iterative solver for this KKT path. "
+"It never forms the dense factor used by direct solvers, so it can be the "
+"memory-feasible choice when direct KKT factorizations exhaust memory "
+"because the constraint matrix has dense rows (the rotational-invariance "
+"constraints of ``ICONST = 2, 3``). It is preconditioned by a block-"
+"diagonal SPD preconditioner (Jacobi on :math:`A^{\\mathsf T}A` plus the "
+"dense constraint Schur complement); ``CONV_TOL`` and ``MAXITER`` control "
+"the stopping criterion. After the solve it checks the *true* KKT residual"
+" and ``\\|C x - d\\|`` and **aborts** if they are not met, rather than "
+"returning a solution that would violate the sum rules. On badly-scaled or"
+" extremely ill-conditioned KKT systems the simple block-diagonal "
+"preconditioner may be insufficient and `MINRES` will report non-"
+"convergence -- in that case raise ``MAXITER`` / loosen ``CONV_TOL``, or "
+"use a direct LDLT backend on a reduced problem."
+msgstr ""
+"数値的に課される制約 (``ICONST = 1, 2, 3, 4``) の場合、``SPARSESOLVER`` のほとんどの値は KKT "
+"直接ソルバーを **選択しません**。コードはまず実行ファイルにコンパイルされた KKT バックエンド (MKL/PARDISO または "
+"Apple/Accelerate の LDLT) を試し、次に SuiteSparse バックエンドが有効であれば SuiteSparseQR "
+"を、続いて Eigen の組み込み疎フォールバックを試します。`MINRES` は特別な例外 (実験的) です: ``SPARSESOLVER ="
+" MINRES`` を選択すると、この KKT "
+"経路に対して反復ソルバーが選ばれます。これは直接ソルバーが使用する密な因子を一切形成しないため、制約行列が密な行を持つ (``ICONST = "
+"2, 3`` の回転不変性制約) ために直接 KKT 分解がメモリを使い果たす場合に、メモリ的に実行可能な選択肢となり得ます。これはブロック対角の"
+" SPD 前処理 (:math:`A^{\\mathsf T}A` に対する Jacobi に密な制約のシューア補元を加えたもの) "
+"で前処理されます。``CONV_TOL`` と ``MAXITER`` が停止判定基準を制御します。求解後、*真の* KKT 残差と ``\\|C"
+" x - d\\|`` を確認し、和則を満たさない解を返す代わりに、それらが満たされない場合は **中断** "
+"します。スケーリングの悪い、あるいは極端に条件の悪い KKT 系では、単純なブロック対角前処理では不十分なことがあり、`MINRES` "
+"は収束しないと報告します。その場合は ``MAXITER`` を上げる / ``CONV_TOL`` を緩める、または簡約した問題に対して直接 "
+"LDLT バックエンドを使用してください。"
+
+#: ../../source/almdir/inputalm.rst:898
+#, python-brace-format
+msgid ""
+"``SPARSESOLVER`` is ignored by ``USE_CHOLESKY = 1``. In that mode the "
+"code forms :math:`A^{\\mathsf T}A` directly and uses a sparse Cholesky "
+"factorization (`CHOLMOD` when the SuiteSparse backend is available, "
+"otherwise `SimplicialLDLT`)."
+msgstr ""
+"``SPARSESOLVER`` は ``USE_CHOLESKY = 1`` では無視されます。そのモードでは、コードは "
+":math:`A^{\\mathsf T}A` を直接形成し、疎なコレスキー分解 (SuiteSparse バックエンドが利用可能な場合は "
+"`CHOLMOD`、それ以外は `SimplicialLDLT`) を使用します。"
+
+#: ../../source/almdir/inputalm.rst:902
+msgid ""
+"Eigen documentation page: `Solving Sparse Linear Systems "
+"<https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html>`__"
+msgstr ""
+"Eigen のドキュメントページ: `Solving Sparse Linear Systems "
+"<https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html>`__"
+
+#: ../../source/almdir/inputalm.rst:908
+msgid "USE_CHOLESKY-tag = 0 | 1"
+msgstr "USE_CHOLESKY タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:912
+msgid "Solve the normal equations by Cholesky decomposition"
+msgstr "正規方程式をコレスキー分解で解きます"
+
+#: ../../source/almdir/inputalm.rst:917
+msgid ""
+"When ``USE_CHOLESKY = 1``, the ordinary least-squares fit is obtained by "
+"forming the normal equations :math:`A^{\\mathsf{T}} "
+"A\\,\\boldsymbol{\\Phi} = A^{\\mathsf{T}} \\boldsymbol{b}` and "
+"factorizing :math:`A^{\\mathsf{T}} A` with a Cholesky decomposition (a "
+"dense ``LLT``, or a sparse Cholesky factorization when ``SPARSE = 1``: "
+"``CHOLMOD`` with the SuiteSparse backend, otherwise ``SimplicialLDLT``). "
+"This is typically about twice as fast and uses noticeably less memory "
+"than the default SVD/QRD direct solvers, which makes it attractive for "
+"large, **well-conditioned** overdetermined fits (many more rows than "
+"columns). The trade-off is accuracy: forming :math:`A^{\\mathsf{T}} A` "
+"squares the condition number of :math:`A`, so the solution degrades when "
+"the sensing matrix is ill-conditioned. Keep the default ``USE_CHOLESKY = "
+"0`` (SVD/QRD) when robustness matters or the fit is close to rank-"
+"deficient. Effective when ``LMODEL = ols``."
+msgstr ""
+"``USE_CHOLESKY = 1`` の場合、通常の最小二乗フィッティングは、正規方程式 :math:`A^{\\mathsf{T}} "
+"A\\,\\boldsymbol{\\Phi} = A^{\\mathsf{T}} \\boldsymbol{b}` "
+"を形成し、:math:`A^{\\mathsf{T}} A` をコレスキー分解 (密な ``LLT``、または ``SPARSE = 1`` "
+"のときは疎なコレスキー分解: SuiteSparse バックエンドでは ``CHOLMOD``、それ以外では "
+"``SimplicialLDLT``) で分解することによって得られます。これは通常、デフォルトの SVD/QRD "
+"直接ソルバーよりも約2倍高速で、著しく少ないメモリしか使用しません。そのため、大きく **条件の良い** 優決定フィッティング "
+"(列よりもはるかに多くの行) に魅力的です。トレードオフは精度です: :math:`A^{\\mathsf{T}} A` を形成すると "
+":math:`A` "
+"の条件数が2乗になるため、センシング行列の条件が悪い場合は解の精度が劣化します。頑健性が重要な場合やフィッティングがランク落ちに近い場合は、デフォルトの"
+" ``USE_CHOLESKY = 0`` (SVD/QRD) のままにしてください。``LMODEL = ols`` のときに有効です。"
+
+#: ../../source/almdir/inputalm.rst:930
+msgid ""
+"``USE_CHOLESKY = 1`` cannot be combined with the numerically imposed "
+"constraints ``ICONST = 1, 2, 3, 4``. When constraints are required, "
+"impose them algebraically with ``ICONST = 11, 12, 13, 14`` instead; "
+"otherwise the code stops with an error."
+msgstr ""
+"``USE_CHOLESKY = 1`` は数値的に課される制約 ``ICONST = 1, 2, 3, 4`` "
+"と組み合わせることはできません。制約が必要な場合は、代わりに ``ICONST = 11, 12, 13, 14`` "
+"で代数的に課してください。そうでない場合、コードはエラーで停止します。"
+
+#: ../../source/almdir/inputalm.rst:938
+msgid ""
+"CHUNKSIZE-tag : Number of configurations processed per pass when building"
+" :math:`A^{\\mathsf{T}} A`"
+msgstr "CHUNKSIZE タグ: :math:`A^{\\mathsf{T}} A` を構築する際に1パスあたりに処理する構成の数"
+
+#: ../../source/almdir/inputalm.rst:940
+msgid "100"
+msgstr "100"
+
+#: ../../source/almdir/inputalm.rst:942
+msgid ""
+"Relevant only when ``USE_CHOLESKY = 1``. Instead of forming the full "
+"dense sensing matrix :math:`A` (size :math:`N_{\\mathrm{rows}} \\times "
+"N_{\\mathrm{cols}}`) at once, the normal-equations matrix "
+":math:`A^{\\mathsf{T}} A` is accumulated in chunks of ``CHUNKSIZE`` "
+"training configurations: for each chunk only a small block of :math:`A` "
+"is built and added into :math:`A^{\\mathsf{T}} A`. This caps the peak "
+"memory at roughly the larger of :math:`A^{\\mathsf{T}} A` itself and one "
+"chunk's block (proportional to ``CHUNKSIZE`` :math:`\\times\\, "
+"N_{\\mathrm{cols}}`), rather than the full :math:`A`. A smaller "
+"``CHUNKSIZE`` lowers the peak memory but uses more passes with smaller, "
+"less efficient matrix products; a larger ``CHUNKSIZE`` is faster but "
+"needs more memory. Lowering it below the point where one chunk is already"
+" smaller than :math:`A^{\\mathsf{T}} A` gives no further savings, since "
+":math:`A^{\\mathsf{T}} A` sets the memory floor. The default (100) is a "
+"reasonable balance; reduce it if the chunk block does not fit in memory."
+msgstr ""
+"``USE_CHOLESKY = 1`` のときのみ関係します。完全な密センシング行列 :math:`A` (サイズ "
+":math:`N_{\\mathrm{rows}} \\times N_{\\mathrm{cols}}`) "
+"を一度に形成する代わりに、正規方程式の行列 :math:`A^{\\mathsf{T}} A` は ``CHUNKSIZE`` "
+"個の学習構成のチャンク単位で累積されます: 各チャンクについて :math:`A` "
+"の小さなブロックのみを構築し、:math:`A^{\\mathsf{T}} A` に加算します。これにより、ピークメモリは完全な "
+":math:`A` ではなく、おおよそ :math:`A^{\\mathsf{T}} A` 自体と1つのチャンクのブロック "
+"(``CHUNKSIZE`` :math:`\\times\\, N_{\\mathrm{cols}}` に比例) "
+"のうち大きい方に抑えられます。``CHUNKSIZE`` "
+"を小さくするとピークメモリは下がりますが、より小さく効率の悪い行列積でより多くのパスを使います。``CHUNKSIZE`` "
+"を大きくすると高速になりますが、より多くのメモリが必要です。1つのチャンクがすでに :math:`A^{\\mathsf{T}} A` "
+"より小さくなる点よりさらに小さくしても、:math:`A^{\\mathsf{T}} A` "
+"がメモリの下限を決めるため、それ以上の節約にはなりません。デフォルト (100) "
+"は妥当なバランスです。チャンクのブロックがメモリに収まらない場合は小さくしてください。"
+
+#: ../../source/almdir/inputalm.rst:960
+msgid "NWRITE-tag : Interval of the progress output of iterative L1 solvers"
+msgstr "NWRITE タグ: 反復型 L1 ソルバーの進捗出力の間隔"
+
+#: ../../source/almdir/inputalm.rst:962
+msgid "1000"
+msgstr "1000"
+
+#: ../../source/almdir/inputalm.rst:964
+msgid ""
+"The progress of the L1 solver iteration (``LMODEL = enet | adaptive-"
+"lasso``) is printed every ``NWRITE`` iterations when ``VERBOSITY >= 2`` "
+"is set in the ``&general`` field."
+msgstr ""
+"``&general`` フィールドで ``VERBOSITY >= 2`` が設定されている場合、L1 ソルバーの反復 (``LMODEL = "
+"enet | adaptive-lasso``) の進捗が ``NWRITE`` 回の反復ごとに出力されます。"
+
+#: ../../source/almdir/inputalm.rst:970
+msgid "MAXITER-tag : Number of maximum iterations in iterative algorithms"
+msgstr "MAXITER タグ: 反復アルゴリズムにおける最大反復回数"
+
+#: ../../source/almdir/inputalm.rst:972
+msgid "10,000"
+msgstr "10,000"
+
+#: ../../source/almdir/inputalm.rst:974
+msgid ""
+"Effective when an iterative solver is selected via ``SPARSESOLVER`` (when"
+" ``LMODEL = ols``) or when ``LMODEL = enet | adaptive-lasso``."
+msgstr ""
+"``SPARSESOLVER`` を通じて反復ソルバーが選択された場合 (``LMODEL = ols`` のとき)、または ``LMODEL ="
+" enet | adaptive-lasso`` のときに有効です。"
+
+#: ../../source/almdir/inputalm.rst:980
+msgid "CONV_TOL-tag : Convergence criterion of iterative algorithms"
+msgstr "CONV_TOL タグ: 反復アルゴリズムの収束判定基準"
+
+#: ../../source/almdir/inputalm.rst:982
+msgid "1.0e-8"
+msgstr "1.0e-8"
+
+#: ../../source/almdir/inputalm.rst:984
+msgid ""
+"When ``LMODEL = ols`` and an iterative solver is selected via "
+"``SPARSESOLVER``, ``CONV_TOL`` value is passed to the Eigen3 function via"
+" `setTolerance()`. When ``LMODEL = enet | adaptive-lasso``, the L1 solver"
+" iteration stops at :math:`i`\\ th iteration if "
+":math:`\\sqrt{\\frac{1}{N}|\\boldsymbol{\\Phi}_{i} - "
+"\\boldsymbol{\\Phi}_{i-1}|_{2}^{2}} <` ``CONV_TOL`` is satisfied, where "
+":math:`N` is the length of the vector :math:`\\boldsymbol{\\Phi}`."
+msgstr ""
+"``LMODEL = ols`` で ``SPARSESOLVER`` を通じて反復ソルバーが選択された場合、``CONV_TOL`` の値は "
+"`setTolerance()` を介して Eigen3 の関数に渡されます。``LMODEL = enet | adaptive-lasso``"
+" の場合、L1 ソルバーの反復は、:math:`\\sqrt{\\frac{1}{N}|\\boldsymbol{\\Phi}_{i} - "
+"\\boldsymbol{\\Phi}_{i-1}|_{2}^{2}} <` ``CONV_TOL`` が満たされると :math:`i`\\ "
+"回目の反復で停止します。ここで :math:`N` はベクトル :math:`\\boldsymbol{\\Phi}` の長さです。"
+
+#: ../../source/almdir/inputalm.rst:989
+msgid ""
+"Eigen documentation page: `IterativeSolverBase "
+"<https://eigen.tuxfamily.org/dox/classEigen_1_1IterativeSolverBase.html>`__"
+msgstr ""
+"Eigen のドキュメントページ: `IterativeSolverBase "
+"<https://eigen.tuxfamily.org/dox/classEigen_1_1IterativeSolverBase.html>`__"
+
+#: ../../source/almdir/inputalm.rst:995
+msgid "L1_RATIO-tag : The ratio of the L1 regularization term"
+msgstr "L1_RATIO タグ: L1 正則化項の比率"
+
+#: ../../source/almdir/inputalm.rst:997
+msgid "1.0 (LASSO)"
+msgstr "1.0 (LASSO)"
+
+#: ../../source/almdir/inputalm.rst:999
+#, python-brace-format
+msgid ""
+"The ``L1_RATIO`` changes the regularization term as ``L1_ALPHA`` "
+":math:`\\times` [``L1_RATIO`` :math:`|\\boldsymbol{\\Phi}|_{1}` + "
+":math:`\\frac{1}{2}` (1-``L1_RATIO``) "
+":math:`|\\boldsymbol{\\Phi}|_{2}^{2}`]. Therefore, ``L1_RATIO = 1`` "
+"corresponds to LASSO. ``L1_RATIO`` must be ``0 < L1_ratio <= 1``. "
+"Effective when ``LMODEL = enet``. See also :ref:`here <alm_theory_enet>`."
+msgstr ""
+"``L1_RATIO`` は正則化項を ``L1_ALPHA`` :math:`\\times` [``L1_RATIO`` "
+":math:`|\\boldsymbol{\\Phi}|_{1}` + :math:`\\frac{1}{2}` (1-``L1_RATIO``)"
+" :math:`|\\boldsymbol{\\Phi}|_{2}^{2}`] のように変えます。したがって、``L1_RATIO = 1`` は"
+" LASSO に対応します。``L1_RATIO`` は ``0 < L1_ratio <= 1`` でなければなりません。``LMODEL = "
+"enet`` のときに有効です。:ref:`here <alm_theory_enet>` も参照してください。"
+
+#: ../../source/almdir/inputalm.rst:1005
+msgid "L1_SOLVER-tag = cd | fista | admm"
+msgstr "L1_SOLVER タグ = cd | fista | admm"
+
+#: ../../source/almdir/inputalm.rst:1008 ../../source/almdir/inputalm.rst:1013
+msgid "cd"
+msgstr "cd"
+
+#: ../../source/almdir/inputalm.rst:1008
+msgid "Use the coordinate descent solver."
+msgstr "座標降下法 (coordinate descent) ソルバーを使用します。"
+
+#: ../../source/almdir/inputalm.rst:1009
+msgid "fista"
+msgstr "fista"
+
+#: ../../source/almdir/inputalm.rst:1009
+msgid "Use the fast iterative shrinkage-thresholding algorithm."
+msgstr "高速反復縮小閾値アルゴリズム (fast iterative shrinkage-thresholding algorithm) を使用します。"
+
+#: ../../source/almdir/inputalm.rst:1010
+msgid "admm"
+msgstr "admm"
+
+#: ../../source/almdir/inputalm.rst:1010
+msgid "Use the alternating direction method of multipliers (experimental)."
+msgstr "交互方向乗数法 (alternating direction method of multipliers) を使用します (実験的)。"
+
+#: ../../source/almdir/inputalm.rst:1015
+msgid ""
+"Selects the iterative solver used when ``LMODEL = enet | adaptive-"
+"lasso``. All three solvers target the same elastic-net or adaptive-LASSO "
+"objective and are interchangeable. The ``cd`` solver is the coordinate "
+"descent method; it warm-starts along the cross-validation alpha path and "
+"is the fastest choice for that path, so it is the recommended default. "
+"The ``fista`` solver avoids forming the dense :math:`N \\times N` Gram "
+"matrix and can reduce memory usage for large dense L1-regularized "
+"problems. The ``admm`` solver is provided mainly for research and cross-"
+"checking; on warm-started alpha paths it is generally slower than ``cd`` "
+"and offers no advantage for the typical problem sizes here."
+msgstr ""
+"``LMODEL = enet | adaptive-lasso`` のときに使用される反復ソルバーを選択します。3つのソルバーはいずれも同じ "
+"elastic net または adaptive LASSO の目的関数を対象としており、相互に置き換え可能です。``cd`` "
+"ソルバーは座標降下法です。これは交差検証の alpha "
+"パスに沿ってウォームスタートし、そのパスにおいて最速の選択肢であるため、推奨されるデフォルトです。``fista`` ソルバーは密な "
+":math:`N \\times N` グラム行列の形成を回避し、大きな密 L1 正則化問題のメモリ使用量を削減できます。``admm`` "
+"ソルバーは主に研究と相互検証のために提供されています。ウォームスタートした alpha パスでは一般に ``cd`` "
+"より遅く、ここで扱う典型的な問題サイズでは利点がありません。"
+
+#: ../../source/almdir/inputalm.rst:1029
+msgid "L1_ALPHA-tag : The coefficient of the L1 regularization term"
+msgstr "L1_ALPHA タグ: L1 正則化項の係数"
+
+#: ../../source/almdir/inputalm.rst:1031
+msgid "0.0"
+msgstr "0.0"
+
+#: ../../source/almdir/inputalm.rst:1033
+msgid ""
+"This tag is used when ``LMODEL = enet | adaptive-lasso`` and ``CV = 0``. "
+"See also :ref:`here <alm_theory_enet>`."
+msgstr ""
+"このタグは ``LMODEL = enet | adaptive-lasso`` かつ ``CV = 0`` "
+"のときに使用されます。:ref:`here <alm_theory_enet>` も参照してください。"
+
+#: ../../source/almdir/inputalm.rst:1039
+msgid "CV-tag : Cross-validation mode for elastic net"
+msgstr "CV タグ: elastic net の交差検証 (cross-validation) モード"
+
+#: ../../source/almdir/inputalm.rst:1042
+msgid "Cross-validation mode is off."
+msgstr "交差検証モードはオフです。"
+
+#: ../../source/almdir/inputalm.rst:1043
+msgid "The elastic net optimization is solved with the given ``L1_ALPHA`` value."
+msgstr "elastic net の最適化が与えられた ``L1_ALPHA`` 値で解かれます。"
+
+#: ../../source/almdir/inputalm.rst:1044
+msgid ""
+"The force constants are written to ``PREFIX``.h5 (and ``PREFIX``.xml / "
+"``PREFIX``.fcs with ``FCS_ALAMODE = 1``)."
+msgstr ""
+"力定数は ``PREFIX``.h5 に書き出されます (``FCS_ALAMODE = 1`` の場合は ``PREFIX``.xml / "
+"``PREFIX``.fcs にも書き出されます)。"
+
+#: ../../source/almdir/inputalm.rst:1046
+msgid ">= 2"
+msgstr ">= 2"
+
+#: ../../source/almdir/inputalm.rst:1046
+msgid "``CV``-fold cross-validation is performed *automatically*."
+msgstr "``CV`` 分割交差検証が *自動的に* 実行されます。"
+
+#: ../../source/almdir/inputalm.rst:1047
+msgid ""
+"``NDATA`` training datasets are divided into ``CV`` subsets, and ``CV`` "
+"different combinations of"
+msgstr "``NDATA`` 個の学習データセットが ``CV`` 個の部分集合に分割され、``CV`` 通りの異なる"
+
+#: ../../source/almdir/inputalm.rst:1048
+msgid ""
+"training-validation datasets are created internally. For each "
+"combination, the elastic net"
+msgstr "学習-検証データセットの組み合わせが内部的に作成されます。各組み合わせについて、elastic net の"
+
+#: ../../source/almdir/inputalm.rst:1049
+msgid ""
+"optimization is solved with the various ``L1_ALPHA`` values defined by "
+"the ``CV_MINALPHA``,"
+msgstr "最適化がさまざまな ``L1_ALPHA`` 値で解かれます。これらの値は ``CV_MINALPHA``、"
+
+#: ../../source/almdir/inputalm.rst:1050
+msgid ""
+"``CV_MAXALPHA``, and ``CV_NALPHA`` tags. The result of each cross-"
+"validation is stored in"
+msgstr "``CV_MAXALPHA``、``CV_NALPHA`` タグで定義されます。各交差検証の結果は"
+
+#: ../../source/almdir/inputalm.rst:1051
+msgid ""
+"``PREFIX``.cvset[1, ..., ``CV``], and their average and deviation are "
+"stored in ``PREFIX``.cvscore."
+msgstr ""
+"``PREFIX``.cvset[1, ..., ``CV``] に保存され、それらの平均と偏差は ``PREFIX``.cvscore "
+"に保存されます。"
+
+#: ../../source/almdir/inputalm.rst:1053
+msgid "-1"
+msgstr "-1"
+
+#: ../../source/almdir/inputalm.rst:1053
+msgid "The cross-validation is performed *manually*."
+msgstr "交差検証が *手動で* 実行されます。"
+
+#: ../../source/almdir/inputalm.rst:1054
+msgid ""
+"The Taylor expansion potential is trained by using the training datasets "
+"in ``DFSET``, and"
+msgstr "テイラー展開ポテンシャルが ``DFSET`` 内の学習データセットを用いて学習され、"
+
+#: ../../source/almdir/inputalm.rst:1055
+msgid ""
+"the validation score is calculated by using the data in ``DFSET_CV`` for "
+"various ``L1_ALPHA`` values"
+msgstr "検証スコアが ``DFSET_CV`` 内のデータを用いてさまざまな ``L1_ALPHA`` 値について計算されます。これらの値は"
+
+#: ../../source/almdir/inputalm.rst:1056
+msgid "defined by the ``CV_MINALPHA``, ``CV_MAXALPHA``, and ``CV_NALPHA`` tags."
+msgstr "``CV_MINALPHA``、``CV_MAXALPHA``、``CV_NALPHA`` タグで定義されます。"
+
+#: ../../source/almdir/inputalm.rst:1057
+msgid ""
+"After the calculation, the fitting and validation errors are stored in "
+"``PREFIX``.cvset."
+msgstr "計算後、フィッティング誤差と検証誤差が ``PREFIX``.cvset に保存されます。"
+
+#: ../../source/almdir/inputalm.rst:1058
+msgid ""
+"This option may be convenient for a large-scale problem since multiple "
+"optimization tasks with"
+msgstr "このオプションは大規模な問題に便利な場合があります。なぜなら、異なる学習-検証データセットを用いた複数の最適化タスクを"
+
+#: ../../source/almdir/inputalm.rst:1059
+msgid "different training-validation datasets can be done in parallel."
+msgstr "並列に実行できるからです。"
+
+#: ../../source/almdir/inputalm.rst:1064
+msgid "This tag is used when ``LMODEL = enet | adaptive-lasso``."
+msgstr "このタグは ``LMODEL = enet | adaptive-lasso`` のときに使用されます。"
+
+#: ../../source/almdir/inputalm.rst:1071
+msgid ""
+"DFSET_CV-tag : File name containing displacement-force datasets used for "
+"manual cross-validation"
+msgstr "DFSET_CV タグ: 手動の交差検証に使用する変位-力データセットを含むファイル名"
+
+#: ../../source/almdir/inputalm.rst:1073
+msgid "``DFSET_CV = DFSET``"
+msgstr "``DFSET_CV = DFSET``"
+
+#: ../../source/almdir/inputalm.rst:1075 ../../source/almdir/inputalm.rst:1085
+#: ../../source/almdir/inputalm.rst:1095
+msgid "This tag is used when ``LMODEL = enet | adaptive-lasso`` and ``CV = -1``."
+msgstr "このタグは ``LMODEL = enet | adaptive-lasso`` かつ ``CV = -1`` のときに使用されます。"
+
+#: ../../source/almdir/inputalm.rst:1081
+msgid "NDATA_CV-tag : Number of displacement-force validation datasets"
+msgstr "NDATA_CV タグ: 変位-力の検証データセットの数"
+
+#: ../../source/almdir/inputalm.rst:1091
+msgid ""
+"NSTART_CV, NEND_CV-tags : Specifies the range of data to be used for "
+"validation"
+msgstr "NSTART_CV, NEND_CV タグ: 検証に使用するデータの範囲を指定します"
+
+#: ../../source/almdir/inputalm.rst:1093
+msgid "``NSTART_CV = 1``, ``NEND_CV = NDATA_CV``"
+msgstr "``NSTART_CV = 1``, ``NEND_CV = NDATA_CV``"
+
+#: ../../source/almdir/inputalm.rst:1102
+msgid ""
+"CV_MINALPHA, CV_MAXALPHA, CV_NALPHA-tags : Options to specify the "
+"``L1_ALPHA`` values used in cross-validation"
+msgstr "CV_MINALPHA, CV_MAXALPHA, CV_NALPHA タグ: 交差検証で使用する ``L1_ALPHA`` 値を指定するオプション"
+
+#: ../../source/almdir/inputalm.rst:1104
+msgid "``CV_MAXALPHA`` is set automatically"
+msgstr "``CV_MAXALPHA`` は自動的に設定されます"
+
+#: ../../source/almdir/inputalm.rst:1106
+msgid "``CV_MINALPHA = CV_MAXALPHA * 1.0e-6``"
+msgstr "``CV_MINALPHA = CV_MAXALPHA * 1.0e-6``"
+
+#: ../../source/almdir/inputalm.rst:1108
+msgid "``CV_NALPHA = 50``"
+msgstr "``CV_NALPHA = 50``"
+
+#: ../../source/almdir/inputalm.rst:1109
+msgid "Double, Double, Integer"
+msgstr "倍精度実数, 倍精度実数, 整数"
+
+#: ../../source/almdir/inputalm.rst:1110
+msgid ""
+"``CV_NALPHA`` values of ``L1_ALPHA`` are generated from ``CV_MINALPHA`` "
+"to ``CV_MAXALPHA`` in logarithmic scale. When ``CV_MAXALPHA`` is not "
+"specified by user, the code automatically sets ``CV_MAXALPHA`` so that "
+"the maximum ``L1_ALPHA`` makes all coefficients zero. The default value "
+"of ``CV_MINALPHA`` is ``CV_MAXALPHA * 1.0e-6``, which is reasonable in "
+"many cases. If the minimum value of the validation score is found at "
+"``CV_MINALPHA``, you may need to use a smaller value of ``CV_MINALPHA``. "
+"This tag is used when ``LMODEL = enet | adaptive-lasso`` and the cross-"
+"validation mode is on (``CV > 0`` or ``CV = -1``)."
+msgstr ""
+"``CV_NALPHA`` 個の ``L1_ALPHA`` の値が、``CV_MINALPHA`` から ``CV_MAXALPHA`` "
+"まで対数スケールで生成されます。``CV_MAXALPHA`` がユーザーによって指定されない場合、コードは最大の ``L1_ALPHA`` "
+"がすべての係数をゼロにするように ``CV_MAXALPHA`` を自動的に設定します。``CV_MINALPHA`` のデフォルト値は "
+"``CV_MAXALPHA * 1.0e-6`` であり、多くの場合これで妥当です。検証スコアの最小値が ``CV_MINALPHA`` "
+"で見つかった場合は、より小さい ``CV_MINALPHA`` の値を使用する必要があるかもしれません。このタグは ``LMODEL = enet"
+" | adaptive-lasso`` かつ交差検証モードがオン (``CV > 0`` または ``CV = -1``) のときに使用されます。"
+
+#: ../../source/almdir/inputalm.rst:1116
+msgid "STANDARDIZE-tag = 0 | 1"
+msgstr "STANDARDIZE タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:1119
+msgid "Do not standardize the sensing matrix"
+msgstr "センシング行列を標準化しません"
+
+#: ../../source/almdir/inputalm.rst:1120
+msgid ""
+"Each column of the sensing matrix is standardized in such a way that its "
+"mean value"
+msgstr "センシング行列の各列が、その平均値が"
+
+#: ../../source/almdir/inputalm.rst:1121
+msgid "becomes 0 and standard deviation becomes 1."
+msgstr "0、標準偏差が 1 になるように標準化されます。"
+
+#: ../../source/almdir/inputalm.rst:1126
+msgid ""
+"This option influences the optimal ``L1_ALPHA`` value. So, if you change "
+"the ``STANDARDIZE`` option, you have to rerun the cross-validation. "
+"Effective when ``LMODEL = enet | adaptive-lasso``."
+msgstr ""
+"このオプションは最適な ``L1_ALPHA`` 値に影響します。そのため、``STANDARDIZE`` "
+"オプションを変更した場合は、交差検証をやり直す必要があります。``LMODEL = enet | adaptive-lasso`` "
+"のときに有効です。"
+
+#: ../../source/almdir/inputalm.rst:1133
+msgid "ENET_DNORM-tag : Normalization factor of atomic displacements"
+msgstr "ENET_DNORM タグ: 原子変位の正規化係数"
+
+#: ../../source/almdir/inputalm.rst:1135
+msgid "1.0"
+msgstr "1.0"
+
+#: ../../source/almdir/inputalm.rst:1137
+#, python-brace-format
+msgid ""
+"The normalization factor of atomic displacement :math:`u_{0}` in units of"
+" bohr. When :math:`u_{0} (\\neq 1)` is given, the displacement data are "
+"scaled as :math:`u_{i} \\rightarrow u_{i}/u_{0}` before constructing the "
+"sensing matrix. This option influences the optimal ``L1_ALPHA`` value. "
+"So, if you change the ``ENET_DNORM`` value, you will have to rerun the "
+"cross-validation. Effective only when ``LMODEL = enet`` and ``STANDARDIZE"
+" = 0``."
+msgstr ""
+"bohr 単位の原子変位の正規化係数 :math:`u_{0}` です。:math:`u_{0} (\\neq 1)` "
+"が与えられると、変位データはセンシング行列を構築する前に :math:`u_{i} \\rightarrow u_{i}/u_{0}` "
+"のようにスケーリングされます。このオプションは最適な ``L1_ALPHA`` 値に影響します。そのため、``ENET_DNORM`` "
+"の値を変更した場合は、交差検証をやり直す必要があります。``LMODEL = enet`` かつ ``STANDARDIZE = 0`` "
+"のときのみ有効です。"
+
+#: ../../source/almdir/inputalm.rst:1145
+msgid "SOLUTION_PATH-tag = 0 | 1"
+msgstr "SOLUTION_PATH タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:1148
+msgid "Do not save the solution path."
+msgstr "解パスを保存しません。"
+
+#: ../../source/almdir/inputalm.rst:1149
+msgid ""
+"Save the solution path in ``PREFIX``.solution_path (``CV = -1``) or, for "
+"each"
+msgstr "解パスを ``PREFIX``.solution_path に保存します (``CV = -1``)。または、各交差検証の"
+
+#: ../../source/almdir/inputalm.rst:1150
+msgid ""
+"cross-validation subset, in ``PREFIX``.solution_path1, ..., "
+"``PREFIX``.solution_path\\ *N* (``CV >= 2``)."
+msgstr ""
+"部分集合について ``PREFIX``.solution_path1, ..., ``PREFIX``.solution_path\\ *N* "
+"に保存します (``CV >= 2``)。"
+
+#: ../../source/almdir/inputalm.rst:1155
+msgid ""
+"Effective when ``LMODEL = enet | adaptive-lasso`` and the cross-"
+"validation mode is on."
+msgstr "``LMODEL = enet | adaptive-lasso`` かつ交差検証モードがオンのときに有効です。"
+
+#: ../../source/almdir/inputalm.rst:1161
+msgid "DEBIAS_OLS-tag = 0 | 1"
+msgstr "DEBIAS_OLS タグ = 0 | 1"
+
+#: ../../source/almdir/inputalm.rst:1164
+msgid ""
+"Save the solution of the L1-regularized problem to the force-constant "
+"files."
+msgstr "L1 正則化問題の解を力定数ファイルに保存します。"
+
+#: ../../source/almdir/inputalm.rst:1165
+msgid ""
+"After the solution of the elastic net or adaptive LASSO optimization "
+"problem is obtained,"
+msgstr "elastic net または adaptive LASSO の最適化問題の解が得られた後、"
+
+#: ../../source/almdir/inputalm.rst:1166
+msgid ""
+"only non-zero coefficients are collected, and the ordinary least-squares "
+"fitting is"
+msgstr "非ゼロの係数のみが集められ、通常の最小二乗フィッティングが"
+
+#: ../../source/almdir/inputalm.rst:1167
+msgid ""
+"solved again with the non-zero coefficients before saving the results to "
+"the force-constant"
+msgstr "非ゼロの係数を用いて再度解かれてから、結果が力定数"
+
+#: ../../source/almdir/inputalm.rst:1168
+msgid ""
+"files. This might be useful to reduce the bias of the L1-regularized "
+"solution."
+msgstr "ファイルに保存されます。これは L1 正則化解のバイアスを低減するのに役立つ場合があります。"
+
+#: ../../source/almdir/inputalm.rst:1173
+msgid "Effective when ``LMODEL = enet | adaptive-lasso`` and ``CV = 0``."
+msgstr "``LMODEL = enet | adaptive-lasso`` かつ ``CV = 0`` のときに有効です。"
+
+#: ../../source/almdir/inputalm.rst:1180
+msgid ""
+"STOP_CRITERION-tag : The scan over ``L1_ALPHA`` stops when the cross-"
+"validation score keeps increasing in ``STOP_CRITERION`` consecutive steps"
+msgstr ""
+"STOP_CRITERION タグ: 交差検証スコアが ``STOP_CRITERION`` "
+"回連続のステップで増加し続けると、``L1_ALPHA`` のスキャンが停止します"
+
+#: ../../source/almdir/inputalm.rst:1182
+msgid "5"
+msgstr "5"
+
+#: ../../source/almdir/inputalm.rst:1184
+msgid ""
+"Effective when ``LMODEL = enet | adaptive-lasso`` and the cross-"
+"validation mode is turned on (``CV > 0`` or ``CV = -1``)."
+msgstr ""
+"``LMODEL = enet | adaptive-lasso`` かつ交差検証モードがオン (``CV > 0`` または ``CV = "
+"-1``) のときに有効です。"
+
+#: ../../source/almdir/inputalm.rst:1191
+msgid "How to make a DFSET file"
+msgstr "DFSET ファイルの作り方"
+
+#: ../../source/almdir/inputalm.rst:1196
+msgid "Format of ``DFSET``"
+msgstr "``DFSET`` の書式"
+
+#: ../../source/almdir/inputalm.rst:1198
+msgid ""
+"The displacement-force data sets obtained by first-principles (or "
+"classical force-field) calculations have to be saved to a file, say "
+"*DFSET*. Then, the force constants are estimated by setting ``DFSET =`` "
+"*DFSET* and with ``MODE = optimize``."
+msgstr ""
+"第一原理 (または古典的な力場) 計算によって得られた変位-力データセットは、例えば *DFSET* "
+"というファイルに保存する必要があります。その後、``DFSET =`` *DFSET* を設定し、``MODE = optimize`` "
+"とすることで力定数が推定されます。"
+
+#: ../../source/almdir/inputalm.rst:1201
+msgid ""
+"The *DFSET* file must contain the atomic displacements and corresponding "
+"forces in Cartesian coordinate for at least ``NDATA`` structures "
+"(displacement patterns) in the following format (one line per atom, "
+"blocks separated by an optional comment line beginning with ``#``)::"
+msgstr ""
+"*DFSET* ファイルには、少なくとも ``NDATA`` 個の構造 (変位パターン) について、原子変位と対応する力を Cartesian "
+"座標で次の書式で含める必要があります (原子1個につき1行、ブロックは ``#`` で始まる任意のコメント行で区切られます)::"
+
+#: ../../source/almdir/inputalm.rst:1214
+msgid ""
+"Here, ``NAT`` is the number of atoms in the supercell. The unit of "
+"displacements and forces must be **bohr** and **Ry/bohr**, respectively, "
+"unless other units are declared with the :ref:`LENGTH_UNIT "
+"<alm_length_unit>` and :ref:`FORCE_UNIT <alm_force_unit>` tags (e.g., "
+"``LENGTH_UNIT = angstrom; FORCE_UNIT = eV/angstrom`` for data taken "
+"directly from VASP output)."
+msgstr ""
+"ここで、``NAT`` はスーパーセルに含まれる原子数です。変位と力の単位は、:ref:`LENGTH_UNIT "
+"<alm_length_unit>` および :ref:`FORCE_UNIT <alm_force_unit>` "
+"タグで別の単位を宣言しない限り、それぞれ **bohr** と **Ry/bohr** でなければなりません (例えば、VASP "
+"の出力をそのまま使用する場合は ``LENGTH_UNIT = angstrom; FORCE_UNIT = eV/angstrom``)。"
+
+#~ msgid ""
+#~ "Here, ``NAT`` is the number of "
+#~ "atoms in the supercell. The unit "
+#~ "of displacements and forces must be "
+#~ "**bohr** and **Ryd/bohr**, respectively."
+#~ msgstr ""
+#~ "ここで、``NAT`` はスーパーセル内の原子数です。変位と力の単位は、それぞれ **bohr** と"
+#~ " **Ryd/bohr** でなければなりません。"
+
+#~ msgid "optimize (:red:`>= 1.1.0`)"
+#~ msgstr "optimize (:red:`>= 1.1.0`)"
+
+#~ msgid ""
+#~ "Unit of the forces in the "
+#~ "``DFSET`` file, converted to Ry/bohr "
+#~ "internally. This tag does not affect "
+#~ "the ``E_pot`` energies optionally given "
+#~ "in the ``DFSET`` comment headers, whose"
+#~ " unit is declared per snapshot as "
+#~ "``E_pot (eV|Ry|Ha)``."
+#~ msgstr ""
+#~ "``DFSET`` ファイル内の力の単位。内部で Ry/bohr "
+#~ "に変換されます。このタグは、``DFSET`` のコメントヘッダにオプションで記載される ``E_pot`` "
+#~ "エネルギーには影響しません。そちらの単位はスナップショットごとに ``E_pot (eV|Ry|Ha)`` "
+#~ "として宣言します。"
+

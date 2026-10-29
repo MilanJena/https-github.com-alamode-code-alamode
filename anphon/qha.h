@@ -10,17 +10,22 @@
 
 #pragma once
 
-#include "pointers.h"
-#include "anharmonic_core.h"
-#include "scph.h"
+#include <array>
 #include <complex>
+#include "anharmonic_core.h"
 #include "kpoint.h"
+#include "relaxation_types.h"
+#include "scph_qha_common.h"
 
-namespace PHON_NS {
-class Qha : protected Pointers {
+namespace PHON_NS
+{
+class DelVStrainData;
+class QhaRelaxationModel;
+
+class Qha: protected ScphQhaCommon
+{
 public:
-
-    Qha(class PHON *phon);
+    explicit Qha(const ScphQhaCollaborators &c);
 
     ~Qha();
 
@@ -30,7 +35,9 @@ public:
     unsigned int kmesh_interpolate[3];
 
     // optimization scheme used in QHA
-    int qha_scheme;
+    QhaScheme qha_scheme = QhaScheme::Standard;
+
+    using ScphQhaCommon::use_h5_io;
 
     bool restart_qha;
     bool warmstart_qha;
@@ -39,104 +46,57 @@ public:
 
     void exec_qha_optimization();
 
+    using ScphQhaCommon::ialgo;
+    using ScphQhaCommon::selfenergy_offdiagonal;
 
 private:
+    friend class QhaRelaxationModel;
 
     void set_default_variables();
 
-    void deallocate_variables();
+    void exec_QHA_relax_main(std::complex<double> ****, std::complex<double> ****);
 
-    void setup_kmesh();
+    // One structural step's lattice-dynamics stage: solve the renormalized-
+    // harmonic problem at the current IFCs and compute the QHA forces and
+    // stress, applying the ZSISA / v-ZSISA overwrites when requested.
+    void solve_qha_and_compute_forces(StructuralOptWorkspace &ws, unsigned int iT, double temp,
+                                      std::complex<double> ***cmat_convert,
+                                      std::complex<double> ****delta_harmonic_dymat_renormalize,
+                                      double ***omega2_harm_renorm, std::complex<double> ***evec_harm_renorm_tmp,
+                                      std::complex<double> *v1_QHA, std::complex<double> *del_v0_del_umn_QHA,
+                                      std::complex<double> *del_v0_del_umn_ZSISA,
+                                      std::complex<double> *del_v0_del_umn_vZSISA,
+                                      std::complex<double> **del_v1_del_umn_renorm, double **delq_delu_ZSISA,
+                                      double **C2_array_renorm, double **C2_array_ZSISA);
 
-    void setup_eigvecs();
+    void exec_perturbative_QHA(std::complex<double> ****, std::complex<double> ****);
 
-    void setup_pp_interaction();
+    // One WARNING line (rank 0) when the renormalized-harmonic frequencies of
+    // temperature temp on KMESH_QHA have imaginary modes.
+    void warn_imaginary_modes(double temp, const double *const *omega2) const;
 
-    void exec_QHA_relax_main(std::complex<double> ****,
-                             std::complex<double> ****);
-
-    void exec_perturbative_QHA(std::complex<double> ****,
-                               std::complex<double> ****);
-
-    void calc_del_v0_del_umn_vib(std::complex<double> *,
-                                 std::complex<double> ***,
-                                 double);
+    void calc_del_v0_del_umn_vib(std::complex<double> *, const DelVStrainData &, double);
 
 
-    void calculate_del_v1_del_umn_renorm(std::complex<double> **,
-                                         double **,
-                                         std::complex<double> **,
-                                         std::complex<double> **,
-                                         std::complex<double> **,
-                                         std::complex<double> ***,
-                                         std::complex<double> ***,
-                                         std::complex<double> ****,
-                                         double *);
+    void calculate_del_v1_del_umn_renorm(std::complex<double> **, const std::array<std::array<double, 3>, 3> &,
+                                         const DelVStrainData &, const std::vector<double> &);
 
-    void calculate_C2_array_renorm(double **,
-                                   double **,
-                                   double **,
-                                   double **,
-                                   double ***,
-                                   std::complex<double> **,
-                                   std::complex<double> **,
-                                   std::complex<double> ***,
-                                   double *);
+    void calculate_C2_array_renorm(double **C2_array_renorm, const std::array<std::array<double, 3>, 3> &u_tensor,
+                                   std::array<std::array<double, 3>, 3> &eta_tensor, double **C2_array,
+                                   double ***C3_array, const DelVStrainData &, const std::vector<double> &q0);
 
-    void calculate_C2_array_ZSISA(double **,
-                                  double **,
-                                  std::complex<double> **,
-                                  double **);
+    void calculate_C2_array_ZSISA(double **, double **, std::complex<double> **, double **);
 
-    void compute_ZSISA_stress(double **,
-                              std::complex<double> *,
-                              std::complex<double> ***,
-                              double **,
-                              std::complex<double> *,
-                              std::complex<double> **,
-                              std::complex<double> *,
+    void compute_ZSISA_stress(double **, std::complex<double> *, std::complex<double> ***, double **,
+                              std::complex<double> *, std::complex<double> **, std::complex<double> *,
                               std::vector<int> &);
 
-    void compute_vZSISA_stress(std::complex<double> *,
-                               double **,
-                               std::complex<double> *,
-                               std::complex<double> *,
-                               double **);
+    void compute_vZSISA_stress(std::complex<double> *, double **, std::complex<double> *, std::complex<double> *,
+                               const std::array<std::array<double, 3>, 3> &);
 
     // QHA
-    void compute_cmat(std::complex<double> ***,
-                      const std::complex<double> *const *const *const);
+    void compute_cmat(std::complex<double> ***, const std::complex<double> *const *const *const);
 
-    void calc_v1_vib(std::complex<double> *,
-                     std::complex<double> ***,
-                     const double);
-
-    KpointMeshUniform *kmesh_coarse = nullptr;
-    KpointMeshUniform *kmesh_dense = nullptr;
-    std::vector<int> kmap_coarse_to_dense;
-
-    // Information of harmonic dynamical matrix
-    double **omega2_harmonic;
-    std::complex<double> ***evec_harmonic;
-    MinimumDistList ***mindist_list_qha;
-
-    // Information for calculating the ph-ph interaction coefficients
-    std::complex<double> *phi3_reciprocal, *phi4_reciprocal;
-
-    // Local variables for handling symmetry of dynamical matrix
-    std::complex<double> ****mat_transform_sym;
-
-    // Phase shift
-    PhaseFactorStorage *phase_factor_qha;
-
-    std::vector<Eigen::MatrixXcd> dymat_harm_short, dymat_harm_long;
-
-    void zerofill_harmonic_dymat_renormalize(std::complex<double> ****,
-                                             unsigned int);
-
-
+    void calc_v1_vib(std::complex<double> *, std::complex<double> ***, const double);
 };
-}
-
-
-
+} // namespace PHON_NS

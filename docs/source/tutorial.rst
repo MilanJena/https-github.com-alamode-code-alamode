@@ -1,14 +1,170 @@
 Tutorial
 ========
 
+.. The card grid is for the web pages; in the PDF the tutorials follow as sections.
+
+.. only:: html
+
+   .. grid:: 1 2 2 3
+      :gutter: 3
+      :class-container: tutorial-grid
+
+      .. grid-item-card:: Silicon
+         :link: tutorial_pages/silicon
+         :link-type: doc
+         :img-top: ../img/si_kappa.png
+         :img-alt: Lattice thermal conductivity of Si
+
+         Phonon dispersion, DOS, and lattice thermal conductivity of Si from DFT forces.
+
+         +++
+         :bdg-primary:`Si` :bdg-secondary:`harmonic + kappa`
+
+      .. grid-item-card:: Silicon with LAMMPS
+         :link: tutorial_pages/silicon_lammps
+         :link-type: doc
+         :img-top: ../img/Si_phband_DFT.png
+         :img-alt: Phonon dispersion of Si
+
+         Use LAMMPS with an empirical potential instead of DFT to compute the forces.
+
+         +++
+         :bdg-primary:`Si` :bdg-secondary:`LAMMPS forces`
+
+      .. grid-item-card:: Silicon with Python
+         :link: tutorial_pages/silicon_python
+         :link-type: doc
+         :img-top: ../img/Si_python.png
+         :img-alt: Phonon dispersion and DOS of Si plotted from Python
+
+         Run the Si phonon and thermal-conductivity calculations from a Python script with the anphon Python API.
+
+         +++
+         :bdg-primary:`Si` :bdg-secondary:`Python API`
+
+      .. grid-item-card:: PbTe (non-analytic correction)
+         :link: tutorial_pages/pbte_nonanalytic_correction
+         :link-type: doc
+         :img-top: ../img/PbTe_harm_compare.png
+         :img-alt: Phonon dispersion of PbTe with different NONANALYTIC options
+
+         LO-TO splitting in polar materials from Born effective charges and the NONANALYTIC options.
+
+         +++
+         :bdg-primary:`PbTe` :bdg-secondary:`harmonic + NONANALYTIC`
+
+      .. grid-item-card:: BAs: four-phonon scattering
+         :link: tutorial_pages/bas_4ph
+         :link-type: doc
+         :img-top: ../img/BAs_kappa.png
+         :img-alt: Lattice thermal conductivity of BAs with and without four-phonon scattering
+
+         Add four-phonon scattering to the thermal conductivity of BAs and go beyond the RTA.
+
+         +++
+         :bdg-primary:`BAs` :bdg-secondary:`kappa + 4ph`
+
+      .. grid-item-card:: BaTiO\ :sub:`3`: anharmonic IFCs
+         :link: tutorial_pages/bto_ifc
+         :link-type: doc
+         :img-top: ../img/BTO_IFC_cv.png
+         :img-alt: Cross-validation score of BaTiO3
+
+         Fit anharmonic IFCs from AIMD-sampled configurations, with the regularization chosen by cross validation.
+
+         +++
+         :bdg-primary:`BaTiO3` :bdg-secondary:`anharmonic IFCs + CV`
+
+      .. grid-item-card:: Si: anharmonic IFCs
+         :link: tutorial_pages/silicon_ifc
+         :link-type: doc
+         :img-top: ../img/si222.png
+         :img-alt: 2x2x2 supercell of Si
+
+         Sample configurations from the harmonic potential energy surface and run the CV sets as separate jobs.
+
+         +++
+         :bdg-primary:`Si` :bdg-secondary:`anharmonic IFCs + CV`
+
+      .. grid-item-card:: SrTiO\ :sub:`3`: self-consistent phonons
+         :link: tutorial_pages/sto_scph
+         :link-type: doc
+         :img-top: ../img/STO_scph.png
+         :img-alt: Self-consistent phonon dispersion of SrTiO3
+
+         Stabilize soft modes at finite temperature and compute SCP thermodynamic functions.
+
+         +++
+         :bdg-primary:`SrTiO3` :bdg-secondary:`MODE = SCPH`
+
+      .. grid-item-card:: BaTiO\ :sub:`3`: SCPH structural optimization
+         :link: tutorial_pages/bto_scph_relax
+         :link-type: doc
+         :img-top: ../img/BaTiO3_scph_relax.png
+         :img-alt: Temperature dependence of atomic displacements in BaTiO3
+
+         Follow the cubic-tetragonal phase transition through the temperature-dependent atomic positions.
+
+         +++
+         :bdg-primary:`BaTiO3` :bdg-secondary:`SCPH + RELAX_STR`
+
+      .. grid-item-card:: ZnO: QHA structural optimization
+         :link: tutorial_pages/zno_qha_relax
+         :link-type: doc
+         :img-top: ../img/ZnO_thermal_strain.png
+         :img-alt: Thermal strain of ZnO
+
+         Thermal expansion of wurtzite ZnO from the strain couplings within the QHA.
+
+         +++
+         :bdg-primary:`ZnO` :bdg-secondary:`QHA + RELAX_STR`
+
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    tutorial_pages/silicon
    tutorial_pages/silicon_lammps
+   tutorial_pages/silicon_python
    tutorial_pages/pbte_nonanalytic_correction
-   tutorial_pages/sto_scph
+   tutorial_pages/bas_4ph
    tutorial_pages/bto_ifc
    tutorial_pages/silicon_ifc
+   tutorial_pages/sto_scph
    tutorial_pages/bto_scph_relax
    tutorial_pages/zno_qha_relax
+
+Notebooks
+---------
+
+The Jupyter notebooks in ``example/notebooks/`` do the analysis in Python.
+They are stored with their outputs, so you can download and read them as they are, or run them online.
+
+.. only:: html
+
+   .. grid:: 1 1 2 2
+      :gutter: 3
+
+      .. grid-item-card:: Analysing PREFIX.kappa.h5
+
+         Rebuild the thermal conductivity of Si from the lifetimes and velocities in the HDF5 file, and plot the cumulative thermal conductivity.
+         Needs only NumPy, h5py, and Matplotlib.
+
+         +++
+         :download:`Download notebook <../../example/notebooks/kappa_h5_analysis.ipynb>`
+         :bdg-link-primary:`Open in Colab <https://colab.research.google.com/github/alamode-code/alamode/blob/master/example/notebooks/kappa_h5_analysis.ipynb>`
+         :bdg-link-primary:`Launch Binder <https://mybinder.org/v2/gh/alamode-code/alamode/master?labpath=example%2Fnotebooks%2Fkappa_h5_analysis.ipynb>`
+
+      .. grid-item-card:: Fitting force constants in Python
+
+         Fit the harmonic and cubic IFCs of Si with the alm Python module, and try a scikit-learn regressor.
+         Needs the compiled alm module, which Binder builds for you.
+
+         +++
+         :download:`Download notebook <../../example/notebooks/alm_python_fit.ipynb>`
+         :bdg-link-primary:`Launch Binder <https://mybinder.org/v2/gh/alamode-code/alamode/master?labpath=example%2Fnotebooks%2Falm_python_fit.ipynb>`
+
+.. only:: latex
+
+   * Analysing PREFIX.kappa.h5: ``example/notebooks/kappa_h5_analysis.ipynb``
+   * Fitting force constants in Python: ``example/notebooks/alm_python_fit.ipynb``

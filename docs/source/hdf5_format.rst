@@ -1,0 +1,262 @@
+HDF5 files
+==========
+
+.. _label_hdf5_format:
+
+ALAMODE stores the force constants and the main results in HDF5 files.
+HDF5 is a portable binary format organized like a file system: **groups** (folders) contain **datasets** (arrays) and other groups,
+and both can carry **attributes** (small labels such as units).
+The chart below shows which program writes each file and which program reads it.
+
+.. figure:: ../img/h5layout/h5_overview.*
+   :align: center
+   :alt: Which programs write and read the HDF5 files of ALAMODE
+   :figclass: only-light
+
+   HDF5 files of ALAMODE and the programs that write and read them.
+
+.. only:: html
+
+   .. figure:: ../img/h5layout/h5_overview.dark.*
+      :align: center
+      :alt: Which programs write and read the HDF5 files of ALAMODE
+      :figclass: only-dark
+
+      HDF5 files of ALAMODE and the programs that write and read them.
+
+
+Reading the files
+-----------------
+
+List the contents of a file with ``h5ls -r PREFIX.h5`` (from the HDF5 tools), or read it in Python with h5py::
+
+    import h5py
+
+    with h5py.File("PREFIX.kappa.h5", "r") as f:
+        print(f.attrs["schema"])               # which kind of file this is
+        T = f["metadata/temperatures"][:]      # K
+        kappa = f["kappa/kappa_peierls"][:]    # (nT, 3, 3), W/mK
+        print(f["kappa/kappa_peierls"].attrs["unit"])
+
+The files share a few conventions:
+
+* The root attributes identify the file: ``schema`` (e.g. ``alamode:kappa_result``), ``format_version``,
+  ``alamode_version``, ``alamode_git_commit``, and ``created_date``
+  (``PREFIX.selfenergy.h5`` has ``/metadata/version`` and ``/metadata/mode`` instead).
+* Physical quantities carry their unit in a ``unit`` attribute.
+* Indices of atoms, coordinates (0, 1, 2 = :math:`x, y, z`), and branches start from 0.
+* ``/metadata/input_variables`` records the input variables of the run that wrote the file, one attribute per tag.
+
+In the figures below, folder-shaped boxes are groups, the boxes next to them list their datasets with the shapes
+(``()`` is a scalar) and units (``[ ]``), and dashed boxes are written only under the condition shown.
+The symbols for the array sizes are explained at the bottom of each figure.
+
+.. _label_hdf5_fcs:
+
+Force constants (PREFIX.h5)
+---------------------------
+
+Written by *alm* (``MODE = optimize``), and by *anphon* for strained cells (``NEWFCS = 1``).
+*anphon* reads it through ``FCSFILE`` (or ``FC2FILE``, ``FC3FILE``, ``FC4FILE``).
+
+.. figure:: ../img/h5layout/h5_fcs.*
+   :align: center
+   :alt: Layout of the force-constant file
+   :figclass: only-light
+
+   Layout of the force-constant file (schema ``alamode:force_constants``).
+
+.. only:: html
+
+   .. figure:: ../img/h5layout/h5_fcs.dark.*
+      :align: center
+      :alt: Layout of the force-constant file
+      :figclass: only-dark
+
+      Layout of the force-constant file (schema ``alamode:force_constants``).
+
+
+* ``/ForceConstants/Order2``, ``Order3``, ``Order4``, ...: the harmonic, cubic, quartic, ... force constants,
+  one row per force constant :math:`\Phi_{\alpha_1 \cdots \alpha_n}(i_1, \ldots, i_n)`:
+
+  * ``force_constant_values``: the value, in the unit given by its ``unit`` attribute (Ry/bohr\ :sup:`n` by default;
+    eV/|Angstrom|\ :sup:`n` with :ref:`FCS_UNIT_OUTPUT <alm_fcs_unit_output>` of *alm* or from ``fcconvert.py``).
+  * ``atom_indices``: the atoms :math:`i_1, \ldots, i_n` as indices in the primitive cell;
+    ``atom_indices_supercell``: the same atoms in the supercell.
+  * ``coord_indices``: the Cartesian components :math:`\alpha_1, \ldots, \alpha_n`.
+  * ``shift_vectors``: the vectors from the first atom to the other atoms (Cartesian, in the unit of its ``unit`` attribute:
+    bohr by default, |Angstrom| with eV/|Angstrom|\ :sup:`n` force constants).
+
+* ``/PrimitiveCell`` and ``/SuperCell``: lattice vectors (one vector per row, in the length unit of the file), fractional coordinates, elements,
+  atomic kinds, and ``mapping_table``, which gives the supercell index of every primitive-cell atom in each translated cell.
+
+.. _label_hdf5_kappa:
+
+Thermal conductivity (PREFIX.kappa.h5)
+--------------------------------------
+
+Written by ``MODE = kappa``. The file is updated during the run, so an interrupted calculation continues from it
+with ``RESTART = 1``, and ``analyzer.py`` reads it for lifetimes, mean free paths, and cumulative thermal conductivity.
+
+.. figure:: ../img/h5layout/h5_kappa.*
+   :align: center
+   :alt: Layout of the thermal-conductivity file
+   :figclass: only-light
+
+   Layout of ``PREFIX``.kappa.h5 (schema ``alamode:kappa_result``).
+
+.. only:: html
+
+   .. figure:: ../img/h5layout/h5_kappa.dark.*
+      :align: center
+      :alt: Layout of the thermal-conductivity file
+      :figclass: only-dark
+
+      Layout of ``PREFIX``.kappa.h5 (schema ``alamode:kappa_result``).
+
+
+* ``/kappa``: the thermal-conductivity tensors in W/mK, one :math:`3 \times 3` tensor per temperature.
+  ``kappa_peierls`` is the usual (Peierls) term, the content of ``PREFIX``.kl.
+  With ``KAPPA_COHERENT > 0``, ``kappa_coherent`` and their sum ``kappa_total`` are added.
+  The ``scattering_processes`` attribute of each tensor names the scattering included, e.g. ``3ph+4ph+isotope``.
+  With ``INCLUDE_4PH = 1``, ``kappa_3ph_only`` keeps the three-phonon-only result,
+  and with ``KAPPA_SPEC = 1``, ``kappa_spec`` holds the spectrum on the frequency axis ``energy_axis``.
+* ``/scattering/3ph``: phonon frequencies (cm\ :sup:`-1`) and linewidths :math:`\Gamma` (cm\ :sup:`-1`) at the irreducible :math:`k` points,
+  and group velocities (m/s) on the full mesh.
+  The lifetime is :math:`\tau = 1/(2\Gamma)`.
+  ``gamma`` has one row per mode (:math:`k` point × branch) and one column per temperature;
+  ``gamma_computed`` marks the rows already calculated, which is what makes restarting possible.
+  ``equiv_knum`` and ``equiv_offsets`` list the full-mesh :math:`k` points that belong to each irreducible point.
+* ``/scattering/4ph`` (``INCLUDE_4PH = 1``) has the same layout for the four-phonon linewidths,
+  and ``/scattering/isotope`` (``ISOTOPE > 0``) holds the isotope-scattering linewidths.
+* ``/iterativebte`` (``SOLVER = IBTE``, ``VBTE`` or ``DBTE``): the beyond-RTA solution per temperature.
+  Its ``solver`` and ``convergence_threshold`` attributes record the run that produced it; on restart with another
+  ``SOLVER`` or a smaller ``ITER_THRESHOLD``, the stored results are re-converged from the stored solution.
+* ``/metadata``: temperatures, the primitive cell, smearing settings, and the input variables.
+  ``relaxed_cell_convention`` holds, per temperature, the geometry convention of the run that computed it:
+  0 without ``RELAXED_STRUCTURE`` and 2 with it (see
+  :ref:`RELAXED_STRUCTURE <anphon_relaxed_structure>`).
+
+The notebook :download:`Analysing PREFIX.kappa.h5 <../../example/notebooks/kappa_h5_analysis.ipynb>`
+reads this file and rebuilds the thermal conductivity from the lifetimes and velocities in it.
+
+When the harmonic force constants depend on temperature (``FC2_TEMPERATURE`` with an SCPH or QHA result),
+the file is *temperature resolved* (root attribute ``temperature_resolved = 1``):
+frequencies and velocities gain a leading temperature axis, and runs at different temperatures accumulate in one file.
+
+.. _label_hdf5_scph:
+
+SCPH and QHA results (PREFIX.scph.h5, PREFIX.qha.h5)
+----------------------------------------------------
+
+Written by ``MODE = SCPH`` and ``MODE = QHA`` at the end of the run. A later run uses it through
+``FC2_TEMPERATURE`` (with ``FCSFILE``, ``FC2FILE``, or ``DFC2FILE``) and ``RELAXED_STRUCTURE``, and to restart the calculation.
+
+.. figure:: ../img/h5layout/h5_scph.*
+   :align: center
+   :alt: Layout of the SCPH and QHA result file
+   :figclass: only-light
+
+   Layout of ``PREFIX``.scph.h5 and ``PREFIX``.qha.h5 (schema ``alamode:scph_state``).
+
+.. only:: html
+
+   .. figure:: ../img/h5layout/h5_scph.dark.*
+      :align: center
+      :alt: Layout of the SCPH and QHA result file
+      :figclass: only-dark
+
+      Layout of ``PREFIX``.scph.h5 and ``PREFIX``.qha.h5 (schema ``alamode:scph_state``).
+
+
+* ``/ForceConstants/Order2``: the harmonic force constants folded onto the supercell of ``KMESH_INTERPOLATE``;
+  ``Order2_temperature_dependent/force_constant_values`` holds the effective (renormalized) values at every temperature
+  and uses the index datasets of ``Order2``. See :ref:`label_hdf5_scph_nonanalytic` for what they mean with ``NONANALYTIC > 0``.
+* ``/convergence``: whether the SCPH iteration (``scph``) and the structural optimization (``structure``) converged at each temperature.
+  Later runs refuse unconverged temperatures unless ``ALLOW_UNCONVERGED`` is set.
+* ``/structure`` (``RELAX_STR > 0``): the relaxed structure at each temperature: the displacement gradient ``u_tensor``,
+  the atomic displacements ``u0`` (bohr), and the space group ``spg_label``.
+  ``/provenance`` records a fingerprint of the force constants used, which ``RELAXED_STRUCTURE`` checks.
+* ``/dymat``, ``V0``: the change of the dynamical matrix and the potential energy used to restart the calculation.
+* ``/settings``: the temperatures and meshes of the run. The root attribute ``mode`` is ``SCPH`` or ``QHA``.
+  ``nonanalytic`` is the ``NONANALYTIC`` of the run, and ``delta_baseline = 1`` marks the convention of the corrections described below.
+  ``dielectric_tensor_processed`` and ``born_charges_processed`` hold :math:`\varepsilon_\infty` and :math:`Z^*` as the run used them
+  (after the acoustic sum rule and ``BORNSYM``) whenever Born charges were loaded; ``RELAXED_STRUCTURE`` reads them.
+
+.. _label_hdf5_scph_nonanalytic:
+
+Force constants and corrections with ``NONANALYTIC > 0``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The corrections (``/dymat`` and the difference ``Order2_temperature_dependent`` − ``Order2``, which is also what ``DFC2FILE``
+and the text file ``PREFIX.scph_dfc2`` carry) are the change of the dynamical matrix relative to the *full* harmonic dynamical matrix
+of the run, including its nonanalytic term (marker ``/settings/delta_baseline = 1``).
+The base values ``Order2`` are the force constants that a run with the same ``NONANALYTIC`` turns back into that harmonic matrix
+at the :math:`q` points of the ``KMESH_INTERPOLATE`` mesh:
+
+* ``NONANALYTIC = 0`` and ``1``: the original harmonic force constants (a reader adds the Parlinski term itself at every :math:`q`);
+* ``NONANALYTIC = 2`` and ``3``: the full harmonic matrix including the dipole-dipole part, whose mixed-space or Ewald term
+  vanishes at :math:`q` commensurate with the supercell of the file.
+
+Consequently, the force constants of a state file (``FCSFILE``, ``FC2FILE`` with or without ``FC2_TEMPERATURE``, and ``DFC2FILE``)
+must be read with the ``NONANALYTIC`` of the run that wrote it; ``2`` and ``3`` may read each other's files.
+A file written with ``NONANALYTIC = 0`` may also be read with ``NONANALYTIC > 0`` (e.g. SCPH without the
+nonanalytic term, then phonons or kappa with it): a warning is printed, because the correction was then computed
+without the long-range term and the nonanalytic term is added to the harmonic part only, which is an approximation.
+Other combinations (a file with ``NONANALYTIC > 0`` read with ``0``, ``1`` read with ``2``/``3`` or the reverse)
+stop with an error, and so does a restart with a different ``NONANALYTIC``.
+The agreement with the SCPH/QHA frequencies is exact at the :math:`q` points of the ``KMESH_INTERPOLATE`` mesh only.
+Elsewhere the result depends on how the reader interpolates: the total force constants read through ``FC2_TEMPERATURE``
+are interpolated as a whole, while ``DFC2FILE`` interpolates the correction alone as the SCPH run does, and the two differ
+off the mesh (and so do quantities sampled there, such as group velocities from finite differences and thermal conductivities).
+
+Restart files ``PREFIX.scph_dymat`` of version 1.x took the corrections relative to the analytic part of the harmonic matrix.
+On restart they are converted (``NONANALYTIC = 2``, ``3``), and refused for ``NONANALYTIC = 1``, whose Parlinski term had a
+different phase. ``PREFIX.scph_dfc2`` files of version 1.x, which lack the ``DELTA_BASELINE`` header, follow the same
+convention: with a nonzero non-analytic correction, ``tools/dfc2.py`` converts them correctly only for ``NONANALYTIC = 2``
+or ``3`` with ``KMESH_INTERPOLATE`` commensurate with the supercell of the harmonic force constants, and prints a note.
+Tools that read ``Order2`` without ``anphon`` (the ALM reader of ``FC2FIX`` and the python
+``fcsio`` reader, which warns) take the values as they are and do not apply this convention.
+
+.. _label_hdf5_selfenergy:
+
+Self-energy (PREFIX.selfenergy.h5)
+----------------------------------
+
+Written by ``MODE = selfenergy``, with one group per target mode.
+
+.. figure:: ../img/h5layout/h5_selfenergy.*
+   :align: center
+   :alt: Layout of the self-energy file
+   :figclass: only-light
+
+   Layout of ``PREFIX``.selfenergy.h5.
+
+.. only:: html
+
+   .. figure:: ../img/h5layout/h5_selfenergy.dark.*
+      :align: center
+      :alt: Layout of the self-energy file
+      :figclass: only-dark
+
+      Layout of ``PREFIX``.selfenergy.h5.
+
+
+* ``/targets/00001``, ``00002``, ...: one group per target (wave vector × branch), in the order of the ``&kpoint`` field and ``BRANCHES``,
+  with the wave vector ``xk``, the ``branch``, the harmonic ``frequency``, and the requested results:
+  ``linewidth`` (the full width :math:`2\Gamma`, per temperature), the frequency shifts ``shift_*``,
+  the frequency-dependent self-energy ``self_*``, and the final-state analysis ``fstate_*``.
+* ``/path``: the path coordinates when the targets lie on a band path (``KPMODE = 1``).
+* ``/spectrum`` (``INTERPOLATE = 1``): the spectral function.
+* ``/metadata``: temperatures, the integration mesh, and the input variables.
+
+.. note::
+   The linewidth in this file is the full width :math:`2\Gamma`,
+   while ``gamma`` in ``PREFIX``.kappa.h5 is :math:`\Gamma`.
+
+Strain couplings (PREFIX.strain.h5)
+-----------------------------------
+
+The file given as ``STRAINFILE`` for cell relaxation is made by the strain tools and is described in :ref:`label_strain_container`.
+
+.. |Angstrom|   unicode:: U+00C5

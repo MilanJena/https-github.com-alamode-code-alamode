@@ -1,0 +1,353 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-23 18:17+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tutorial_pages/silicon_python.rst:10
+msgid "Silicon with Python"
+msgstr "Python を用いたシリコン"
+
+#: ../../source/tutorial_pages/silicon_python.rst:12
+msgid "At a glance"
+msgstr "概要"
+
+#: ../../source/tutorial_pages/silicon_python.rst
+msgid "Goal"
+msgstr "目標"
+
+#: ../../source/tutorial_pages/silicon_python.rst:15
+msgid ""
+"Run the phonon and thermal-conductivity calculations of the :ref:`Si "
+"tutorial <label_tutorial_01>` from a Python script, and analyze the "
+"results with NumPy and Matplotlib."
+msgstr ""
+"「:ref:`Si のチュートリアル <label_tutorial_01>`」のフォノンと熱伝導率の計算を Python "
+"スクリプトから実行し、結果を NumPy と Matplotlib で解析します。"
+
+#: ../../source/tutorial_pages/silicon_python.rst
+msgid "You will learn"
+msgstr "学べること"
+
+#: ../../source/tutorial_pages/silicon_python.rst:18
+msgid "how to run **anphon** from Python dictionaries with ``anphon.run``"
+msgstr "``anphon.run`` で Python の辞書から **anphon** を実行する方法"
+
+#: ../../source/tutorial_pages/silicon_python.rst:19
+msgid "how to read the output files through the returned ``Result``"
+msgstr "返り値の ``Result`` を通して出力ファイルを読む方法"
+
+#: ../../source/tutorial_pages/silicon_python.rst:20
+msgid ""
+"how to get frequencies and eigenvectors at arbitrary :math:`q` points "
+"with ``anphon.Phonon``"
+msgstr "``anphon.Phonon`` で任意の :math:`q` 点の振動数と固有ベクトルを求める方法"
+
+#: ../../source/tutorial_pages/silicon_python.rst:21
+msgid "how to read ``PREFIX.kappa.h5`` into a dictionary with ``Result.h5``"
+msgstr "``Result.h5`` で ``PREFIX.kappa.h5`` を辞書に読み込む方法"
+
+#: ../../source/tutorial_pages/silicon_python.rst
+msgid "Prerequisites"
+msgstr "前提"
+
+#: ../../source/tutorial_pages/silicon_python.rst:22
+msgid ""
+":ref:`The Si tutorial <label_tutorial_01>` and the ``alamode`` Python "
+"package (see :ref:`anphon_python_install`), plus Matplotlib."
+msgstr ""
+":ref:`Si のチュートリアル <label_tutorial_01>` と ``alamode`` Python パッケージ "
+"(:ref:`anphon_python_install` を参照)、および Matplotlib。"
+
+#: ../../source/tutorial_pages/silicon_python.rst
+msgid "Example files"
+msgstr "例のファイル"
+
+#: ../../source/tutorial_pages/silicon_python.rst:24
+msgid "``example/Si/python``"
+msgstr "``example/Si/python``"
+
+#: ../../source/tutorial_pages/silicon_python.rst
+msgid "Run time"
+msgstr "所要時間"
+
+#: ../../source/tutorial_pages/silicon_python.rst:25
+msgid "The whole script takes a few seconds."
+msgstr "スクリプト全体で数秒です。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:27
+msgid ""
+"The Python package ``anphon`` runs the same calculations as the command-"
+"line program, inside the Python process (see :ref:`anphon_python` for the"
+" full reference). In this tutorial, we redo the phonon dispersion, phonon"
+" DOS, and thermal conductivity of Si from the :ref:`Si tutorial "
+"<label_tutorial_01>` with the force constants in "
+"**example/Si/reference**. The complete script is :red:`si_python.py`:"
+msgstr ""
+"Python パッケージ ``anphon`` は、コマンドライン版と同じ計算を Python のプロセス内で実行します (詳細は "
+":ref:`anphon_python` を参照)。このチュートリアルでは、「:ref:`Si のチュートリアル "
+"<label_tutorial_01>`」で求めた Si "
+"のフォノン分散、フォノン状態密度、熱伝導率を、**example/Si/reference** の力定数を用いて計算し直します。スクリプト全体は "
+":red:`si_python.py` です。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:33
+msgid ""
+":download:`Download si_python.py "
+"<../../../example/Si/python/si_python.py>`"
+msgstr ":download:`si_python.py をダウンロード <../../../example/Si/python/si_python.py>`"
+
+#: ../../source/tutorial_pages/silicon_python.rst:35
+msgid ""
+"It finds the force constants relative to its own location, so it can be "
+"run from any directory. The outputs are written to the subdirectories "
+":red:`bands`, :red:`dos`, and :red:`kappa` of the current directory::"
+msgstr ""
+"力定数のファイルはスクリプト自身の場所を基準に探すので、どのディレクトリからでも実行できます。出力はカレントディレクトリのサブディレクトリ "
+":red:`bands`、:red:`dos`、:red:`kappa` に書き出されます ::"
+
+#: ../../source/tutorial_pages/silicon_python.rst:41
+msgid "anphon prints its usual log for each run."
+msgstr "実行ごとに anphon の通常のログが表示されます。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:43
+msgid ":ref:`Phonon dispersion and DOS <tutorial_SiPy_step1>`"
+msgstr ":ref:`フォノン分散と状態密度 <tutorial_SiPy_step1>`"
+
+#: ../../source/tutorial_pages/silicon_python.rst:44
+msgid ":ref:`Frequencies and eigenvectors at arbitrary q <tutorial_SiPy_step2>`"
+msgstr ":ref:`任意の q 点での振動数と固有ベクトル <tutorial_SiPy_step2>`"
+
+#: ../../source/tutorial_pages/silicon_python.rst:45
+msgid ":ref:`Thermal conductivity <tutorial_SiPy_step3>`"
+msgstr ":ref:`熱伝導率 <tutorial_SiPy_step3>`"
+
+#: ../../source/tutorial_pages/silicon_python.rst:50
+msgid "1. Phonon dispersion and DOS"
+msgstr "1. フォノン分散と状態密度"
+
+#: ../../source/tutorial_pages/silicon_python.rst:52
+msgid "After the imports, the script locates **example/Si/reference**:"
+msgstr "モジュールを読み込んだ後、スクリプトは **example/Si/reference** の場所を求めます。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:59
+msgid ""
+"``anphon.run`` takes one dictionary per input field (``general``, "
+"``cell``, ``kpoint``, ...). It writes the input file :red:`si222.in` in "
+"``workdir`` and runs it, exactly as ``anphon si222.in`` would. The two "
+"runs below are the band structure (``KPMODE = 1``) and the DOS on a "
+":math:`20\\times 20\\times 20` mesh (``KPMODE = 2``) of :ref:`step 4 of "
+"the Si tutorial <tutorial_Si_step4>` (``DELTA_E = 2`` gives a finer "
+"energy grid for the DOS than the default 10 cm\\ :sup:`-1`):"
+msgstr ""
+"``anphon.run`` は入力フィールドごとに 1 つの辞書 (``general``、``cell``、``kpoint``、...) "
+"を受け取ります。``workdir`` に入力ファイル :red:`si222.in` を書き出し、``anphon si222.in`` "
+"とまったく同じように実行します。以下の 2 つの計算は、「:ref:`Si のチュートリアルのステップ 4 "
+"<tutorial_Si_step4>`」と同じバンド構造 (``KPMODE = 1``) と :math:`20\\times "
+"20\\times 20` メッシュ上の状態密度 (``KPMODE = 2``) です (``DELTA_E = 2`` "
+"により、状態密度のエネルギー刻みをデフォルトの 10 cm\\ :sup:`-1` より細かくしています)。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:69
+msgid ""
+"Because anphon runs inside ``workdir``, a relative :anphon:`FCSFILE` "
+"would be looked up there; the script therefore passes an absolute path. "
+"``anphon.format_input(general=..., kpoint=...)`` returns the input text "
+"without running anything, which is handy to check what will be written."
+msgstr ""
+"anphon は ``workdir`` の中で実行されるため、相対パスの :anphon:`FCSFILE` "
+"はそこで探されます。そこでスクリプトでは絶対パスを渡しています。``anphon.format_input(general=..., "
+"kpoint=...)`` は何も実行せずに入力テキストを返すので、書き出される内容の確認に便利です。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:74
+msgid ""
+"The returned ``Result`` knows the output directory and :anphon:`PREFIX`: "
+"``bands.files()`` lists the files ``si222.*`` (here ``['si222.bands', "
+"'si222.in']``; the input file written by ``run`` is included) and "
+"``bands.path(\".bands\")`` gives the path of :red:`si222.bands`. The text"
+" outputs are read with ``numpy.loadtxt`` and plotted with Matplotlib:"
+msgstr ""
+"返り値の ``Result`` は出力ディレクトリと :anphon:`PREFIX` を保持しています。``bands.files()`` "
+"はファイル ``si222.*`` の一覧を返し (ここでは ``['si222.bands', 'si222.in']``。``run`` "
+"が書き出した入力ファイルも含まれます)、``bands.path(\".bands\")`` は :red:`si222.bands` "
+"のパスを返します。テキスト形式の出力は ``numpy.loadtxt`` で読み込み、Matplotlib でプロットします。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:88
+msgid "Phonon dispersion and DOS of Si plotted by si_python.py."
+msgstr "si_python.py でプロットした Si のフォノン分散と状態密度。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:93
+msgid "2. Frequencies and eigenvectors at arbitrary q"
+msgstr "2. 任意の q 点での振動数と固有ベクトル"
+
+#: ../../source/tutorial_pages/silicon_python.rst:95
+msgid ""
+"``anphon.Phonon`` returns harmonic frequencies and eigenvectors as NumPy "
+"arrays for any list of :math:`q` points:"
+msgstr "``anphon.Phonon`` は、任意の :math:`q` 点のリストに対する調和振動数と固有ベクトルを NumPy 配列として返します。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:102
+msgid ""
+"The :math:`q` points are given in fractional coordinates of the "
+"reciprocal primitive lattice. The frequencies come in cm\\ :sup:`-1` with"
+" shape ``(nq, nmodes)``, where ``nmodes`` is three times the number of "
+"atoms in the primitive cell (6 for Si), and the eigenvectors with shape "
+"``(nq, nmodes, nmodes)``, laid out as ``evec[iq, imode, 3 * iatom + "
+"ixyz]``. The script prints:"
+msgstr ""
+":math:`q` 点は基本逆格子ベクトルを単位とする分数座標で与えます。振動数は cm\\ :sup:`-1` 単位で、形状は ``(nq, "
+"nmodes)`` です。``nmodes`` は基本単位胞の原子数の 3 倍 (Si では 6) です。固有ベクトルの形状は ``(nq, "
+"nmodes, nmodes)`` で、``evec[iq, imode, 3 * iatom + ixyz]`` "
+"の順に並んでいます。スクリプトの出力は次のとおりです。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:116
+msgid ""
+"The rows are :math:`\\Gamma`, X, and L, and agree with the dispersion "
+"above. The last array is the highest mode at :math:`\\Gamma`: the two Si "
+"atoms move in opposite directions (optical mode). Since this mode is "
+"threefold degenerate, the direction of the displacement within the "
+"degenerate subspace is arbitrary."
+msgstr ""
+"各行は :math:`\\Gamma`、X、L に対応し、上の分散と一致します。最後の配列は :math:`\\Gamma` "
+"点の最も高いモードで、2 つの Si 原子が逆向きに動いています (光学モード)。このモードは 3 "
+"重に縮退しているので、縮退した部分空間内での変位の向きは任意です。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:120
+msgid ""
+"The force-constant file (HDF5 or XML) carries the species, so ``kd`` is "
+"optional (the masses then come from the element table unless "
+":anphon:`MASS` is given in ``general``). The HDF5 file written by **alm**"
+" also carries the primitive cell defined by :alm:`PRIMCELL` in the "
+"**alm** input, so ``cell`` can be omitted as well (pass "
+"``cell=dict(a=..., lattice=...)`` for a file fitted without "
+":alm:`PRIMCELL`). An XML force-constant file does not contain the "
+"primitive cell, so ``cell`` is always needed for it. ``Phonon`` is quiet "
+"by default; pass ``general=dict(VERBOSITY=1)`` to see the anphon log. Ask"
+" for all :math:`q` points in one call, because each call runs anphon "
+"once."
+msgstr ""
+"力定数ファイル (HDF5 または XML) には元素の情報が含まれているので、``kd`` は省略できます (その場合、``general`` "
+"で :anphon:`MASS` を指定しない限り、質量は元素の表から取られます)。**alm** が書き出す HDF5 "
+"ファイルには、**alm** の入力の :alm:`PRIMCELL` で定義される基本セルも含まれているので、``cell`` も省略できます "
+"(:alm:`PRIMCELL` を指定せずにフィッティングしたファイルでは ``cell=dict(a=..., lattice=...)`` "
+"を渡してください)。XML 形式の力定数ファイルには基本セルが含まれていないので、常に ``cell`` が必要です。``Phonon`` "
+"はデフォルトでは何も出力しません。anphon のログを見るには ``general=dict(VERBOSITY=1)`` "
+"を渡してください。呼び出しごとに anphon が 1 回実行されるので、すべての :math:`q` 点を 1 "
+"回の呼び出しでまとめて指定してください。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:131
+msgid "3. Thermal conductivity"
+msgstr "3. 熱伝導率"
+
+#: ../../source/tutorial_pages/silicon_python.rst:133
+msgid ""
+"The thermal conductivity in the RTA (:ref:`step 6 of the Si tutorial "
+"<tutorial_Si_step6>`) needs the cubic force constants. The script reads "
+":red:`si222_cubic.h5` and runs ``MODE = kappa`` in :red:`kappa/` on an "
+":math:`8\\times 8\\times 8` mesh, which takes about a second:"
+msgstr ""
+"緩和時間近似 (RTA) による熱伝導率の計算 (「:ref:`Si のチュートリアルのステップ 6 <tutorial_Si_step6>`」)"
+" には 3 次の力定数が必要です。スクリプトは :red:`si222_cubic.h5` を読み込み、:red:`kappa/` で "
+":math:`8\\times 8\\times 8` メッシュの ``MODE = kappa`` を実行します。計算は 1 "
+"秒ほどで終わります。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:141
+msgid ""
+"``res.h5(\"kappa\")`` reads :red:`si222.kappa.h5` into nested "
+"dictionaries of NumPy arrays. The keys are the raw layout of the file "
+"described in :ref:`label_hdf5_kappa`; this reader is provisional and may "
+"change in a 2.x release (see :ref:`anphon_python_stability`). The script "
+"prints"
+msgstr ""
+"``res.h5(\"kappa\")`` は :red:`si222.kappa.h5` を NumPy "
+"配列の入れ子の辞書に読み込みます。キーは :ref:`label_hdf5_kappa` "
+"で説明しているファイルの構成そのものです。この読み込み機能は暫定的なもので、2.x のリリースで変更される可能性があります "
+"(:ref:`anphon_python_stability` を参照)。スクリプトの出力は次のとおりです。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:154
+msgid ""
+"The value at 300 K is lower than the result on the :math:`10\\times "
+"10\\times 10` mesh of the Si tutorial (about 104 W/mK). Change ``mesh`` "
+"to check the convergence. The script removes an old :red:`si222.kappa.h5`"
+" before the run, because anphon would otherwise restart from it and stop "
+"when the mesh differs."
+msgstr ""
+"300 K での値は、Si のチュートリアルの :math:`10\\times 10\\times 10` メッシュでの結果 (約 104 "
+"W/mK) より小さくなっています。``mesh`` を変えて収束を確認してください。anphon は古い "
+":red:`si222.kappa.h5` があるとそこから再開し、メッシュが異なると停止するため、スクリプトは実行前にこのファイルを削除します。"
+
+#: ../../source/tutorial_pages/silicon_python.rst:159
+msgid "For larger meshes, run the script under MPI as the command-line program::"
+msgstr "より大きなメッシュでは、コマンドライン版と同様に MPI でスクリプトを実行します ::"
+
+#: ../../source/tutorial_pages/silicon_python.rst:163
+msgid ""
+"Every ``anphon.run`` call is then collective: all ranks must call it with"
+" the same arguments. ``anphon.Phonon`` is serial only, so put the "
+"``kappa`` run into a script of its own (here ``si_kappa.py``) before "
+"using more than one process. See :ref:`anphon_python_mpi` for details."
+msgstr ""
+"このとき ``anphon.run`` "
+"の呼び出しはすべて集団操作になり、全ランクが同じ引数で呼び出す必要があります。``anphon.Phonon`` は逐次実行専用なので、2 "
+"つ以上のプロセスを使う場合は ``kappa`` の計算を別のスクリプト (ここでは ``si_kappa.py``) に分けてください。詳しくは"
+" :ref:`anphon_python_mpi` を参照してください。"
+
+#~ msgid ""
+#~ "An XML force-constant file does "
+#~ "not contain the primitive cell, so "
+#~ "``cell`` (and ``kd`` and ``MASS``) are"
+#~ " given here. An HDF5 file written "
+#~ "by ALM 2.0 carries the cell and"
+#~ " the species, and ``anphon.Phonon(\"si222.h5\")``"
+#~ " is enough (the masses then come "
+#~ "from the element table unless ``MASS``"
+#~ " is given in ``general``). ``Phonon`` "
+#~ "is quiet by default; pass "
+#~ "``general=dict(VERBOSITY=1)`` to see the "
+#~ "anphon log. Ask for all :math:`q` "
+#~ "points in one call, because each "
+#~ "call runs anphon once."
+#~ msgstr ""
+#~ "XML 形式の力定数ファイルには基本単位胞が含まれないため、ここでは ``cell`` (と "
+#~ "``kd``、``MASS``) を与えています。ALM 2.0 が書き出す HDF5"
+#~ " ファイルには単位胞と元素の情報が含まれるので、``anphon.Phonon(\"si222.h5\")`` "
+#~ "だけで十分です (このとき質量は、``general`` で ``MASS`` "
+#~ "を与えない限り元素の表から取られます)。``Phonon`` はデフォルトではログを表示しません。anphon "
+#~ "のログを見るには ``general=dict(VERBOSITY=1)`` を渡してください。呼び出しのたびに"
+#~ " anphon が 1 回実行されるので、すべての :math:`q` "
+#~ "点は 1 回の呼び出しでまとめて求めてください。"
+
+#~ msgid ""
+#~ "The force-constant file (HDF5 or "
+#~ "XML) carries the species, so ``kd`` "
+#~ "is optional (the masses then come "
+#~ "from the element table unless "
+#~ ":anphon:`MASS` is given in ``general``). "
+#~ "The HDF5 file written by ALM 2.0"
+#~ " also carries the primitive cell "
+#~ "defined by :alm:`PRIMCELL` in the "
+#~ "**alm** input, so ``cell`` can be "
+#~ "omitted as well (pass ``cell=dict(a=..., "
+#~ "lattice=...)`` for a file fitted without"
+#~ " :alm:`PRIMCELL`). An XML force-constant"
+#~ " file does not contain the primitive"
+#~ " cell, so ``cell`` is always needed"
+#~ " for it. ``Phonon`` is quiet by "
+#~ "default; pass ``general=dict(VERBOSITY=1)`` to "
+#~ "see the anphon log. Ask for all"
+#~ " :math:`q` points in one call, "
+#~ "because each call runs anphon once."
+#~ msgstr ""
+

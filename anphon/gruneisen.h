@@ -10,98 +10,105 @@
 
 #pragma once
 
-#include "pointers.h"
-#include <string>
 #include <complex>
+#include <string>
 #include <vector>
+#include "dynamical.h"
 #include "fcs_phonon.h"
+#include "kpoint.h"
+#include "ndarray.h"
+#include "phonon.h"
 
-namespace PHON_NS {
-class FcsAlignedForGruneisen {
+namespace PHON_NS
+{
+
+class Gruneisen
+{
 public:
-    std::vector<AtomCellSuper> pairs;
-    double fcs_val;
-
-    FcsAlignedForGruneisen() {};
-
-    FcsAlignedForGruneisen(const double fcs_in,
-                           const std::vector<AtomCellSuper> &pairs_in)
-            : pairs(pairs_in), fcs_val(fcs_in) {};
-
-    bool operator<(const FcsAlignedForGruneisen &obj) const
-    {
-        std::vector<unsigned int> array_a, array_b;
-        array_a.clear();
-        array_b.clear();
-        int len = pairs.size();
-        for (int i = 0; i < len - 1; ++i) {
-            array_a.push_back(pairs[i].index);
-            array_a.push_back(pairs[i].tran);
-            array_b.push_back(obj.pairs[i].index);
-            array_b.push_back(obj.pairs[i].tran);
-        }
-        for (int i = 0; i < len - 1; ++i) {
-            array_a.push_back(pairs[i].cell_s);
-            array_b.push_back(obj.pairs[i].cell_s);
-        }
-
-        array_a.push_back(pairs[len - 1].index);
-        array_a.push_back(pairs[len - 1].tran);
-        array_b.push_back(obj.pairs[len - 1].index);
-        array_b.push_back(obj.pairs[len - 1].tran);
-        return std::lexicographical_compare(array_a.begin(), array_a.end(),
-                                            array_b.begin(), array_b.end());
-    }
-};
-
-bool less_FcsAlignedForGruneisen2(const FcsAlignedForGruneisen &obj1, const FcsAlignedForGruneisen &obj2);
-
-class Gruneisen : protected Pointers {
-public:
-    Gruneisen(class PHON *);
+    Gruneisen(const RunInfo &run, const System *system);
 
     ~Gruneisen();
 
     double delta_a;
-    bool print_gruneisen;
+    // 0: none, 1: isotropic, 2: diagonal (xx, yy, zz) generalized,
+    // 3: all 6 Voigt (xx, yy, zz, yz, xz, xy) generalized parameters
+    int gruneisen_mode;
     bool print_newfcs;
 
-    void setup();
+    // Optional &strain field (MODE = phonons): when given, NEWFCS applies this
+    // anisotropic strain tensor instead of the default isotropic strain
+    // (+- delta_a, kept as an undocumented legacy tag).
+    bool strain_newfcs_given;
+    Eigen::Matrix3d strain_newfcs;
 
-    std::complex<double> **gruneisen_bs;
-    std::complex<double> **gruneisen_dos;
+    // SUBLATTICE_RELAX = 0: clamped ion (affine strain leg only);
+    // 1: relaxed ion (the strain derivatives additionally contract the IFC
+    // tail with the strain-induced sublattice displacement X = -K^+ Lambda).
+    // Applies to the Gruneisen parameters and to NEWFCS.
+    int sublattice_relax;
 
-    void calc_gruneisen();
+    void setup(int quartic_mode, const NDArray<std::vector<FcsArrayWithCell>, 1> &ifcs);
 
-    void write_new_fcsxml_all();
+    NDArray<std::complex<double>, 2> gruneisen_bs;
+    NDArray<std::complex<double>, 2> gruneisen_dos;
+    NDArray<std::complex<double>, 2> gruneisen_general; // KPMODE = 0 list
+
+    // Generalized Gruneisen parameters gamma_{mu nu}(k, s) for gruneisen_mode >= 2,
+    // shaped [nk, ns, ncomp] with ncomp = 3 (mode 2) or 6 (mode 3, Voigt order).
+    NDArray<std::complex<double>, 3> gruneisen_tensor_bs;
+    NDArray<std::complex<double>, 3> gruneisen_tensor_dos;
+    NDArray<std::complex<double>, 3> gruneisen_tensor_general;
+
+    int number_of_strain_components() const
+    {
+        return gruneisen_mode == 2 ? 3 : (gruneisen_mode == 3 ? 6 : 0);
+    }
+
+    // All arguments are optional (null in runs that do not build the
+    // corresponding k-point set / eigenvalue container).
+    void calc_gruneisen(const KpointBandStructure *kpoint_bs, const DymatEigenValue *dymat_band,
+                        const KpointMeshUniform *kmesh_dos, const DymatEigenValue *dymat_dos,
+                        const KpointGeneral *kpoint_general, const DymatEigenValue *dymat_general);
+
+    void write_new_fcsxml_all(const Writes &writes, bool update_fc2, bool has_fc3_file) const;
 
 private:
     void set_default_variables();
 
     void deallocate_variables();
 
-    double **xshift_s;
-    std::vector<FcsArrayWithCell> delta_fc2, delta_fc3;
+    std::vector<FcsArrayWithCell> delta_fc2;
 
-    void prepare_delta_fcs(const std::vector<FcsArrayWithCell> &,
-                           std::vector<FcsArrayWithCell> &,
-                           const int) const;
+    // Strain-derivative IFCs used by NEWFCS (along the isotropic direction, or
+    // along strain_newfcs when the &strain field is given)
+    std::vector<FcsArrayWithCell> delta_fc2_newfcs, delta_fc3_newfcs;
+
+    // Strain-derivative IFCs per component (3 or 6 lists, see gruneisen_mode)
+    std::vector<std::vector<FcsArrayWithCell>> delta_fc2_strain;
+
+    // Sublattice displacement response X(3*kappa+lambda, mu*3+nu) in bohr per
+    // unit strain (SUBLATTICE_RELAX = 1 only)
+    Eigen::MatrixXd sublattice_response;
+
+    Eigen::VectorXd build_sublattice_field(const Eigen::Matrix3d &strain_dir) const;
+
+    void prepare_delta_fcs(const std::vector<FcsArrayWithCell> &fcs_in, std::vector<FcsArrayWithCell> &delta_fcs,
+                           const Eigen::Matrix3d &strain_dir) const;
+
+    void prepare_delta_fcs_strain(const std::vector<FcsArrayWithCell> &fcs_in,
+                                  std::vector<std::vector<FcsArrayWithCell>> &delta_fcs_strain) const;
+
+    void calc_gruneisen_at_kpoints(unsigned int nk, const NDArray<double, 2> &xk, const double *const *eval,
+                                   const std::complex<double> *const *const *evec,
+                                   NDArray<std::complex<double>, 2> &gamma_iso,
+                                   NDArray<std::complex<double>, 3> &gamma_tensor) const;
 
     // void impose_ASR_on_harmonic_IFC(std::vector<FcsArrayWithCell> &,
     //                    int);
 
-    void calc_dfc2_reciprocal(std::complex<double> **,
-                              const double *);
-
-    void write_new_fcsxml(const std::string &,
-                          double);
-
-    std::string double2string(double) const;
-
-    //  double calc_stress_energy2(const std::vector<FcsArrayWithCell>);
-    void calc_stress_energy3(std::vector<FcsArrayWithCell>,
-                             double ****);
-
-    void print_stress_energy();
+private:
+    // Collaborators (non-owning; owned by PHON, which outlives this object).
+    const RunInfo &run;
+    const System *system;
 };
-}
+} // namespace PHON_NS

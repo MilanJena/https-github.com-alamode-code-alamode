@@ -10,21 +10,24 @@
 
 #pragma once
 
-#include <string>
-#include <iostream>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/optional.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <iostream>
+#include <string>
 
-inline std::string get_value_from_xml(const boost::property_tree::ptree &pt_in, std::string str, const int exit_when_error = 1) 
+#include "fatal_error.h"
+
+inline auto get_value_from_xml(const boost::property_tree::ptree &pt_in, std::string str,
+                               const int exit_when_error = 1) -> std::string
 {
     if (boost::optional<std::string> str_entry = pt_in.get_optional<std::string>(str)) {
         return str_entry.get();
     } else {
         if (exit_when_error) {
-            std::cout << " Error in get_value_from_xml" << std::endl;
-            std::cout << " The following entry could not be found in the XML file : " 
-                << str << std::endl;
-            exit(EXIT_FAILURE);
+            alamode::fatal(" Error in get_value_from_xml\n",
+                           " The following entry could not be found in the XML file : ",
+                           str,
+                           '\n');
         } else {
             return "";
         }

@@ -10,53 +10,24 @@
 
 #pragma once
 
-#include "pointers.h"
+#include <array>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
+#include "mathfunctions.h"
+#include "ndarray.h"
+#include "phonon.h"
 
-namespace PHON_NS {
-struct Triplet {
-    unsigned int atom, cell, xyz;
-};
+namespace HighFive
+{
+class File;
+}
 
-class FcsClass {
-public:
-    std::vector<Triplet> elems;
-    double fcs_val;
+namespace PHON_NS
+{
 
-    FcsClass() {};
-
-    FcsClass(const FcsClass &obj) : elems(obj.elems), fcs_val(obj.fcs_val) {};
-
-    FcsClass(const unsigned int n,
-             const double val,
-             const Triplet *arr)
-    {
-        fcs_val = val;
-        for (unsigned int i = 0; i < n; ++i) {
-            elems.push_back(arr[i]);
-        }
-    }
-
-    FcsClass(const double val,
-             const std::vector<Triplet> &vec)
-            : elems(vec), fcs_val(val) {};
-
-    bool operator<(const FcsClass &obj) const
-    {
-        std::vector<int> a_tmp, b_tmp;
-        a_tmp.clear();
-        b_tmp.clear();
-        for (int i = 0; i < obj.elems.size(); ++i) {
-            a_tmp.push_back(3 * elems[i].atom + elems[i].xyz);
-            b_tmp.push_back(3 * obj.elems[i].atom + obj.elems[i].xyz);
-        }
-        return lexicographical_compare(a_tmp.begin(), a_tmp.end(), b_tmp.begin(), b_tmp.end());
-    }
-};
-
-class FcsClassExtent {
+class FcsClassExtent
+{
 public:
     unsigned int atm1, atm2;
     unsigned int xyz1, xyz2;
@@ -77,95 +48,316 @@ public:
 
     bool operator==(const FcsClassExtent &a) const
     {
-        return (this->atm1 == a.atm1) & (this->atm2 == a.atm2)
-               & (this->xyz1 == a.xyz1) & (this->xyz2 == a.xyz2)
-               & (this->cell_s == a.cell_s);
+        return (this->atm1 == a.atm1) && (this->atm2 == a.atm2) && (this->xyz1 == a.xyz1) && (this->xyz2 == a.xyz2) &&
+               (this->cell_s == a.cell_s);
     }
 };
 
-struct AtomCellSuper {
-    unsigned int index;
+struct AtomCellSuper
+{
+    unsigned int index; // flattened array
     unsigned int tran;
     unsigned int cell_s;
-};
+} __attribute__((aligned(16)));
 
-inline bool operator<(const AtomCellSuper &a,
-                      const AtomCellSuper &b)
+inline bool operator<(const AtomCellSuper &a, const AtomCellSuper &b)
 {
     return a.index < b.index;
 }
 
-class FcsArrayWithCell {
+class FcsArrayWithCell
+{
 public:
     std::vector<AtomCellSuper> pairs;
+    //std::vector<unsigned int> atoms_p; // atom index in the primitive cell (not used?)
+    std::vector<unsigned int> atoms_s; // atom index in the supercell
+    std::vector<unsigned int> coords;  // xyz components
     double fcs_val;
+    std::vector<Eigen::Vector3d> relvecs;          // For computing phase factor in exp
+    std::vector<Eigen::Vector3d> relvecs_velocity; // For computing group velocity matrix
 
     FcsArrayWithCell() {};
 
-    FcsArrayWithCell(const double fcs_in,
-                     const std::vector<AtomCellSuper> &pairs_in)
-            : pairs(pairs_in), fcs_val(fcs_in) {};
+    FcsArrayWithCell(const double fcs_in, const std::vector<AtomCellSuper> &pairs_in,
+                     const std::vector<unsigned int> &atoms_s_in) :
+        pairs(pairs_in), atoms_s(atoms_s_in), fcs_val(fcs_in)
+    {
+        coords.clear();
+        for (const auto &it: pairs_in) {
+            coords.push_back(it.index % 3);
+        }
+    };
+
+    FcsArrayWithCell(const double fcs_in, const std::vector<AtomCellSuper> &pairs_in,
+                     const std::vector<unsigned int> &atoms_s_in, const std::vector<Eigen::Vector3d> &relvecs_vel_in) :
+        pairs(pairs_in), atoms_s(atoms_s_in), fcs_val(fcs_in), relvecs_velocity(relvecs_vel_in)
+    {
+        coords.clear();
+        for (const auto &it: pairs_in) {
+            coords.push_back(it.index % 3);
+        }
+    };
+
+    FcsArrayWithCell(const double fcs_in, const std::vector<AtomCellSuper> &pairs_in,
+                     const std::vector<unsigned int> &atoms_s_in, const std::vector<Eigen::Vector3d> &relvecs_in,
+                     const std::vector<Eigen::Vector3d> &relvecs_vel_in) :
+        pairs(pairs_in), atoms_s(atoms_s_in), fcs_val(fcs_in), relvecs(relvecs_in), relvecs_velocity(relvecs_vel_in)
+    {
+        coords.clear();
+        for (const auto &it: pairs_in) {
+            coords.push_back(it.index % 3);
+        }
+    };
 
     bool operator<(const FcsArrayWithCell &obj) const
     {
-        std::vector<unsigned int> index_a, index_b;
-        index_a.clear();
-        index_b.clear();
-        for (int i = 0; i < pairs.size(); ++i) {
-            index_a.push_back(pairs[i].index);
-            index_b.push_back(obj.pairs[i].index);
+        const auto n = pairs.size();
+        for (int i = 0; i < n; ++i) {
+            if (pairs[i].index != obj.pairs[i].index) {
+                return pairs[i].index < obj.pairs[i].index;
+            }
         }
-        for (int i = 0; i < pairs.size(); ++i) {
-            index_a.push_back(pairs[i].tran);
-            index_a.push_back(pairs[i].cell_s);
-            index_b.push_back(obj.pairs[i].tran);
-            index_b.push_back(obj.pairs[i].cell_s);
+        for (int i = 0; i < n; ++i) {
+            if (pairs[i].tran != obj.pairs[i].tran) {
+                return pairs[i].tran < obj.pairs[i].tran;
+            }
         }
-        return lexicographical_compare(index_a.begin(), index_a.end(), index_b.begin(), index_b.end());
+        for (int i = 0; i < n; ++i) {
+            if (pairs[i].cell_s != obj.pairs[i].cell_s) {
+                return pairs[i].cell_s < obj.pairs[i].cell_s;
+            }
+        }
+        return false;
+    }
+
+    static bool sort_with_index(const FcsArrayWithCell &a, const FcsArrayWithCell &b)
+    {
+        const auto n = a.pairs.size();
+        std::vector<size_t> index_a(n), index_b(n);
+        for (auto i = 0; i < n; ++i) {
+            if (a.pairs[i].index != b.pairs[i].index) {
+                return a.pairs[i].index < b.pairs[i].index;
+            }
+        }
+        return false;
     }
 };
 
-class Fcs_phonon : protected Pointers {
+
+struct sort_by_heading_indices
+{
+    unsigned int number_of_tails; // number of indices at the tail of the array
+    // It should be 1 when renormalizing 2nd-order force constants by 3rd-order force constants,
+    // and should be 2 when renormalizing 2nd-order force constants by 4th-order force constants.
+
+    sort_by_heading_indices(const unsigned int n) : number_of_tails(n)
+    {}
+
+    inline bool operator()(const FcsArrayWithCell &a, const FcsArrayWithCell &b) const
+    {
+        std::vector<int> array_a, array_b;
+        array_a.clear();
+        array_b.clear();
+        const auto len = a.pairs.size();
+
+        for (auto i = 0; i < len - number_of_tails; ++i) {
+            array_a.push_back(a.pairs[i].index);
+            array_b.push_back(b.pairs[i].index);
+        }
+        // The components of relvec should be integers,
+        // so let's convert their types into int for sort.
+        for (auto i = 0; i < len - number_of_tails - 1; ++i) {
+            for (auto j = 0; j < 3; ++j) {
+                array_a.push_back(nint(a.relvecs[i][j]));
+                array_b.push_back(nint(b.relvecs[i][j]));
+            }
+        }
+        // Register the last index
+        for (auto i = len - number_of_tails; i < len; ++i) {
+            array_a.push_back(a.pairs[i].index);
+            array_b.push_back(b.pairs[i].index);
+        }
+        for (auto i = len - number_of_tails - 1; i < len - 1; ++i) {
+            for (auto j = 0; j < 3; ++j) {
+                array_a.push_back(nint(a.relvecs[i][j]));
+                array_b.push_back(nint(b.relvecs[i][j]));
+            }
+        }
+
+        return std::lexicographical_compare(array_a.begin(), array_a.end(), array_b.begin(), array_b.end());
+    }
+};
+
+class Fcs_phonon
+{
 public:
-    Fcs_phonon(class PHON *);
+    // Read a force-constant layout stored below group_prefix ("" = file root)
+    // of an already opened HDF5 file, e.g. the strained-supercell entries
+    // embedded in a strain-coupling container.
+    void parse_fcs_from_h5(const HighFive::File &file, const std::string &group_prefix, const int order,
+                           std::vector<FcsArrayWithCell> &fcs_out, const int temperature_index = -1) const;
+
+    Fcs_phonon(const RunInfo &run, const System *system);
 
     ~Fcs_phonon();
 
-    void setup(std::string);
+    // The flags decide which IFC orders are loaded; they must be identical on all ranks.
+    // cubic_for_phonons: MODE = phonons needs FC3 (GRUNEISEN > 0 or FE_BUBBLE).
+    void setup(const std::string &mode, int quartic_mode, bool cubic_for_phonons, bool print_newfcs);
 
     unsigned int maxorder;
-    std::string file_fcs, file_fc2;
+    std::string file_fcs, file_fc2, file_fc3, file_fc4;
 
-    std::vector<FcsArrayWithCell> *force_constant_with_cell;
-    std::vector<FcsClassExtent> fc2_ext;
+    NDArray<std::vector<FcsArrayWithCell>, 1> force_constant_with_cell;
 
     bool update_fc2;
 
-    void load_fc2_xml(std::vector<FcsClassExtent> &,
-                      int,
-                      std::string);
+    // FC2_TEMPERATURE tag: when >= 0 and the FC2 HDF5 file carries
+    // temperature-dependent force constants (an SCPH/QHA state file), the
+    // row matching this temperature is loaded instead of the base values.
+    double fc2_temperature = -1.0;
+
+    // DFC2FILE tag: SCPH/QHA state file whose anharmonic FC2 correction
+    // (total minus base, at FC2_TEMPERATURE) is added onto the harmonic FC2
+    // given by FCSFILE/FC2FILE. This supports the legacy dfc2.py workflow
+    // of combining a large-supercell harmonic FC2 with a smaller-cell
+    // (shorter-ranged) anharmonic correction.
+    std::string file_dfc2;
+
+    // RELAXED_STRUCTURE: run on the structure an earlier SCPH/QHA run
+    // relaxed at fc2_temperature. The deformation is read from the
+    // /structure group of file_dfc2 (else file_fc2) and applied in
+    // PHON::setup_base, so symmetry, volume, reciprocal lattice and group
+    // velocities all describe the relaxed crystal.
+    int relaxed_structure = 0;
+
+    // STRAIN_FC5 (&relax): the quintic IFCs, read on rank 0 only from the HDF5 file of
+    // the quartic ones (/ForceConstants/Order5) and replicated with the FC4 supercell.
+    // Kept apart from force_constant_with_cell so that the loops over maxorder see
+    // nothing new. Empty on the other ranks and when load_fc5 is false.
+    // RELAXED_STRUCTURE = 1 on a STRAIN_FC5 = 1 state sets load_fc5 from the state file
+    // (PHON::setup_base); then every rank reads them, and only when the cubic IFCs are
+    // used, since PHON::apply_relaxed_structure deforms FC3 and FC4 with them on every
+    // rank and releases them afterwards.
+    bool load_fc5 = false;
+    // STRAIN_FC5 not given in a SCPH run with RELAX_STR = 2 or 4 and no BUBBLE/BUBBLE_HESS: note it when the
+    // IFC file has nonzero FC5.
+    bool hint_fc5 = false;
+    // STRAIN_FC5 / STRAIN_FC5_CHANNELS = DIAG as given explicitly in &relax of a
+    // RELAXED_STRUCTURE = 1 run (-1: not given); they must match the state file.
+    int strain_fc5_input = -1;
+    int strain_fc5_diag_input = -1;
+    std::vector<FcsArrayWithCell> fc5;
+    // Fingerprint of fc5 as read, stored in the state file: entries, sum |Phi5|, sum Phi5,
+    // and two sums of Phi5 weighted by pseudo-random numbers in [-1, 1) hashed from the
+    // indices of each entry (sensitive to signs and to which entry carries which value).
+    std::array<double, 5> fc5_fingerprint{};
+
+    // Fingerprint of the IFCs this run loaded, one entry per order, taken
+    // after the MPI broadcast but before replication and sorting. An
+    // SCPH/QHA run with RELAX_STR != 0 stores it; a later run that adopts
+    // the relaxed structure compares against it, because the deformation it
+    // applies was determined by those IFCs -- above all by FC4, which fixes
+    // both the optimization that produced u0/u_tensor and the Phi4 : d
+    // correction a consumer builds from it. A different FC4 pairs a
+    // deformed FC3 with a structure it does not belong to, and nothing
+    // downstream would notice.
+    //
+    // Three sums rather than one: |v| alone is blind to a sign flip, and
+    // signed alone is blind to cancelling changes. All three are symmetric
+    // functions of the value multiset, so they cannot see a permutation of
+    // values between rows -- an index-aware digest could, but would also
+    // fire spuriously when the same model is read from XML instead of HDF5,
+    // whose row identifiers need not agree. Refitting or recutting a model
+    // moves these sums; relabelling its rows does not.
+    //
+    // Cross-run comparability holds per order only when both runs built that
+    // order the same way: DFC2FILE appends its correction inside
+    // load_fcs_from_file, so order 0 legitimately differs between a run that
+    // used it and one that did not.
+    std::vector<std::size_t> fcs_nrows;
+    std::vector<double> fcs_sum_abs;    // sum of |fcs_val| per order
+    std::vector<double> fcs_sum_signed; // sum of fcs_val per order
+    std::vector<double> fcs_sum_sq;     // sum of fcs_val^2 per order
+
+    void get_fcs_from_file(const std::string &fname_fcs, const int order, std::vector<FcsArrayWithCell> &fcs_out) const;
+    std::string describe_fc2_source(const std::string &fname) const;
+
+    // strained_cell: the IFCs belong to a strained copy of the supercell, whose
+    // relative vectors are lattice vectors of the reference cell only up to
+    // the strain, so they are rounded without checking the residual.
+    // map_order: the order (0: FC2, 1: FC3, 2: FC4) whose supercell and mapping tables
+    // describe the IFCs; -1 takes the order of the IFCs themselves.
+    static void replicate_force_constant(const System *system_in, std::vector<FcsArrayWithCell> &fcs_inout,
+                                         bool strained_cell = false, int map_order = -1);
+
+    // Carry the loaded IFCs onto the deformed crystal, for every order.
+    //
+    // relvecs needs nothing: replicate_force_constant strips the atomic
+    // basis positions out of it, leaving the pure lattice translation whose
+    // fractional components are the integer triplet (n1, n2, n3), and
+    // deforming the lattice relabels nothing. relvecs_velocity keeps those
+    // basis positions, and in the fractional basis the affine part cancels
+    //   lavec_def^-1 [(I + u) r + du0] = relvecs_velocity + lavec_def^-1 du0
+    // so only the sublattice displacement difference of the two legs is
+    // left to add. Call after System::apply_deformation, whose deformed
+    // lattice this uses.
+    void deform_relative_vectors(const std::vector<double> &u0);
 
 private:
     bool require_cubic;
     bool require_quartic;
+    std::string needed_by[3]; // why each order is loaded, for the missing-order error
 
     void set_default_variables();
 
     void deallocate_variables();
 
-    void load_fcs_xml() const;
+    void load_fcs_xml(const std::string &fname_fcs, const int order, std::vector<FcsArrayWithCell> &fcs_out) const;
 
-    void examine_translational_invariance(int,
-                                          unsigned int,
-                                          unsigned int,
-                                          double *,
-                                          std::vector<FcsClassExtent> &,
-                                          std::vector<FcsArrayWithCell> *) const;
+    void parse_fcs_from_h5(const std::string &fname_fcs, const int order, std::vector<FcsArrayWithCell> &fcs_out) const;
 
-    void MPI_Bcast_fc_class(unsigned int) const;
+    // DFC2FILE: the anharmonic FC2 correction of an SCPH/QHA state file.
+    // read_* (rank 0, during loading) keeps one row per present-cell atom pair
+    // and relative vector; append_* (every rank, after replication) turns them
+    // into replicated FC2 entries.
+    struct DeltaFc2Row
+    {
+        int iat, coord1, jat, coord2;
+        Eigen::Vector3d relvec; // Cartesian, bohr
+        double value;
+    };
+    std::vector<DeltaFc2Row> dfc2_rows;
 
-    void MPI_Bcast_fcs_array(unsigned int) const;
+public:
+    // Entries of force_constant_with_cell[0] before the DFC2FILE rows were appended:
+    // Ewald::init takes the dipole part out of these only.
+    std::size_t nfc2_without_dfc2 = static_cast<std::size_t>(-1);
+    // NONANALYTIC of this run: FC2 of a state file must come from a compatible one
+    int nonanalytic = 0;
 
-    void MPI_Bcast_fc2_ext();
+private:
+    void read_delta_fc2_from_scph(const std::string &fname_dfc2);
+
+    void append_delta_fc2_rows(std::vector<FcsArrayWithCell> &fc2_inout);
+
+    void load_fcs_from_file(const int maxorder_in);
+
+
+    static double examine_translational_invariance(int order, unsigned int nat, unsigned int natmin,
+                                                   const std::vector<FcsArrayWithCell> &fc_in);
+
+    void replicate_force_constants(const int maxorder_in);
+
+    void MPI_Bcast_fcs_array(unsigned int);
+
+    // Rank 0: read, check and replicate fc5 (load_fc5).
+    void load_fc5_from_file();
+    void hint_unused_fc5() const;
+
+private:
+    // Collaborators (non-owning; owned by PHON, which outlives this object).
+    const RunInfo &run;
+    const System *system;
 };
-}
+} // namespace PHON_NS

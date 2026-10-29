@@ -1,0 +1,20 @@
+&general
+ PREFIX = bto_off_2; MODE = kappa; FCSFILE = cBTO222.h5; KD = Ba Ti O
+ TMIN = 300; TMAX = 300; DT = 100
+ ISMEAR = 0; EPSILON = 5.0
+/
+&cell
+  7.53159676409
+  1.0 0.0 0.0
+  0.0 1.0 0.0
+  0.0 0.0 1.0
+/
+&kpoint
+  2
+  2 2 2
+/
+&analysis
+ KS_INPUT = KS_INPUT_off
+ QUARTIC = 1
+ PRINTV3 = 2; PRINTV4 = 2
+/

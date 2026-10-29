@@ -1,0 +1,285 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-23 18:17+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/almdir/outputalm.rst:2
+msgid "ALM: Output files"
+msgstr "ALM: 出力ファイル"
+
+#: ../../source/almdir/outputalm.rst:5
+msgid "Displacement patterns (``MODE = suggest``)"
+msgstr "変位パターン (``MODE = suggest``)"
+
+#: ../../source/almdir/outputalm.rst:7
+msgid ""
+"``PREFIX``.pattern_HARMONIC, ``PREFIX``.pattern_ANHARM3, "
+"``PREFIX``.pattern_ANHARM4, ..."
+msgstr ""
+"``PREFIX``.pattern_HARMONIC, ``PREFIX``.pattern_ANHARM3, "
+"``PREFIX``.pattern_ANHARM4, ..."
+
+#: ../../source/almdir/outputalm.rst:9
+msgid ""
+"Displacement patterns in Cartesian coordinates, one file per order, in "
+"the YAML format. The length of the displacement is normalized to unity "
+"for each atom. The anharmonic patterns are written only when ``NORDER > "
+"1``. These files are read by ``displace.py --pattern_file``."
+msgstr ""
+"デカルト座標での変位パターンで、次数ごとに 1 つのファイルに YAML 形式で書き出されます。変位の長さは各原子について 1 "
+"に規格化されています。非調和のパターンは ``NORDER > 1`` のときにのみ書き出されます。これらのファイルは ``displace.py"
+" --pattern_file`` で読み込まれます。"
+
+#: ../../source/almdir/outputalm.rst:15
+msgid "Force constants (``MODE = optimize``)"
+msgstr "力定数 (``MODE = optimize``)"
+
+#: ../../source/almdir/outputalm.rst:17
+msgid "``PREFIX``.h5"
+msgstr "``PREFIX``.h5"
+
+#: ../../source/almdir/outputalm.rst:19
+msgid ""
+"The force constants and the crystal structure in the HDF5 format. This is"
+" the standard output: it is always written and is read by *anphon* "
+"through ``FCSFILE``. The layout of the file is described in "
+":ref:`label_hdf5_fcs`."
+msgstr ""
+"HDF5 形式の力定数と結晶構造。これが標準の出力で、常に書き出され、*anphon* が ``FCSFILE`` "
+"を通じて読み込みます。ファイルの構成は :ref:`label_hdf5_fcs` で説明しています。"
+
+#: ../../source/almdir/outputalm.rst:23
+msgid "``PREFIX``.xml, ``PREFIX``.fcs"
+msgstr "``PREFIX``.xml, ``PREFIX``.fcs"
+
+#: ../../source/almdir/outputalm.rst:25
+msgid ""
+"Legacy outputs, written only when ``FCS_ALAMODE = 1``. ``PREFIX``.xml "
+"holds the same information as ``PREFIX``.h5 in the XML format, and "
+"*anphon* can still read it. ``PREFIX``.fcs is a human-readable list of "
+"the force constants in Rydberg atomic units: the symmetry-reduced force "
+"constants first, then all symmetry-related ones with the symmetry "
+"prefactor (:math:`\\pm 1`)."
+msgstr ""
+"``FCS_ALAMODE = 1`` のときにのみ書き出される従来形式の出力です。``PREFIX``.xml は ``PREFIX``.h5 "
+"と同じ情報を XML 形式で保持し、*anphon* は現在もこれを読み込めます。``PREFIX``.fcs "
+"はリュードベリ原子単位で書かれた人が読める形式の力定数の一覧で、まず対称性で既約化された力定数が、次に対称性で関係づけられたすべての力定数が対称性の係数"
+" (:math:`\\pm 1`) とともに並びます。"
+
+#: ../../source/almdir/outputalm.rst:30
+msgid "``PREFIX``.FORCE_CONSTANTS_3RD, ``PREFIX``.FORCE_CONSTANTS_4TH"
+msgstr "``PREFIX``.FORCE_CONSTANTS_3RD, ``PREFIX``.FORCE_CONSTANTS_4TH"
+
+#: ../../source/almdir/outputalm.rst:32
+msgid ""
+"Third- and fourth-order force constants in the format of the ShengBTE and"
+" FourPhonon codes (eV/Å\\ :sup:`n`). Written when ``FC3_SHENGBTE = 1`` "
+"(needs ``NORDER > 1``) and ``FC4_SHENGBTE = 1`` (needs ``NORDER > 2``). "
+"Those codes read the files as ``FORCE_CONSTANTS_3RD`` and "
+"``FORCE_CONSTANTS_4TH``; remove the ``PREFIX.`` part or link them. See "
+"also :ref:`label_fc_conversion`."
+msgstr ""
+"ShengBTE および FourPhonon コードの形式での 3 次と 4 次の力定数 (eV/Å\\ :sup:`n`)。それぞれ "
+"``FC3_SHENGBTE = 1`` (``NORDER > 1`` が必要) と ``FC4_SHENGBTE = 1`` "
+"(``NORDER > 2`` が必要) のときに書き出されます。これらのコードはファイルを ``FORCE_CONSTANTS_3RD`` "
+"および ``FORCE_CONSTANTS_4TH`` として読み込むため、``PREFIX.`` "
+"の部分を取り除くか、リンクを作成してください。:ref:`label_fc_conversion` も参照してください。"
+
+#: ../../source/almdir/outputalm.rst:37
+msgid "``PREFIX``.hessian"
+msgstr "``PREFIX``.hessian"
+
+#: ../../source/almdir/outputalm.rst:39
+msgid "The entire Hessian matrix of the supercell. Written when ``HESSIAN = 1``."
+msgstr "スーパーセル全体のヘッセ行列。``HESSIAN = 1`` のときに書き出されます。"
+
+#: ../../source/almdir/outputalm.rst:41
+msgid "``SYMM_INFO``"
+msgstr "``SYMM_INFO``"
+
+#: ../../source/almdir/outputalm.rst:43
+msgid ""
+"The space-group operations of the primitive cell (rotation matrix and "
+"translation vector in fractional coordinates). Written when ``PRINTSYM = "
+"1``."
+msgstr "基本セルの空間群操作 (分率座標での回転行列と並進ベクトル)。``PRINTSYM = 1`` のときに書き出されます。"
+
+#: ../../source/almdir/outputalm.rst:47
+msgid ""
+"With ``LMODEL = enet`` or ``adaptive-lasso``, the force-constant files "
+"are written only when cross-validation is off (``CV = 0``). A cross-"
+"validation run only selects the regularization parameter."
+msgstr ""
+"``LMODEL = enet`` または ``adaptive-lasso`` の場合、力定数ファイルは交差検証を行わないとき (``CV = "
+"0``) にのみ書き出されます。交差検証の計算では正則化パラメータの選択のみを行います。"
+
+#: ../../source/almdir/outputalm.rst:51
+msgid ""
+"Cross-validation (``MODE = optimize``, ``LMODEL = enet`` or ``adaptive-"
+"lasso``)"
+msgstr "交差検証 (``MODE = optimize``、``LMODEL = enet`` または ``adaptive-lasso``)"
+
+#: ../../source/almdir/outputalm.rst:53
+msgid "``PREFIX``.cvset"
+msgstr "``PREFIX``.cvset"
+
+#: ../../source/almdir/outputalm.rst:55
+msgid ""
+"Training and validation errors of the cross-validation with the given "
+"``DFSET`` (training) and ``DFSET_CV`` (validation) data. Written when "
+"``CV = -1``."
+msgstr ""
+"与えられた ``DFSET`` (訓練) と ``DFSET_CV`` (検証) のデータを用いた交差検証の訓練誤差と検証誤差。``CV = "
+"-1`` のときに書き出されます。"
+
+#: ../../source/almdir/outputalm.rst:58
+msgid "``PREFIX``.cvset1, ..., ``PREFIX``.cvset\\ *N*"
+msgstr "``PREFIX``.cvset1, ..., ``PREFIX``.cvset\\ *N*"
+
+#: ../../source/almdir/outputalm.rst:60
+msgid ""
+"Training and validation errors for each of the *N* = ``CV`` subsets. "
+"Written when ``CV > 1``."
+msgstr "*N* = ``CV`` 個の部分集合それぞれについての訓練誤差と検証誤差。``CV > 1`` のときに書き出されます。"
+
+#: ../../source/almdir/outputalm.rst:62
+msgid "``PREFIX``.cvscore"
+msgstr "``PREFIX``.cvscore"
+
+#: ../../source/almdir/outputalm.rst:64
+msgid ""
+"Mean and standard deviation of the training and validation errors over "
+"the subsets. Written when ``CV > 1``."
+msgstr "部分集合にわたる訓練誤差と検証誤差の平均値と標準偏差。``CV > 1`` のときに書き出されます。"
+
+#: ../../source/almdir/outputalm.rst:66
+msgid ""
+"``PREFIX``.solution_path, or ``PREFIX``.solution_path1, ..., "
+"``PREFIX``.solution_path\\ *N*"
+msgstr ""
+"``PREFIX``.solution_path, or ``PREFIX``.solution_path1, ..., "
+"``PREFIX``.solution_path\\ *N*"
+
+#: ../../source/almdir/outputalm.rst:68
+msgid ""
+"The coefficients along the ``L1_ALPHA`` path (one file for ``CV = -1``, "
+"one per subset for ``CV > 1``). Written when ``SOLUTION_PATH = 1``."
+msgstr ""
+"``L1_ALPHA`` のパスに沿った係数 (``CV = -1`` では 1 ファイル、``CV > 1`` では部分集合ごとに 1 "
+"ファイル)。``SOLUTION_PATH = 1`` のときに書き出されます。"
+
+#~ msgid "``PREFIX``.fcs"
+#~ msgstr "``PREFIX``.fcs"
+
+#~ msgid ""
+#~ "Harmonic and anharmonic force constants "
+#~ "in Rydberg atomic units. In the "
+#~ "first section, only symmetry-reduced "
+#~ "force constants are printed. All "
+#~ "symmetry-related force constants are shown"
+#~ " in the following section with the"
+#~ " symmetry prefactor (:math:`\\pm 1`). "
+#~ "Created when ``MODE = optimize``."
+#~ msgstr ""
+#~ "Rydberg 原子単位での調和 (harmonic) "
+#~ "および非調和力定数。最初のセクションでは、対称性により簡約された力定数 (force constant) "
+#~ "のみが出力されます。すべての対称性に関連する力定数は、続くセクションで対称性の前因子 (:math:`\\pm "
+#~ "1`) とともに示されます。``MODE = optimize`` のときに作成されます。"
+
+#~ msgid ""
+#~ "An XML file containing the necessary "
+#~ "information for performing phonon "
+#~ "calculations. The file can be read "
+#~ "by *anphon* using the ``FCSFILE``-tag. "
+#~ "Created by default when ``MODE = "
+#~ "optimize`` (controlled by ``FCS_ALAMODE``). "
+#~ "When ``LMODEL = enet | adaptive-"
+#~ "lasso``, the file is created only "
+#~ "when the cross-validation mode is "
+#~ "off (``CV = 0``)."
+#~ msgstr ""
+#~ "フォノン (phonon) 計算を実行するために必要な情報を含む XML "
+#~ "ファイル。このファイルは ``FCSFILE`` タグを用いて *anphon* "
+#~ "で読み込むことができます。``MODE = optimize`` のときにデフォルトで作成されます"
+#~ " (``FCS_ALAMODE`` で制御されます)。``LMODEL = enet "
+#~ "| adaptive-lasso`` のときは、交差検証 (cross-"
+#~ "validation) モードがオフ (``CV = 0``) "
+#~ "のときにのみ作成されます。"
+
+#~ msgid ""
+#~ "An HDF5 file containing the same "
+#~ "information as ``PREFIX``.xml in the "
+#~ "HDF5 format. It can also be read"
+#~ " by *anphon* using the ``FCSFILE``-tag. "
+#~ "Created by default when ``MODE = "
+#~ "optimize``. When ``LMODEL = enet | "
+#~ "adaptive-lasso``, the file is created"
+#~ " only when the cross-validation mode"
+#~ " is off (``CV = 0``)."
+#~ msgstr ""
+#~ "``PREFIX``.xml と同じ情報を HDF5 形式で含む HDF5 "
+#~ "ファイル。これも ``FCSFILE`` タグを用いて *anphon* "
+#~ "で読み込むことができます。``MODE = optimize`` "
+#~ "のときにデフォルトで作成されます。``LMODEL = enet | "
+#~ "adaptive-lasso`` のときは、交差検証モードがオフ (``CV = "
+#~ "0``) のときにのみ作成されます。"
+
+#~ msgid "``PREFIX``.FORCE_CONSTANT_3RD"
+#~ msgstr "``PREFIX``.FORCE_CONSTANT_3RD"
+
+#~ msgid ""
+#~ "Third-order force constants in the "
+#~ "FORCE_CONSTANT_3RD format of the ShengBTE "
+#~ "code. Created when ``MODE = optimize``"
+#~ " and ``FC3_SHENGBTE = 1``. When "
+#~ "``LMODEL = enet | adaptive-lasso``, "
+#~ "the file is created only when the"
+#~ " cross-validation mode is off (``CV"
+#~ " = 0``)."
+#~ msgstr ""
+#~ "ShengBTE コードの FORCE_CONSTANT_3RD 形式での 3 "
+#~ "次の力定数。``MODE = optimize`` かつ ``FC3_SHENGBTE"
+#~ " = 1`` のときに作成されます。``LMODEL = enet |"
+#~ " adaptive-lasso`` のときは、交差検証モードがオフ (``CV ="
+#~ " 0``) のときにのみ作成されます。"
+
+#~ msgid "``PREFIX``.fc"
+#~ msgstr "``PREFIX``.fc"
+
+#~ msgid ""
+#~ "Second-order force constants in the "
+#~ "Quantum ESPRESSO ``.fc`` format. Created "
+#~ "when ``MODE = optimize`` and ``FC2_QEFC"
+#~ " = 1``."
+#~ msgstr ""
+#~ "Quantum ESPRESSO の ``.fc`` 形式での 2 "
+#~ "次の力定数。``MODE = optimize`` かつ ``FC2_QEFC "
+#~ "= 1`` のときに作成されます。"
+
+#~ msgid ""
+#~ "These files contain training and "
+#~ "validation errors of cross-validation "
+#~ "performed for ``CV`` subsets. Created "
+#~ "when the automatic cross-validation mode"
+#~ " is selected by setting ``CV > "
+#~ "1``."
+#~ msgstr ""
+#~ "これらのファイルには、``CV`` 個のサブセットについて実行された交差検証の訓練誤差と検証誤差が格納されます。``CV "
+#~ "> 1`` を設定して自動交差検証モードを選択したときに作成されます。"
+

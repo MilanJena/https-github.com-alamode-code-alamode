@@ -1,0 +1,2059 @@
+/*
+ input_parser.cpp
+
+ Copyright (c) 2014, 2015, 2016 Terumasa Tadano
+
+ This file is distributed under the terms of the MIT license.
+ Please see the file 'LICENCE.txt' in the root directory
+ or http://opensource.org/licenses/mit-license.php for information.
+*/
+
+#include "input_parser.h"
+#include <algorithm>
+#include <array>
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+#include <climits>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <istream>
+#include <map>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <sys/stat.h>
+#include <type_traits>
+#include <vector>
+#include "error.h"
+#include "hdf5_parser.h"
+#include "input_setter.h"
+#include "relaxation_types.h"
+
+using namespace PHON_NS;
+
+InputParser::InputParser() : input_setter(std::make_unique<InputSetter>())
+{}
+
+InputParser::~InputParser()
+{
+    if (ifs_input.is_open()) ifs_input.close();
+}
+
+std::string InputParser::get_run_mode() const
+{
+    return run_mode;
+}
+
+void InputParser::run(PHON *phon, const int narg, const char *const *arg)
+{
+    if (narg == 1) {
+
+        from_stdin = true;
+
+    } else {
+
+        from_stdin = false;
+
+        ifs_input.open(arg[1], std::ios::in);
+        if (!ifs_input) {
+            std::cout << "No such file or directory: " << arg[1] << '\n';
+            exit("parse_input", "could not open the file");
+        }
+    }
+
+    parse_input(phon);
+}
+
+void InputParser::parse_input(PHON *phon)
+{
+    if (!locate_tag("&general")) exit("parse_input", "&general entry not found in the input file");
+    parse_general_vars(phon);
+
+    if (locate_tag("&cell")) parse_cell_parameter(phon);
+
+    const auto use_defaults_for_analysis = !locate_tag("&analysis");
+    parse_analysis_vars(phon, use_defaults_for_analysis);
+
+    if (!locate_tag("&kpoint")) exit("parse_input", "&kpoint entry not found in the input file");
+    parse_kpoints(phon);
+
+    if (selfenergy_mode) {
+        if (!locate_tag("&selfenergy")) exit("parse_input", "&selfenergy entry not found in the input file");
+        parse_selfenergy_vars(phon);
+    }
+
+    if (run_mode == "PHONONS") {
+        // Optional strain tensor for NEWFCS = 1: when given, the force constants
+        // of the anisotropically strained system are estimated instead of the
+        // isotropic volume change by DELTA_A.
+        if (locate_tag("&strain")) {
+            double u_tensor_tmp[3][3];
+            parse_strain_tensor(u_tensor_tmp);
+            input_setter->set_strain_newfcs(phon, u_tensor_tmp);
+        }
+    }
+
+    if (run_mode == "KAPPA") {
+        const auto use_defaults_for_kappa = !locate_tag("&kappa");
+        parse_kappa_vars(phon, use_defaults_for_kappa);
+    }
+
+    if (run_mode == "SCPH") {
+        if (!locate_tag("&scph")) exit("parse_input", "&scph entry not found in the input file");
+        parse_scph_vars(phon);
+    }
+    if (run_mode == "QHA") {
+        if (!locate_tag("&qha")) exit("parse_input", "&qha entry not found in the input file");
+        parse_qha_vars(phon);
+    }
+    if ((run_mode == "SCPH" || run_mode == "QHA") && relax_str != 0) {
+        // Adopting a previously relaxed structure while relaxing again is
+        // not defined: the optimizer would still start from the &strain /
+        // &displace input, while the symmetry and the k-point reduction
+        // would describe the imported cell instead.
+        if (relaxed_structure) {
+            exit("parse_input",
+                 "RELAXED_STRUCTURE = 1 cannot be combined with RELAX_STR != 0.\n"
+                 " Adopt a relaxed structure in a run that does not relax again.");
+        }
+        if (!locate_tag("&relax")) exit("parse_input", "&relax entry not found in the input file");
+        parse_relax_vars(phon);
+
+        check_relax_vars();
+
+        if (relax_str != 1) {
+            if (!locate_tag("&strain")) exit("parse_input", "&strain entry not found in the input file");
+            parse_initial_strain(phon);
+        }
+        // &displace is optional: without it the relaxation starts from the undistorted positions.
+        if (locate_tag("&displace")) parse_initial_displace(phon);
+    } else if (locate_tag("&relax")) {
+        // &relax is not parsed here; STRAIN_FC5 = 1 would be silently ignored. Under
+        // RELAXED_STRUCTURE = 1 the setting comes from the state file, and an explicit
+        // STRAIN_FC5 (STRAIN_FC5_CHANNELS) is only checked against it.
+        int fc5 = -1, fc5_diag = -1;
+        for (const auto &line: read_block_lines()) {
+            std::vector<std::string> entries, keyval;
+            boost::split(entries, line, boost::is_any_of(";"));
+            for (const auto &entry: entries) {
+                boost::split(keyval, entry, boost::is_any_of("="));
+                if (keyval.size() != 2) continue;
+                const auto key = boost::to_upper_copy(boost::trim_copy(keyval[0]));
+                const auto val = boost::to_upper_copy(boost::trim_copy(keyval[1]));
+                if (key == "STRAIN_FC5") {
+                    if (val != "0" && val != "1") exit("parse_input", "STRAIN_FC5 must be 0 or 1.");
+                    fc5 = val == "1";
+                } else if (key == "STRAIN_FC5_CHANNELS") {
+                    if (val != "ALL" && val != "DIAG") {
+                        exit("parse_input", "STRAIN_FC5_CHANNELS must be ALL or DIAG.");
+                    }
+                    fc5_diag = val == "DIAG";
+                }
+            }
+        }
+        if (relaxed_structure) {
+            input_setter->set_strain_fc5_request(phon, fc5, fc5_diag);
+        } else if (fc5 == 1) {
+            exit("parse_input", "STRAIN_FC5 = 1 needs MODE = SCPH with RELAX_STR = 2 or 4.");
+        }
+    }
+}
+
+void InputParser::parse_general_vars(PHON *phon)
+{
+    // Read input parameters in the &general-field.
+
+    int i;
+    struct stat st
+    {};
+    const std::vector<std::string> input_list{"PREFIX",
+                                              "MODE",
+                                              "TOLERANCE",
+                                              "PRINTSYM",
+                                              "TMIN",
+                                              "TMAX",
+                                              "DT",
+                                              "NBANDS",
+                                              "NONANALYTIC",
+                                              "BORNINFO",
+                                              "NA_SIGMA",
+                                              "ISMEAR",
+                                              "EPSILON",
+                                              "EMIN",
+                                              "EMAX",
+                                              "DELTA_E",
+                                              "RESTART",
+                                              "TREVSYM",
+                                              "KD",
+                                              "MASS",
+                                              "TRISYM",
+                                              "PREC_EWALD",
+                                              "CLASSICAL",
+                                              "BCONNECT",
+                                              "BORNSYM",
+                                              "VERBOSITY",
+                                              "FC2FILE",
+                                              "FC3FILE",
+                                              "FC4FILE",
+                                              "FCSFILE",
+                                              "RESTART_4PH",
+                                              "FILE_FORMAT",
+                                              "FC2_TEMPERATURE",
+                                              "ALLOW_UNCONVERGED",
+                                              "DFC2FILE",
+                                              "RELAXED_STRUCTURE"};
+
+    std::vector<std::string> no_defaults{"PREFIX", "MODE"};
+    std::vector<std::string> kdname_v, masskd_v;
+    std::map<std::string, std::string> general_var_dict;
+
+    if (from_stdin) {
+        std::cin.ignore();
+    } else {
+        ifs_input.ignore();
+    }
+
+    get_var_dict(input_list, general_var_dict);
+
+    for (auto &no_default: no_defaults) {
+        if (general_var_dict.find(no_default) == general_var_dict.end()) {
+            exit("parse_general_vars",
+                 "The following variable is not found in &general input region: ",
+                 no_default.c_str());
+        }
+    }
+
+    GeneralInputVars general_vars;
+
+    general_vars.prefix = general_var_dict["PREFIX"];
+    auto mode = general_var_dict["MODE"];
+
+    // FILE_FORMAT decides the restart-file format (h5 is the default;
+    // "text" forces the legacy .result files for one transition release).
+    // It must be resolved before the restart auto-detection below.
+    std::string file_format = "h5";
+    assign_val(file_format, "FILE_FORMAT", general_var_dict);
+    std::transform(file_format.begin(), file_format.end(), file_format.begin(), tolower);
+    if (file_format != "h5" && file_format != "text") {
+        exit("parse_general_vars", "FILE_FORMAT must be either h5 or text.");
+    }
+    general_vars.use_hdf5_io = file_format == "h5";
+
+    std::transform(mode.begin(), mode.end(), mode.begin(), toupper);
+
+    // MODE = kappa is the current name of the thermal-conductivity mode;
+    // the solver (RTA, IBTE, ...) is chosen by the SOLVER tag in &kappa.
+    if (mode == "RTA") {
+        warn("parse_general_vars",
+             "MODE = RTA is deprecated; please use MODE = kappa and, if needed,\n"
+             " choose the solver with the SOLVER tag in the &kappa field.");
+        mode = "KAPPA";
+    }
+    // Self-energy analysis shares the KAPPA setup and driver.
+    if (mode == "SELFENERGY") {
+        mode = "KAPPA";
+        selfenergy_mode = true;
+    }
+    if (mode != "PHONONS" && mode != "KAPPA" && mode != "SCPH" && mode != "QHA") {
+        exit("parse_general_vars", "Invalid MODE. Choose from phonons, kappa, selfenergy, scph, or qha.");
+    }
+    general_vars.mode = mode;
+    general_vars.selfenergy_mode = selfenergy_mode;
+
+    general_vars.fcsfile = general_var_dict["FCSFILE"];
+    general_vars.fc2file = general_var_dict["FC2FILE"];
+    general_vars.fc3file = general_var_dict["FC3FILE"];
+    general_vars.fc4file = general_var_dict["FC4FILE"];
+
+    if (general_vars.fcsfile.empty() && general_vars.fc2file.empty()) {
+        exit("parse_general_vars", "Either FCSFILE or FC2FILE must be given to start a phonon calculation.");
+    }
+
+    if (!general_var_dict["KD"].empty()) {
+        split_str_by_space(general_var_dict["KD"], kdname_v);
+        general_vars.kdname = kdname_v;
+    }
+
+    if (!general_var_dict["MASS"].empty()) {
+        split_str_by_space(general_var_dict["MASS"], masskd_v);
+        general_vars.masskd.resize(masskd_v.size());
+        for (i = 0; i < masskd_v.size(); ++i) {
+            general_vars.masskd[i] = my_cast<double>(masskd_v[i]);
+        }
+    }
+
+    // if a restart file exists in the current directory,
+    // restart mode will be automatically turned on. With the default h5
+    // format, an existing PREFIX.kappa.h5 or a legacy text file enables the
+    // restart attempt for each channel independently; the actually finished
+    // modes are read from the per-channel completion flags at setup.
+    const auto file_result = general_vars.prefix + ".result";
+    const auto file_result4 = general_vars.prefix + ".4ph.result";
+    const auto file_kappa_h5 = general_vars.prefix + ".kappa.h5";
+
+    general_vars.restart = stat(file_result.c_str(), &st) == 0;
+    general_vars.restart_4ph = stat(file_result4.c_str(), &st) == 0;
+    if (general_vars.use_hdf5_io && stat(file_kappa_h5.c_str(), &st) == 0) {
+        // only MODE = kappa opens PREFIX.kappa.h5 (also to overwrite with RESTART = 0)
+        if (mode == "KAPPA") check_h5_readable(file_kappa_h5, "restart");
+        general_vars.restart = true;
+        general_vars.restart_4ph = true;
+    }
+
+    // Assign given values
+
+    assign_val(general_vars.Tmin, "TMIN", general_var_dict);
+    assign_val(general_vars.Tmax, "TMAX", general_var_dict);
+    assign_val(general_vars.dT, "DT", general_var_dict);
+    if (!(general_vars.dT > 0.0)) exit("parse_general_vars", "DT must be positive.");
+    if (!(general_vars.Tmin <= general_vars.Tmax)) exit("parse_general_vars", "TMIN must not exceed TMAX.");
+    if (!(general_vars.Tmin >= 0.0)) exit("parse_general_vars", "TMIN must not be negative.");
+
+    if (!general_var_dict["EMIN"].empty()) {
+        auto emin = 0.0;
+        assign_val(emin, "EMIN", general_var_dict);
+        general_vars.emin = emin;
+    }
+    if (!general_var_dict["EMAX"].empty()) {
+        auto emax = 1000.0;
+        assign_val(emax, "EMAX", general_var_dict);
+        general_vars.emax = emax;
+    }
+
+    assign_val(general_vars.delta_e, "DELTA_E", general_var_dict);
+    if (!(general_vars.delta_e > 0.0)) exit("parse_general_vars", "DELTA_E must be positive.");
+    if (general_vars.emin.has_value() && general_vars.emax.has_value() &&
+        !(general_vars.emin.value() < general_vars.emax.value()))
+    {
+        exit("parse_general_vars", "EMIN must be smaller than EMAX.");
+    }
+
+    assign_val(general_vars.tolerance, "TOLERANCE", general_var_dict);
+    if (!(general_vars.tolerance > 0.0 && general_vars.tolerance < 0.5)) {
+        exit("parse_general_vars", "TOLERANCE must be in (0, 0.5).");
+    }
+    assign_val(general_vars.printsymmetry, "PRINTSYM", general_var_dict);
+
+    assign_val(general_vars.nonanalytic, "NONANALYTIC", general_var_dict);
+    // RESTART and RESTART_4PH now belong to the &kappa field; they are
+    // still honored here for backward compatibility (the &kappa values win).
+    if (!general_var_dict["RESTART"].empty() || !general_var_dict["RESTART_4PH"].empty()) {
+        warn("parse_general_vars",
+             "RESTART and RESTART_4PH in the &general field are deprecated;\n"
+             " please move them to the &kappa field.");
+    }
+    assign_val(general_vars.restart, "RESTART", general_var_dict);
+    assign_val(general_vars.restart_4ph, "RESTART_4PH", general_var_dict);
+
+    assign_val(general_vars.nbands, "NBANDS", general_var_dict);
+    if (general_vars.nbands == 0 || general_vars.nbands < -1) exit("parse_general_vars", "NBANDS must be positive.");
+    assign_val(general_vars.borninfo, "BORNINFO", general_var_dict);
+
+    assign_val(general_vars.ismear, "ISMEAR", general_var_dict);
+    assign_val(general_vars.epsilon, "EPSILON", general_var_dict);
+    // EPSILON is the fixed smearing width of ISMEAR = 0 and 1 (ignored for -1 and 2)
+    if ((general_vars.ismear == 0 || general_vars.ismear == 1) && !(general_vars.epsilon > 0.0)) {
+        exit("parse_general_vars", "EPSILON must be positive for ISMEAR = 0 or 1.");
+    }
+    assign_val(general_vars.na_sigma, "NA_SIGMA", general_var_dict);
+    if (general_vars.nonanalytic == 1 && !(general_vars.na_sigma > 0.0)) {
+        exit("parse_general_vars", "NA_SIGMA must be positive for NONANALYTIC = 1.");
+    }
+
+    assign_val(general_vars.fc2_temperature, "FC2_TEMPERATURE", general_var_dict);
+    assign_val(general_vars.allow_unconverged, "ALLOW_UNCONVERGED", general_var_dict);
+
+    assign_val(general_vars.classical, "CLASSICAL", general_var_dict);
+    assign_val(general_vars.band_connection, "BCONNECT", general_var_dict);
+    assign_val(general_vars.use_triplet_symmetry, "TRISYM", general_var_dict);
+    assign_val(general_vars.trevsym, "TREVSYM", general_var_dict);
+    if (general_vars.trevsym > 1) {
+        exit("parse_general_vars", "TREVSYM-tag can take 0 or 1.");
+    }
+    assign_val(general_vars.bornsym, "BORNSYM", general_var_dict);
+    assign_val(general_vars.verbosity, "VERBOSITY", general_var_dict);
+
+    if (general_vars.band_connection > 2) {
+        exit("parse_general_vars", "BCONNECT-tag can take 0, 1, or 2.");
+    }
+
+    if (general_vars.nonanalytic == 3) {
+        assign_val(general_vars.prec_ewald, "PREC_EWALD", general_var_dict);
+        if (general_vars.prec_ewald <= 0.0 || general_vars.prec_ewald >= 1.0) {
+            exit("parse_general_vars", "PREC_EWALD should be a small positive value.");
+        }
+    }
+
+    if (general_vars.nonanalytic > 3) {
+        exit("parse_general_vars", "NONANALYTIC-tag can take 0, 1, 2, or 3.");
+    }
+    if (general_vars.nonanalytic && general_vars.borninfo.empty()) {
+        exit("parse_general_vars", "BORNINFO must be specified when NONANALYTIC > 0.");
+    }
+
+    general_vars.dfc2file = general_var_dict["DFC2FILE"];
+    if (!general_vars.dfc2file.empty() && general_vars.fc2_temperature < 0.0) {
+        exit("parse_general_vars", "DFC2FILE requires FC2_TEMPERATURE to select the temperature.");
+    }
+
+    // RELAXED_STRUCTURE = 1: run on the structure an earlier SCPH/QHA run
+    // relaxed at FC2_TEMPERATURE, read from the /structure group of that
+    // run's state file. FC2_TEMPERATURE names the temperature, so it is
+    // required; the file is DFC2FILE when given, else FC2FILE.
+    assign_val(general_vars.relaxed_structure, "RELAXED_STRUCTURE", general_var_dict);
+    relaxed_structure = general_vars.relaxed_structure;
+    if (general_vars.relaxed_structure != 0 && general_vars.relaxed_structure != 1) {
+        exit("parse_general_vars", "RELAXED_STRUCTURE-tag can take 0 or 1.");
+    }
+    if (general_vars.relaxed_structure && general_vars.fc2_temperature < 0.0) {
+        exit("parse_general_vars", "RELAXED_STRUCTURE requires FC2_TEMPERATURE to select the temperature.");
+    }
+    if (general_vars.relaxed_structure && general_vars.dfc2file.empty() && general_vars.fc2file.empty() &&
+        general_vars.fcsfile.empty())
+    {
+        exit("parse_general_vars",
+             "RELAXED_STRUCTURE needs the SCPH/QHA state file that carries the relaxed structure,\n"
+             " given as DFC2FILE, FC2FILE or FCSFILE.");
+    }
+
+    // Keep the values the later blocks depend on.
+
+    job_title = general_vars.prefix;
+    run_mode = general_vars.mode;
+    use_hdf5_io = general_vars.use_hdf5_io;
+
+    input_setter->set_general_vars(phon, general_vars);
+
+    general_var_dict.clear();
+}
+
+void InputParser::parse_analysis_vars(PHON *phon, const bool use_default_values)
+{
+    // Read input parameters in the &analysis field.
+    int i;
+
+    std::vector<std::string> input_list{
+        "PRINTEVAL", "PRINTEVEC",   "PRINTXSF",        "PRINTVEL",         "QUARTIC",
+        "KS_INPUT",  "REALPART",    "FSTATE_W",        "PRINTMSD",         "DOS",
+        "PDOS",      "TDOS",        "GRUNEISEN",       "NEWFCS",           "SUBLATTICE_RELAX",
+        "DELTA_A",   "ANIME",       "ANIME_CELLSIZE",  "ANIME_FORMAT",     "ANIME_FRAMES",
+        "SPS",       "PRINTV3",     "PRINTPR",         "FC2_EWALD",        "SELF_W",
+        "UCORR",     "SHIFT_UCORR", "DIELEC",          "SELF_ENERGY",      "PRINTV4",
+        "ZMODE",     "IRREPS",      "PROJECTION_AXES", "LONGITUDINAL_DOS", "FE_BUBBLE"};
+
+    std::map<std::string, std::string> analysis_var_dict;
+    std::vector<std::string> anime_kpoint, anime_cellsize;
+
+    AnalysisInputVars analysis_vars;
+    auto do_projection = false;
+
+    // Assign values to variables
+
+    if (!use_default_values) {
+        get_var_dict(input_list, analysis_var_dict);
+
+        assign_val(analysis_vars.print_vel, "PRINTVEL", analysis_var_dict);
+        assign_val(analysis_vars.print_evec, "PRINTEVEC", analysis_var_dict);
+        assign_val(analysis_vars.print_eval, "PRINTEVAL", analysis_var_dict);
+        assign_val(analysis_vars.print_msd, "PRINTMSD", analysis_var_dict);
+        assign_val(analysis_vars.print_ucorr, "UCORR", analysis_var_dict);
+
+        assign_val(analysis_vars.compute_dos, "DOS", analysis_var_dict);
+        assign_val(analysis_vars.projected_dos, "PDOS", analysis_var_dict);
+        assign_val(analysis_vars.two_phonon_dos, "TDOS", analysis_var_dict);
+        assign_val(analysis_vars.longitudinal_dos, "LONGITUDINAL_DOS", analysis_var_dict);
+
+        assign_val(analysis_vars.scattering_phase_space, "SPS", analysis_var_dict);
+        for (const auto *tag: {"PRINTMSD", "DOS", "PDOS", "TDOS", "LONGITUDINAL_DOS", "SPS", "UCORR"}) {
+            const auto it = analysis_var_dict.find(tag);
+            if (it != analysis_var_dict.end() && !it->second.empty() && it->second != "0") {
+                kpmode2_only_tags.emplace_back(tag);
+            }
+        }
+        assign_val(analysis_vars.gruneisen_mode, "GRUNEISEN", analysis_var_dict);
+        if (analysis_vars.gruneisen_mode < 0 || analysis_vars.gruneisen_mode > 3) {
+            exit("parse_analysis_vars", "GRUNEISEN must be 0, 1, 2, or 3.");
+        }
+        assign_val(analysis_vars.sublattice_relax, "SUBLATTICE_RELAX", analysis_var_dict);
+        if (analysis_vars.sublattice_relax < 0 || analysis_vars.sublattice_relax > 1) {
+            exit("parse_analysis_vars", "SUBLATTICE_RELAX must be 0 or 1.");
+        }
+        assign_val(analysis_vars.print_newfcs, "NEWFCS", analysis_var_dict);
+        // RELAXED_STRUCTURE replaces the cubic IFCs with Phi3 + Phi4 : d,
+        // whose new entries carry the *quartic* supercell's atom indices.
+        // They are safe to use -- nothing downstream of the deformation
+        // reads them -- but not to serialize, and NEWFCS would write them
+        // out against the harmonic supercell.
+        if (analysis_vars.print_newfcs && relaxed_structure) {
+            exit("parse_analysis_vars",
+                 "NEWFCS = 1 cannot be combined with RELAXED_STRUCTURE = 1: the deformed cubic\n"
+                 " force constants are built for use in this run, not for writing out.");
+        }
+        assign_val(analysis_vars.delta_a, "DELTA_A", analysis_var_dict);
+        if (!(analysis_vars.delta_a > 0.0)) exit("parse_analysis_vars", "DELTA_A must be positive.");
+
+        assign_val(analysis_vars.quartic_mode, "QUARTIC", analysis_var_dict);
+        assign_val(analysis_vars.calc_realpart, "REALPART", analysis_var_dict);
+        assign_val(analysis_vars.fstate_omega, "FSTATE_W", analysis_var_dict);
+        assign_val(analysis_vars.ks_input, "KS_INPUT", analysis_var_dict);
+        assign_val(analysis_vars.bubble_omega, "SELF_W", analysis_var_dict);
+        assign_val(analysis_vars.calc_selfenergy, "SELF_ENERGY", analysis_var_dict);
+
+        assign_val(analysis_vars.print_xsf, "PRINTXSF", analysis_var_dict);
+        assign_val(analysis_vars.print_V3, "PRINTV3", analysis_var_dict);
+        assign_val(analysis_vars.print_V4, "PRINTV4", analysis_var_dict);
+        assign_val(analysis_vars.participation_ratio, "PRINTPR", analysis_var_dict);
+        assign_val(analysis_vars.print_fc2_ewald, "FC2_EWALD", analysis_var_dict);
+        assign_val(analysis_vars.calc_dielectric_constant, "DIELEC", analysis_var_dict);
+        assign_val(analysis_vars.print_zmode, "ZMODE", analysis_var_dict);
+        assign_val(analysis_vars.print_irreps, "IRREPS", analysis_var_dict);
+        assign_val(analysis_vars.calc_FE_bubble, "FE_BUBBLE", analysis_var_dict);
+
+        analysis_vars.print_anime = analysis_var_dict.find("ANIME") != analysis_var_dict.end();
+
+        do_projection = analysis_var_dict.find("PROJECTION_AXES") != analysis_var_dict.end();
+    }
+
+    if (analysis_vars.print_anime) {
+        split_str_by_space(analysis_var_dict["ANIME"], anime_kpoint);
+
+        if (anime_kpoint.size() != 3) {
+            exit("parse_analysis_vars", "The number of entries for ANIME should be 3.");
+        }
+        for (i = 0; i < 3; ++i) {
+            analysis_vars.anime_kpoint[i] = my_cast<double>(anime_kpoint[i]);
+        }
+
+        split_str_by_space(analysis_var_dict["ANIME_CELLSIZE"], anime_cellsize);
+
+        if (anime_cellsize.size() != 3) {
+            exit("parse_analysis_vars", "The number of entries for ANIME_CELLSIZE should be 3.");
+        }
+
+        for (i = 0; i < 3; ++i) {
+            try {
+                analysis_vars.anime_cellsize[i] = my_cast<unsigned int>(anime_cellsize[i], "ANIME_CELLSIZE");
+            } catch (std::exception &e) {
+                std::cout << e.what() << '\n';
+                exit("parse_analysis_vars", "ANIME_CELLSIZE must be a set of positive integers.");
+            }
+            if (analysis_vars.anime_cellsize[i] < 1) {
+                exit("parse_analysis_vars", "Please give positive integers for ANIME_CELLSIZE.");
+            }
+        }
+
+        assign_val(analysis_vars.anime_format, "ANIME_FORMAT", analysis_var_dict);
+        std::transform(analysis_vars.anime_format.begin(),
+                       analysis_vars.anime_format.end(),
+                       analysis_vars.anime_format.begin(),
+                       toupper);
+
+        if (analysis_vars.anime_format != "XSF" && analysis_vars.anime_format != "AXSF" &&
+            analysis_vars.anime_format != "XYZ")
+        {
+            exit("parse_analysis_vars", "Invalid ANIME_FORMAT");
+        }
+
+        assign_val(analysis_vars.anime_frames, "ANIME_FRAMES", analysis_var_dict);
+        if (analysis_vars.anime_frames < 1) exit("parse_analysis_vars", "ANIME_FRAMES must be positive.");
+    }
+
+    if (analysis_vars.print_ucorr) {
+        std::string str_shift_ucorr;
+        std::vector<std::string> list_shift_ucorr;
+        assign_val(str_shift_ucorr, "SHIFT_UCORR", analysis_var_dict);
+
+        if (!str_shift_ucorr.empty()) {
+            split_str_by_space(str_shift_ucorr, list_shift_ucorr);
+            if (list_shift_ucorr.size() != 3) {
+                exit("parse_analysis_vars", "The number of entries for SHIFT_UCORR must be 3.");
+            }
+
+            for (i = 0; i < 3; ++i) {
+                try {
+                    analysis_vars.shift_ucorr[i] = boost::lexical_cast<int>(list_shift_ucorr[i]);
+                } catch (std::exception &e) {
+                    std::cout << e.what() << '\n';
+                    exit("parse_analysis_vars", "SHIFT_UCORR must be an array of integers.");
+                }
+            }
+        }
+    }
+
+    if (do_projection) {
+        std::string str_projection_axes;
+        assign_val(str_projection_axes, "PROJECTION_AXES", analysis_var_dict);
+        std::vector<double> direction(3);
+        std::vector<std::vector<double>> projection_directions;
+        if (!str_projection_axes.empty()) {
+            std::vector<std::string> str_projection_each, str_vec;
+            boost::split(str_projection_each, str_projection_axes, boost::is_any_of(","));
+
+            if (str_projection_each.size() > 2) {
+                warn("parse_analysis_vars", "Too many entries for PROJECTION_AXES. Only the first two will be used.");
+            }
+
+            for (i = 0; i < str_projection_each.size(); ++i) {
+                split_str_by_space(str_projection_each[i], str_vec);
+                if (str_vec.size() != 3) {
+                    exit("parse_analysis_vars", "The number of entries for each vector in PROJECTION_AXES must be 3.");
+                }
+                for (auto j = 0; j < 3; ++j) {
+                    try {
+                        direction[j] = boost::lexical_cast<double>(str_vec[j]);
+                    } catch (std::exception &e) {
+                        std::cout << e.what() << '\n';
+                        exit("parse_analysis_vars", "subset of PROJECTION_AXES must be an array of doubles.");
+                    }
+                }
+                if (direction[0] == 0.0 && direction[1] == 0.0 && direction[2] == 0.0) {
+                    exit("parse_analysis_vars", "PROJECTION_AXES must not contain a zero vector.");
+                }
+                projection_directions.push_back(direction);
+            }
+        }
+
+        analysis_vars.projection_directions = projection_directions;
+    }
+
+    // MODE = SCPH/QHA always requires the quartic machinery. This decision
+    // is input policy, so it lives here; Fcs_phonon and the other consumers
+    // only read the value. (A QUARTIC = 2 request is overridden for these
+    // modes, matching the historical behavior.)
+    if (run_mode == "SCPH" || run_mode == "QHA") analysis_vars.quartic_mode = 1;
+
+    // The irrep analysis is defined for the static structure at Gamma only;
+    // disabling it here keeps it from triggering Born-charge loading in the
+    // other modes.
+    if (analysis_vars.print_irreps && run_mode != "PHONONS") {
+        warn("parse_analysis_vars", "IRREPS = 1 is effective only when MODE = phonons. The tag is ignored.");
+        analysis_vars.print_irreps = false;
+    }
+
+    // Keep the values the later blocks depend on.
+
+    quartic_mode = analysis_vars.quartic_mode;
+    calc_FE_bubble = analysis_vars.calc_FE_bubble;
+
+    input_setter->set_analysis_vars(phon, analysis_vars);
+
+    analysis_var_dict.clear();
+}
+
+void InputParser::parse_kappa_vars(PHON *phon, const bool use_default_values)
+{
+    std::string str_tmp;
+    const std::vector<std::string> input_list{
+        "KMESH_COARSE",         "EPSILON_4PH",  "ISMEAR_4PH",     "INCLUDE_4PH",     "RESTART",
+        "RESTART_4PH",          "INTERPOLATOR", "LEN_BOUNDARY",   "ISOTOPE",         "ISOFACT",
+        "KAPPA_COHERENT",       "KAPPA_SPEC",   "WRITE_INTERPOL", "ADAPTIVE_FACTOR", "SOLVER",
+        "ISOTOPE_INSCATTERING", "ITERATIVE",    "MAX_CYCLE",      "MIN_CYCLE",       "ITER_THRESHOLD",
+        "IBTE_MIXING"};
+
+    std::map<std::string, std::string> kappa_var_dict;
+    std::vector<std::string> isofact_v;
+
+    if (from_stdin) {
+        std::cin.ignore();
+    } else {
+        ifs_input.ignore();
+    }
+
+    get_var_dict(input_list, kappa_var_dict);
+
+    KappaInputVars kappa_vars;
+
+    auto iterative = false;
+    auto iterative_given = false;
+    std::string solver{};
+
+    // -1 = tag not given; resolved below (legacy QUARTIC fallback).
+    int include_4ph = -1;
+
+    // Assign given values
+    if (!use_default_values) {
+        assign_val(include_4ph, "INCLUDE_4PH", kappa_var_dict);
+        assign_val(kappa_vars.ismear_4ph, "ISMEAR_4PH", kappa_var_dict);
+        assign_val(kappa_vars.epsilon_4ph, "EPSILON_4PH", kappa_var_dict);
+        assign_val(kappa_vars.interpolator, "INTERPOLATOR", kappa_var_dict);
+        assign_val(kappa_vars.write_interpol, "WRITE_INTERPOL", kappa_var_dict);
+        assign_val(kappa_vars.len_boundary, "LEN_BOUNDARY", kappa_var_dict);
+        if (!(kappa_vars.len_boundary >= 0.0)) exit("parse_kappa_vars", "LEN_BOUNDARY must not be negative.");
+        assign_val(kappa_vars.calc_coherent, "KAPPA_COHERENT", kappa_var_dict);
+        assign_val(kappa_vars.include_isotope, "ISOTOPE", kappa_var_dict);
+        assign_val(kappa_vars.calc_kappa_spec, "KAPPA_SPEC", kappa_var_dict);
+        str_tmp = kappa_var_dict["KMESH_COARSE"];
+        assign_val(kappa_vars.adaptive_factor, "ADAPTIVE_FACTOR", kappa_var_dict);
+        if (kappa_vars.adaptive_factor <= 0.0) {
+            exit("parse_kappa_vars", "ADAPTIVE_FACTOR must be positive.");
+        }
+        iterative_given = !kappa_var_dict["ITERATIVE"].empty();
+        assign_val(iterative, "ITERATIVE", kappa_var_dict);
+        assign_val(kappa_vars.isotope_inscattering, "ISOTOPE_INSCATTERING", kappa_var_dict);
+        assign_val(solver, "SOLVER", kappa_var_dict);
+        assign_val(kappa_vars.max_cycle, "MAX_CYCLE", kappa_var_dict);
+        if (kappa_vars.max_cycle < 1) exit("parse_kappa_vars", "MAX_CYCLE must be positive.");
+        assign_val(kappa_vars.min_cycle, "MIN_CYCLE", kappa_var_dict);
+        assign_val(kappa_vars.iterative_mixing, "IBTE_MIXING", kappa_var_dict);
+        assign_val(kappa_vars.iter_threshold, "ITER_THRESHOLD", kappa_var_dict);
+        if (!(kappa_vars.iter_threshold > 0.0)) exit("parse_kappa_vars", "ITER_THRESHOLD must be positive.");
+    }
+
+    // INCLUDE_4PH is the explicit switch for the four-phonon channel.
+    // Legacy inputs enabled it implicitly via QUARTIC > 0 (an &analysis
+    // tag), which is still honored with a deprecation warning.
+    if (include_4ph < 0) {
+        include_4ph = quartic_mode > 0 ? 1 : 0;
+        if (include_4ph == 1) {
+            warn("parse_kappa_vars",
+                 "Enabling four-phonon scattering because QUARTIC > 0 is deprecated;\n"
+                 " please set INCLUDE_4PH = 1 in the &kappa field instead.");
+        }
+    } else if (include_4ph > 0 && quartic_mode == 0) {
+        // The quartic (FC4) machinery is required for the 4ph self-energies.
+        quartic_mode = 1;
+    }
+    kappa_vars.include_4ph = include_4ph;
+    kappa_vars.quartic_mode = quartic_mode;
+
+    // RESTART / RESTART_4PH given here override the (deprecated) &general
+    // values and the file-existence auto-detection.
+    if (!use_default_values) {
+        if (!kappa_var_dict["RESTART"].empty()) {
+            auto restart_in = false;
+            assign_val(restart_in, "RESTART", kappa_var_dict);
+            kappa_vars.restart = restart_in;
+        }
+        if (!kappa_var_dict["RESTART_4PH"].empty()) {
+            auto restart_in = false;
+            assign_val(restart_in, "RESTART_4PH", kappa_var_dict);
+            kappa_vars.restart_4ph = restart_in;
+        }
+    }
+
+    // SOLVER selects the BTE solver level; ITERATIVE = 1 is the deprecated
+    // spelling of SOLVER = IBTE.
+    std::transform(solver.begin(), solver.end(), solver.begin(), toupper);
+    if (solver.empty()) {
+        if (iterative_given) {
+            warn("parse_kappa_vars", "The ITERATIVE tag is deprecated; please use SOLVER = RTA or SOLVER = IBTE.");
+        }
+        solver = iterative ? "IBTE" : "RTA";
+    } else if (iterative_given) {
+        warn("parse_kappa_vars", "Both SOLVER and the deprecated ITERATIVE tag are given; SOLVER wins.");
+    }
+    if (solver == "SERTA") solver = "RTA";
+    if (solver != "RTA" && solver != "IBTE" && solver != "VBTE" && solver != "DBTE") {
+        exit("parse_kappa_vars", "SOLVER must be one of RTA, IBTE, DBTE, or VBTE.");
+    }
+    // ITER_THRESHOLD is the tolerance on the relative residual |b - A dF| / |b| for
+    // IBTE and VBTE. Before 2.0 it was the relative change of kappa per IBTE
+    // iteration (default 0.02); such values are far too loose as a residual.
+    if ((solver == "IBTE" || solver == "VBTE") && kappa_vars.iter_threshold > 1.0e-3) {
+        warn("parse_kappa_vars",
+             "ITER_THRESHOLD is the tolerance on the relative residual of the BTE\n"
+             " (for IBTE it used to be the relative change of kappa per iteration).\n"
+             " Values above 1e-3 can leave errors of several percent; the default is 1e-4.");
+    }
+    if (solver == "DBTE") {
+        warn("parse_kappa_vars",
+             "SOLVER = DBTE is a diagnostic direct solver (dense eigendecomposition\n"
+             " of the collision kernel); it is intended for small k meshes.");
+    }
+    kappa_vars.solver = solver;
+
+    // set 4ph mesh
+    if (!str_tmp.empty()) {
+        const auto kmesh_v = parse_positive_mesh(str_tmp, "parse_kappa_vars", "KMESH_COARSE");
+        for (auto i = 0; i < 3; ++i) kappa_vars.kmesh_coarse[i] = kmesh_v[i];
+    }
+
+    boost::to_lower(kappa_vars.interpolator);
+    std::vector<std::string> supported_interpolator{"linear", "log-linear", "modified-log-linear"};
+    if (std::find(std::begin(supported_interpolator), std::end(supported_interpolator), kappa_vars.interpolator) ==
+        std::end(supported_interpolator))
+    {
+        exit("parse_kappa_vars", "INTERPOLATOR is not supported.");
+    }
+
+    // set isotope
+    if (kappa_vars.include_isotope) {
+        if (!kappa_var_dict["ISOFACT"].empty()) {
+            split_str_by_space(kappa_var_dict["ISOFACT"], isofact_v);
+            kappa_vars.isotope_factor.resize(isofact_v.size());
+            for (auto i = 0; i < isofact_v.size(); ++i) {
+                kappa_vars.isotope_factor[i] = my_cast<double>(isofact_v[i]);
+                if (!(kappa_vars.isotope_factor[i] >= 0.0)) exit("parse_kappa_vars", "ISOFACT must be non-negative.");
+            }
+        }
+    }
+
+    input_setter->set_kappa_vars(phon, kappa_vars);
+
+    kappa_var_dict.clear();
+}
+
+void InputParser::parse_scph_vars(PHON *phon)
+{
+    // Read input parameters in the &scph-field.
+
+    struct stat st
+    {};
+    const std::vector<std::string> input_list{"KMESH_SCPH",
+                                              "KMESH_INTERPOLATE",
+                                              "KMESH_BUBBLE",
+                                              "MIXALPHA",
+                                              "MAXITER",
+                                              "RESTART_SCPH",
+                                              "IALGO",
+                                              "IMIX",
+                                              "SELF_OFFDIAG",
+                                              "TOL_SCPH",
+                                              "LOWER_TEMP",
+                                              "WARMSTART",
+                                              "BUBBLE",
+                                              "BUBBLE_TOL",
+                                              "BUBBLE_LADDER",
+                                              "BUBBLE_FD_CHECK",
+                                              "V4_REAL_SPACE",
+                                              "CV_ANHARM",
+                                              "RELAX_STR"};
+    std::vector<std::string> no_defaults{"KMESH_SCPH", "KMESH_INTERPOLATE"};
+    std::vector<unsigned int> kmesh_v, kmesh_interpolate_v;
+    std::map<std::string, std::string> scph_var_dict;
+
+    if (from_stdin) {
+        std::cin.ignore();
+    } else {
+        ifs_input.ignore();
+    }
+
+    get_var_dict(input_list, scph_var_dict);
+
+    for (auto &no_default: no_defaults) {
+        if (scph_var_dict.find(no_default) == scph_var_dict.end()) {
+            exit("parse_scph_vars", "The following variable is not found in &scph input region: ", no_default.c_str());
+        }
+    }
+
+    ScphInputVars scph_vars;
+
+    // restart mode will be automatically turned on for SCPH calculations.
+    auto file_dymat = job_title + ".scph_dymat";
+    scph_vars.restart_scph = stat(file_dymat.c_str(), &st) == 0;
+
+    // Assign given values
+
+    assign_val(scph_vars.maxiter, "MAXITER", scph_var_dict);
+    if (scph_vars.maxiter < 1) exit("parse_scph_vars", "MAXITER must be positive.");
+    assign_val(scph_vars.mixalpha, "MIXALPHA", scph_var_dict);
+    assign_val(scph_vars.selfenergy_offdiagonal, "SELF_OFFDIAG", scph_var_dict);
+    assign_val(scph_vars.ialgo, "IALGO", scph_var_dict);
+    if (scph_vars.ialgo > 1) exit("parse_scph_vars", "IALGO must be 0 or 1.");
+    assign_val(scph_vars.imix_scph, "IMIX", scph_var_dict);
+    if (scph_vars.imix_scph > 1) {
+        exit("parse_scph_vars", "IMIX must be 0 (simple mixing) or 1 (DIIS mixing).");
+    }
+    if (scph_vars.imix_scph == 1 && (scph_vars.mixalpha <= 0.0 || scph_vars.mixalpha > 1.0)) {
+        exit("parse_scph_vars", "MIXALPHA must be in (0, 1] when IMIX = 1.");
+    }
+    assign_val(scph_vars.tolerance_scph, "TOL_SCPH", scph_var_dict);
+    if (!(scph_vars.tolerance_scph > 0.0)) exit("parse_scph_vars", "TOL_SCPH must be positive.");
+    assign_val(scph_vars.lower_temp, "LOWER_TEMP", scph_var_dict);
+    assign_val(scph_vars.warmstart, "WARMSTART", scph_var_dict);
+    assign_val(scph_vars.bubble, "BUBBLE", scph_var_dict);
+    if (scph_vars.bubble > 4) {
+        exit("parse_scph_vars", "BUBBLE must be 0, 1, 2, 3, or 4.");
+    }
+    assign_val(scph_vars.bubble_tol, "BUBBLE_TOL", scph_var_dict);
+    if (scph_vars.bubble_tol <= 0.0) exit("parse_scph_vars", "BUBBLE_TOL must be positive.");
+    assign_val(scph_vars.bubble_ladder, "BUBBLE_LADDER", scph_var_dict);
+    if (scph_vars.bubble_ladder < 0 || scph_vars.bubble_ladder > 2) {
+        exit("parse_scph_vars", "BUBBLE_LADDER must be 0 (no ladder), 1 (V4 service) or 2 (real space).");
+    }
+    assign_val(scph_vars.v4_real_space, "V4_REAL_SPACE", scph_var_dict);
+    if (scph_vars.v4_real_space < 0 || scph_vars.v4_real_space > 2) {
+        exit("parse_scph_vars", "V4_REAL_SPACE must be 0 (V4 tensor), 1 (real space) or 2 (both, compared).");
+    }
+    assign_val(scph_vars.bubble_fd_check, "BUBBLE_FD_CHECK", scph_var_dict);
+    if (scph_vars.bubble_fd_check < 0 || scph_vars.bubble_fd_check > 2) {
+        exit("parse_scph_vars", "BUBBLE_FD_CHECK must be 0, 1 (full check), or 2 (explicit blocks only).");
+    }
+    assign_val(scph_vars.compute_Cv_anharmonic, "CV_ANHARM", scph_var_dict);
+    if (scph_vars.compute_Cv_anharmonic != 0 && scph_vars.compute_Cv_anharmonic != 1) {
+        exit("parse_scph_vars", "CV_ANHARM must be 0 or 1.");
+    }
+    assign_val(scph_vars.relax_str, "RELAX_STR", scph_var_dict);
+    if (!is_valid_relaxation_str_mode(scph_vars.relax_str)) {
+        exit("parse_scph_vars", "RELAX_STR must be 0, 1, 2, 3, or 4.");
+    }
+    if (scph_vars.relax_str == to_int(RelaxationStrMode::PerturbativeQha)) {
+        exit("parse_scph_vars", "RELAX_STR = 3 (perturbative) is available only for MODE = QHA.");
+    }
+    if (scph_vars.relax_str != to_int(RelaxationStrMode::None) && !scph_vars.selfenergy_offdiagonal) {
+        exit("parse_scph_vars", "SELF_OFFDIAG = 0 cannot be used when RELAX_STR != 0.");
+    }
+
+    if (scph_vars.relax_str != to_int(RelaxationStrMode::None)) {
+        auto file_harm_dymat = job_title + ".renorm_harm_dymat";
+        auto file_v0 = job_title + ".V0";
+        scph_vars.restart_scph =
+            scph_vars.restart_scph && (stat(file_harm_dymat.c_str(), &st) == 0) && (stat(file_v0.c_str(), &st) == 0);
+    }
+
+    // The unified state file replaces the legacy text trio; either enables
+    // the restart attempt (completeness is validated at load time).
+    if (use_hdf5_io) {
+        auto file_scph_h5 = job_title + ".scph.h5";
+        if (stat(file_scph_h5.c_str(), &st) == 0) {
+            scph_vars.restart_scph = true;
+        }
+    }
+    // BUBBLE = 4 is evaluated inside the structural optimization, so an
+    // existing state file must not switch the run to a restart; only an
+    // explicit RESTART_SCPH = 1 reaches the refusal in exec_scph.
+    if (scph_vars.bubble == 4) scph_vars.restart_scph = false;
+
+    assign_val(scph_vars.restart_scph, "RESTART_SCPH", scph_var_dict);
+    if (use_hdf5_io && scph_vars.restart_scph && stat((job_title + ".scph.h5").c_str(), &st) == 0) {
+        check_h5_readable(job_title + ".scph.h5", "restart");
+    }
+
+    if (scph_var_dict["KMESH_SCPH"].empty()) {
+        exit("parse_scph_vars", "Please specify KMESH_SCPH for mode = SCPH");
+    }
+    if (scph_var_dict["KMESH_INTERPOLATE"].empty()) {
+        exit("parse_scph_vars", "Please specify KMESH_INTERPOLATE for mode = SCPH");
+    }
+    kmesh_v = parse_positive_mesh(scph_var_dict["KMESH_SCPH"], "parse_scph_vars", "KMESH_SCPH");
+    kmesh_interpolate_v =
+        parse_positive_mesh(scph_var_dict["KMESH_INTERPOLATE"], "parse_scph_vars", "KMESH_INTERPOLATE");
+
+    for (auto i = 0; i < 3; ++i) {
+        scph_vars.kmesh_scph[i] = kmesh_v[i];
+        scph_vars.kmesh_interpolate[i] = kmesh_interpolate_v[i];
+        scph_vars.kmesh_bubble[i] = kmesh_v[i];
+    }
+
+    // KMESH_BUBBLE: q mesh of the bubble self-energy (BUBBLE > 0), default KMESH_SCPH.
+    if (!scph_var_dict["KMESH_BUBBLE"].empty()) {
+        const auto kmesh_bubble_v =
+            parse_positive_mesh(scph_var_dict["KMESH_BUBBLE"], "parse_scph_vars", "KMESH_BUBBLE");
+        for (auto i = 0; i < 3; ++i) scph_vars.kmesh_bubble[i] = kmesh_bubble_v[i];
+    }
+
+    // Keep the values the later blocks depend on.
+
+    relax_str = scph_vars.relax_str;
+    scph_bubble = scph_vars.bubble;
+
+    input_setter->set_scph_vars(phon, scph_vars);
+
+    scph_var_dict.clear();
+}
+
+void InputParser::parse_qha_vars(PHON *phon)
+{
+    // Read input parameters in the &qha-field.
+
+    struct stat st
+    {};
+    const std::vector<std::string> input_list{"KMESH_QHA",
+                                              "KMESH_INTERPOLATE",
+                                              "LOWER_TEMP",
+                                              "RELAX_STR",
+                                              "QHA_SCHEME",
+                                              "IALGO",
+                                              "SELF_OFFDIAG",
+                                              "RESTART_QHA"};
+    std::vector<std::string> no_defaults{"KMESH_QHA", "KMESH_INTERPOLATE"};
+    std::vector<unsigned int> kmesh_v, kmesh_interpolate_v;
+
+    std::map<std::string, std::string> qha_var_dict;
+
+    get_var_dict(input_list, qha_var_dict);
+
+    for (auto &no_default: no_defaults) {
+        if (qha_var_dict.find(no_default) == qha_var_dict.end()) {
+            exit("parse_qha_vars", "The following variable is not found in &qha input region: ", no_default.c_str());
+        }
+    }
+
+    QhaInputVars qha_vars;
+
+    assign_val(qha_vars.lower_temp, "LOWER_TEMP", qha_var_dict);
+    assign_val(qha_vars.relax_str, "RELAX_STR", qha_var_dict);
+    assign_val(qha_vars.qha_scheme, "QHA_SCHEME", qha_var_dict);
+    assign_val(qha_vars.selfenergy_offdiagonal, "SELF_OFFDIAG", qha_var_dict);
+    assign_val(qha_vars.ialgo, "IALGO", qha_var_dict);
+    if (qha_vars.ialgo > 1) exit("parse_qha_vars", "IALGO must be 0 or 1.");
+
+    if (!is_valid_relaxation_str_mode(qha_vars.relax_str)) {
+        exit("parse_qha_vars", "RELAX_STR must be 1, 2, 3, or 4 when mode = QHA.");
+    }
+    if (qha_vars.relax_str == to_int(RelaxationStrMode::None)) {
+        exit("parse_qha_vars", "RELAX_STR = 0 is not supported when mode = QHA.");
+    }
+    if (!is_valid_qha_scheme(qha_vars.qha_scheme)) {
+        exit("parse_qha_vars", "QHA_SCHEME must be 0, 1, or 2.");
+    }
+    if (qha_vars.relax_str == to_int(RelaxationStrMode::CoordinatesAtFixedStrain) &&
+        qha_vars.qha_scheme != to_int(QhaScheme::Standard))
+    {
+        exit("parse_qha_vars",
+             "QHA_SCHEME must be 0 when RELAX_STR = 4: ZSISA/v-ZSISA replace the "
+             "finite-temperature coordinate forces, so F(q,eps,T) would not be minimized.");
+    }
+    if (qha_vars.relax_str != to_int(RelaxationStrMode::None) && !qha_vars.selfenergy_offdiagonal) {
+        exit("parse_qha_vars", "SELF_OFFDIAG = 0 cannot be used when RELAX_STR != 0.");
+    }
+
+    if (qha_var_dict["KMESH_QHA"].empty()) {
+        exit("parse_qha_vars", "Please specify KMESH_QHA for mode = QHA");
+    }
+    if (qha_var_dict["KMESH_INTERPOLATE"].empty()) {
+        exit("parse_qha_vars", "Please specify KMESH_INTERPOLATE for mode = QHA");
+    }
+    kmesh_v = parse_positive_mesh(qha_var_dict["KMESH_QHA"], "parse_qha_vars", "KMESH_QHA");
+    kmesh_interpolate_v = parse_positive_mesh(qha_var_dict["KMESH_INTERPOLATE"], "parse_qha_vars", "KMESH_INTERPOLATE");
+
+    for (auto i = 0; i < 3; ++i) {
+        qha_vars.kmesh_qha[i] = kmesh_v[i];
+        qha_vars.kmesh_interpolate[i] = kmesh_interpolate_v[i];
+    }
+
+    // Set other values
+
+    auto file_renorm_harm_dymat = job_title + ".renorm_harm_dymat";
+    auto file_v0 = job_title + ".V0";
+    qha_vars.restart_qha = (stat(file_renorm_harm_dymat.c_str(), &st) == 0) && (stat(file_v0.c_str(), &st) == 0);
+
+    if (use_hdf5_io) {
+        auto file_qha_h5 = job_title + ".qha.h5";
+        if (stat(file_qha_h5.c_str(), &st) == 0) {
+            qha_vars.restart_qha = true;
+        }
+    }
+
+    assign_val(qha_vars.restart_qha, "RESTART_QHA", qha_var_dict);
+    if (use_hdf5_io && qha_vars.restart_qha && stat((job_title + ".qha.h5").c_str(), &st) == 0) {
+        check_h5_readable(job_title + ".qha.h5", "restart");
+    }
+
+    // Keep the values the later blocks depend on.
+
+    relax_str = qha_vars.relax_str;
+
+    input_setter->set_qha_vars(phon, qha_vars);
+
+    qha_var_dict.clear();
+}
+
+std::array<double, 3> InputParser::parse_vector3(const std::map<std::string, std::string> &var_dict,
+                                                 const std::string &tag, const std::string &what)
+{
+    // TAG = x y z (Cartesian); absent means zero.
+    std::array<double, 3> vec{};
+    const auto it = var_dict.find(tag);
+    if (it == var_dict.end()) return vec;
+
+    std::vector<std::string> str_vec;
+    split_str_by_space(it->second, str_vec);
+    if (str_vec.size() != 3) {
+        exit("parse_relax_vars", (tag + " must have exactly three entries (" + what + ").").c_str());
+    }
+    for (auto i = 0; i < 3; ++i) {
+        try {
+            vec[i] = boost::lexical_cast<double>(str_vec[i]);
+        } catch (const boost::bad_lexical_cast &) {
+            vec[i] = std::nan("");
+        }
+        if (!std::isfinite(vec[i])) exit("parse_relax_vars", (tag + " entries must be finite numbers.").c_str());
+    }
+    return vec;
+}
+
+void InputParser::parse_relax_vars(PHON *phon)
+{
+    // Read input parameters in the &relax-field.
+
+    const std::vector<std::string> input_list{
+        "RELAX_ALGO",    "MAX_STR_ITER",  "COORD_CONV_TOL",     "GRADIENT_CONV_TOL", "CELL_GRADIENT_CONV_TOL",
+        "GDIIS_CONTROL", "GDIIS_PLAIN",   "MIXBETA_COORD",      "ALPHA_STDECENT",    "CELL_CONV_TOL",
+        "MIXBETA_CELL",  "SET_INIT_STR",  "COOLING_U0_INDEX",   "COOLING_U0_THR",    "ADD_HESS_DIAG",
+        "STAT_PRESSURE", "RENORM_3TO2ND", "RENORM_2TO1ST",      "RENORM_34TO1ST",    "STRAIN_IFC_DIR",
+        "ELASTIC_CONST", "STRAINFILE",    "STRAIN_COUPLING",    "BUBBLE_HESS",       "EFIELD",
+        "POL_REF",       "STRAIN_FC5",    "STRAIN_FC5_CHANNELS"};
+
+    std::map<std::string, std::string> stropt_var_dict;
+
+    if (from_stdin) {
+        std::cin.ignore();
+    } else {
+        ifs_input.ignore();
+    }
+
+    get_var_dict(input_list, stropt_var_dict);
+
+    relax_vars = RelaxInputVars();
+
+    // The Farkas-Schlegel controlled GDIIS is the default for RELAX_ALGO = 3.
+    // GDIIS_PLAIN = 1 switches it off (regular GDIIS without the step-acceptance
+    // tests). GDIIS_CONTROL is kept as a deprecated alias of the old enabling
+    // switch; an explicit GDIIS_PLAIN takes precedence over it.
+    int gdiis_plain = 0;
+
+    assign_val(relax_vars.relax_algo, "RELAX_ALGO", stropt_var_dict);
+    assign_val(relax_vars.max_str_iter, "MAX_STR_ITER", stropt_var_dict);
+    if (relax_vars.max_str_iter < 1) exit("parse_relax_vars", "MAX_STR_ITER must be positive.");
+    assign_val(relax_vars.coord_conv_tol, "COORD_CONV_TOL", stropt_var_dict);
+    if (!(relax_vars.coord_conv_tol > 0.0)) exit("parse_relax_vars", "COORD_CONV_TOL must be positive.");
+    assign_val(relax_vars.gradient_conv_tol, "GRADIENT_CONV_TOL", stropt_var_dict);
+    assign_val(relax_vars.cell_gradient_conv_tol, "CELL_GRADIENT_CONV_TOL", stropt_var_dict);
+    assign_val(relax_vars.gdiis_control, "GDIIS_CONTROL", stropt_var_dict); // deprecated
+    assign_val(gdiis_plain, "GDIIS_PLAIN", stropt_var_dict);
+    if (stropt_var_dict.find("GDIIS_CONTROL") != stropt_var_dict.end()) {
+        warn("parse_relax_vars",
+             "GDIIS_CONTROL is deprecated: controlled GDIIS is now the default. Use GDIIS_PLAIN = 1 to disable it.");
+    }
+    if (stropt_var_dict.find("GDIIS_PLAIN") != stropt_var_dict.end()) {
+        relax_vars.gdiis_control = gdiis_plain ? 0 : 1;
+    }
+
+    if (relax_vars.relax_algo < 1 || relax_vars.relax_algo > 3) {
+        exit("parse_relax_vars", "RELAX_ALGO must be 1 (steepest decent), 2 (Newton), or 3 (BFGS+GDIIS).");
+    }
+
+    if (relax_vars.relax_algo == 1) {
+        assign_val(relax_vars.alpha_steepest_decent, "ALPHA_STDECENT", stropt_var_dict);
+    } else if (relax_vars.relax_algo == 2) {
+        assign_val(relax_vars.mixbeta_coord, "MIXBETA_COORD", stropt_var_dict);
+        if (!(relax_vars.mixbeta_coord > 0.0)) exit("parse_relax_vars", "MIXBETA_COORD must be positive.");
+    }
+
+    assign_val(relax_vars.cell_conv_tol, "CELL_CONV_TOL", stropt_var_dict);
+    if (relax_vars.relax_algo == 2) {
+        assign_val(relax_vars.mixbeta_cell, "MIXBETA_CELL", stropt_var_dict);
+        if (!(relax_vars.mixbeta_cell > 0.0)) exit("parse_relax_vars", "MIXBETA_CELL must be positive.");
+    }
+
+    assign_val(relax_vars.set_init_str, "SET_INIT_STR", stropt_var_dict);
+    if (relax_vars.set_init_str < 1 || relax_vars.set_init_str > 3) {
+        exit("parse_relax_vars", "SET_INIT_STR must be 1, 2, or 3.");
+    }
+    for (const auto *tag: {"COOLING_U0_INDEX", "COOLING_U0_THR"}) {
+        if (stropt_var_dict.find(tag) != stropt_var_dict.end()) {
+            warn("parse_relax_vars",
+                 (std::string(tag) + " is deprecated and ignored: with SET_INIT_STR = 3 the high-symmetry"
+                                     " phase is now detected by spglib (space group of the reference cell).")
+                     .c_str());
+        }
+    }
+    assign_val(relax_vars.add_hess_diag, "ADD_HESS_DIAG", stropt_var_dict);
+    if (!(relax_vars.add_hess_diag >= 0.0)) exit("parse_relax_vars", "ADD_HESS_DIAG must not be negative.");
+    assign_val(relax_vars.bubble_hess, "BUBBLE_HESS", stropt_var_dict);
+    if (relax_vars.bubble_hess < 0 || relax_vars.bubble_hess > 1) {
+        exit("parse_relax_vars", "BUBBLE_HESS must be 0 or 1.");
+    }
+    assign_val(relax_vars.stat_pressure, "STAT_PRESSURE", stropt_var_dict);
+    relax_vars.efield = parse_vector3(stropt_var_dict, "EFIELD", "Ex Ey Ez in eV/Angstrom");
+    relax_vars.pol_ref = parse_vector3(stropt_var_dict, "POL_REF", "Px Py Pz in C/m^2");
+    relax_vars.pol_ref_given = stropt_var_dict.find("POL_REF") != stropt_var_dict.end();
+    if (relax_str == to_int(RelaxationStrMode::PerturbativeQha) &&
+        (relax_vars.efield[0] != 0.0 || relax_vars.efield[1] != 0.0 || relax_vars.efield[2] != 0.0))
+    {
+        exit("parse_relax_vars", "EFIELD cannot be used with RELAX_STR = 3 (perturbative QHA).");
+    }
+    if (relax_str == to_int(RelaxationStrMode::PerturbativeQha) && relax_vars.pol_ref_given) {
+        exit("parse_relax_vars", "POL_REF cannot be used with RELAX_STR = 3 (perturbative QHA).");
+    }
+
+    // STRAIN_COUPLING selects where the elastic constants and the strain
+    // couplings of the cell relaxation come from. Units digit: the sum of
+    // 1 (elastic constants), 2 (strain-force coupling) and 4 (strain-harmonic-
+    // IFC coupling) for the ingredients read from STRAINFILE / STRAIN_IFC_DIR;
+    // a clear bit means from the IFCs (bit 2: set to zero). Tens digit 1: the
+    // strain-force coupling from the harmonic IFCs, 2: also its second and
+    // third strain derivatives from the cubic and quartic IFCs; both are
+    // exact only for rotationally invariant IFCs.
+    assign_val(relax_vars.strain_coupling, "STRAIN_COUPLING", stropt_var_dict);
+    {
+        const auto v = relax_vars.strain_coupling;
+        const auto tens = v / 10;
+        const auto units = v % 10;
+        if (v < 0 || tens > 2 || units > 7 || (tens > 0 && (units & 2))) {
+            exit("parse_relax_vars",
+                 "STRAIN_COUPLING must be 0-7 (the sum of 1, 2, 4 for the elastic constants, the strain-force\n"
+                 " coupling and the strain-harmonic-IFC coupling read from STRAINFILE) or 10, 11, 14, 15,\n"
+                 " 20, 21, 24, 25 (strain-force coupling from the IFCs; the units digit must not contain 2).");
+        }
+        relax_vars.elastic_const = (units & 1) ? 2 : 1;
+        relax_vars.renorm_2to1st = (units & 2) ? 2 : (tens > 0 ? 1 : 0);
+        relax_vars.renorm_3to2nd = (units & 4) ? 2 : 1;
+        relax_vars.renorm_34to1st = (tens == 2) ? 1 : 0;
+        if (tens > 0 && uses_strain_coupling(to_relaxation_str_mode(relax_str))) {
+            warn("parse_relax_vars",
+                 "STRAIN_COUPLING >= 10: the strain-force coupling is computed from the IFCs, which is exact\n"
+                 " only for rotationally invariant IFCs (ICONST >= 2 in alm). Validate the result against a run\n"
+                 " with the coupling read from STRAINFILE (STRAIN_COUPLING bit 2).");
+        }
+    }
+
+    // The four tags that STRAIN_COUPLING replaces are still accepted as
+    // overrides of the individual switches (deprecated).
+    {
+        std::string given;
+        for (const auto &tag: {"RENORM_3TO2ND", "RENORM_2TO1ST", "RENORM_34TO1ST", "ELASTIC_CONST"}) {
+            const auto it = stropt_var_dict.find(tag);
+            if (it != stropt_var_dict.end() && !it->second.empty())
+                given += (given.empty() ? "" : ", ") + std::string(tag);
+        }
+        if (!given.empty()) {
+            assign_val(relax_vars.renorm_3to2nd, "RENORM_3TO2ND", stropt_var_dict);
+            assign_val(relax_vars.renorm_2to1st, "RENORM_2TO1ST", stropt_var_dict);
+            assign_val(relax_vars.renorm_34to1st, "RENORM_34TO1ST", stropt_var_dict);
+            assign_val(relax_vars.elastic_const, "ELASTIC_CONST", stropt_var_dict);
+            if (relax_vars.elastic_const < 1 || relax_vars.elastic_const > 2 || relax_vars.renorm_2to1st < 0 ||
+                relax_vars.renorm_2to1st > 2 || relax_vars.renorm_34to1st < 0 || relax_vars.renorm_34to1st > 1 ||
+                relax_vars.renorm_3to2nd < 1 || relax_vars.renorm_3to2nd > 4)
+            {
+                exit("parse_relax_vars",
+                     "Invalid value of a deprecated tag: ELASTIC_CONST = 1, 2; RENORM_2TO1ST = 0, 1, 2;\n"
+                     " RENORM_34TO1ST = 0, 1; RENORM_3TO2ND = 1, 2, 3. Please use STRAIN_COUPLING instead.");
+            }
+            // Name the STRAIN_COUPLING value that reproduces the combination.
+            int equiv = -1;
+            if (relax_vars.renorm_3to2nd != 4) {
+                const int units = (relax_vars.elastic_const == 2 ? 1 : 0) + (relax_vars.renorm_2to1st == 2 ? 2 : 0) +
+                                  (relax_vars.renorm_3to2nd >= 2 ? 4 : 0);
+                if (relax_vars.renorm_2to1st == 1) {
+                    equiv = 10 * (1 + relax_vars.renorm_34to1st) + units;
+                } else if (relax_vars.renorm_34to1st == 0) {
+                    equiv = units;
+                }
+            }
+            relax_vars.strain_coupling = equiv;
+            auto msg = given + ": deprecated, to be removed in a later release. Use STRAIN_COUPLING";
+            if (equiv >= 0) {
+                msg += " = " + std::to_string(equiv) + " for this combination.";
+            } else {
+                msg += " (this combination has no STRAIN_COUPLING value).";
+            }
+            warn("parse_relax_vars", msg.c_str());
+        }
+    }
+
+    assign_val(relax_vars.strain_IFC_dir, "STRAIN_IFC_DIR", stropt_var_dict);
+    if (!relax_vars.strain_IFC_dir.empty() &&
+        relax_vars.strain_IFC_dir.at(relax_vars.strain_IFC_dir.length() - 1) != '/')
+    {
+        relax_vars.strain_IFC_dir = relax_vars.strain_IFC_dir + "/";
+    }
+
+    assign_val(relax_vars.strain_file, "STRAINFILE", stropt_var_dict);
+    if (!relax_vars.strain_file.empty() && !relax_vars.strain_IFC_dir.empty()) {
+        exit("parse_relax_vars",
+             "STRAINFILE and STRAIN_IFC_DIR are mutually exclusive: give either the container file\n"
+             " or the directory of the legacy text files.");
+    }
+
+    // STRAIN_FC5: dPhi4/du from the quintic IFCs, an additive real-space correction to the
+    // quartic couplings of the SCP loop, the q0 sweep and the stress.
+    assign_val(relax_vars.strain_fc5, "STRAIN_FC5", stropt_var_dict);
+    if (relax_vars.strain_fc5 < 0 || relax_vars.strain_fc5 > 1) {
+        exit("parse_relax_vars", "STRAIN_FC5 must be 0 or 1.");
+    }
+    std::string fc5_channels = "ALL";
+    assign_val(fc5_channels, "STRAIN_FC5_CHANNELS", stropt_var_dict);
+    boost::to_upper(fc5_channels);
+    if (fc5_channels != "ALL" && fc5_channels != "DIAG") {
+        exit("parse_relax_vars", "STRAIN_FC5_CHANNELS must be ALL or DIAG.");
+    }
+    relax_vars.strain_fc5_diag = fc5_channels == "DIAG";
+    if (relax_vars.strain_fc5) {
+        if (run_mode != "SCPH") {
+            exit("parse_relax_vars", "STRAIN_FC5 = 1 is available for MODE = SCPH only.");
+        }
+        if (relax_str != to_int(RelaxationStrMode::CoordinatesAndCell) &&
+            relax_str != to_int(RelaxationStrMode::CoordinatesAtFixedStrain))
+        {
+            exit("parse_relax_vars", "STRAIN_FC5 = 1 needs a strained cell: RELAX_STR = 2 or 4.");
+        }
+        if (scph_bubble != 0 || relax_vars.bubble_hess) {
+            exit("parse_relax_vars",
+                 "STRAIN_FC5 = 1 cannot be combined with BUBBLE > 0 or BUBBLE_HESS = 1 (the bubble\n"
+                 " self-energy, the free-energy curvature and its quartic ladder do not include\n"
+                 " dPhi4/du yet).");
+        }
+    } else if (stropt_var_dict.find("STRAIN_FC5_CHANNELS") != stropt_var_dict.end()) {
+        warn("parse_relax_vars", "STRAIN_FC5_CHANNELS is ignored without STRAIN_FC5 = 1.");
+    }
+    relax_vars.strain_fc5_hint = run_mode == "SCPH" &&
+                                 (relax_str == to_int(RelaxationStrMode::CoordinatesAndCell) ||
+                                  relax_str == to_int(RelaxationStrMode::CoordinatesAtFixedStrain)) &&
+                                 scph_bubble == 0 && !relax_vars.bubble_hess &&
+                                 stropt_var_dict.find("STRAIN_FC5") == stropt_var_dict.end();
+
+    input_setter->set_relax_vars(phon, relax_vars);
+
+    stropt_var_dict.clear();
+}
+
+void InputParser::check_relax_vars() const
+{
+    std::ifstream fin_test;
+
+    // structural optimization
+    if (relax_str != 0) {
+
+        // The bubble free energy is not the functional the relaxation minimizes.
+        // The bubble self-energy (BUBBLE > 0) is evaluated on the relaxed structure
+        // of each temperature, with the cubic IFCs deformed accordingly.
+        if (calc_FE_bubble) {
+            exit("check_relax_vars", "Sorry, RELAX_STR!=0 can't be used with bubble correction of the free energy.");
+        }
+
+        // the energy is evaluated at a nonzero strain: the elastic constants and the
+        // strain couplings are required
+        if (uses_strain_coupling(to_relaxation_str_mode(relax_str))) {
+            if (!relax_vars.strain_file.empty()) {
+                // The container is validated (schema, required groups, reference
+                // cell) on every rank in Relaxation::setup_relaxation; here only
+                // its existence is checked, keeping HDF5 out of the parser.
+                fin_test.open(relax_vars.strain_file);
+                if (!fin_test) {
+                    const auto msg = "STRAINFILE " + relax_vars.strain_file + " does not exist or cannot be read.";
+                    exit("check_relax_vars", msg.c_str());
+                }
+                fin_test.close();
+            } else {
+                // elastic constants (C1_array.in is optional: a missing file
+                // means zero stress at the reference structure)
+                if (relax_vars.elastic_const == 2) {
+                    fin_test.open(relax_vars.strain_IFC_dir + "elastic_constants.in");
+
+                    if (!fin_test) {
+                        exit(
+                            "check_relax_vars",
+                            "elastic_constants.in is required in STRAIN_IFC_DIR when the elastic constants are read\n"
+                            " from file (STRAIN_COUPLING bit 1); or give the strain-coupling container as STRAINFILE.");
+                    }
+                    fin_test.close();
+                }
+
+                // strain-force coupling
+                if (relax_vars.renorm_2to1st == 2) {
+                    fin_test.open(relax_vars.strain_IFC_dir + "strain_force.in");
+
+                    if (!fin_test) {
+                        exit(
+                            "check_relax_vars",
+                            "strain_force.in is required in STRAIN_IFC_DIR when the strain-force coupling is read\n"
+                            " from file (STRAIN_COUPLING bit 2); or give the strain-coupling container as STRAINFILE.");
+                    }
+                    fin_test.close();
+                }
+
+                // strain-IFC coupling
+                if (relax_vars.renorm_3to2nd == 2 || relax_vars.renorm_3to2nd == 3) {
+                    fin_test.open(relax_vars.strain_IFC_dir + "strain_harmonic.in");
+
+                    if (!fin_test) {
+                        exit("check_relax_vars",
+                             "strain_harmonic.in is required in STRAIN_IFC_DIR when the strain-harmonic-IFC coupling\n"
+                             " is read from file (STRAIN_COUPLING bit 4); or give the strain-coupling container as\n"
+                             " STRAINFILE.");
+                    }
+
+                    fin_test.close();
+                }
+            }
+        }
+    }
+}
+
+void InputParser::parse_strain_tensor(double (&u_tensor)[3][3])
+{
+    int i, j;
+    std::string line;
+    std::vector<std::string> line_split;
+
+    const auto line_vec = read_block_lines();
+
+    if (line_vec.size() != 3) {
+        exit("parse_strain_tensor", "Too few or too much lines for the &strain field.\n \
+                                            The number of valid lines for the &strain field should be 3.");
+    }
+
+    for (i = 0; i < 3; ++i) {
+
+        line = line_vec[i];
+        split(line_split, line, boost::is_any_of("\t "), boost::token_compress_on);
+
+        // u_tensor
+        if (line_split.size() == 3) {
+            for (j = 0; j < 3; ++j) {
+                u_tensor[i][j] = my_cast<double>(line_split[j], "&strain");
+            }
+        } else {
+            exit("parse_strain_tensor", "Unacceptable format for &strain field.");
+        }
+    }
+    for (i = 0; i < 3; ++i) {
+        for (j = 0; j < 3; ++j) {
+            if (std::abs(u_tensor[i][j]) > 0.5) {
+                warn("parse_strain_tensor", "A &strain component exceeds 0.5 (50 %); please check the input.");
+                return;
+            }
+        }
+    }
+}
+
+void InputParser::parse_initial_strain(PHON *phon)
+{
+    double u_tensor_tmp[3][3];
+    parse_strain_tensor(u_tensor_tmp);
+    // The elastic energy is a function of the Green-Lagrange strain built as
+    // eta = sym(u) + 1/2 u u^T, which is only the strain of the given deformation
+    // gradient only when u is symmetric. An asymmetric u is silently reinterpreted by
+    // that construction, so reject it rather than let it through unnoticed.
+    if (relax_str == to_int(RelaxationStrMode::CoordinatesAtFixedStrain)) {
+        constexpr double asym_tol = 1.0e-12;
+        double asym = 0.0;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = i + 1; j < 3; ++j) {
+                asym = std::max(asym, std::abs(u_tensor_tmp[i][j] - u_tensor_tmp[j][i]));
+            }
+        }
+        if (asym > asym_tol) {
+            exit("parse_initial_strain",
+                 "&strain must be symmetric when RELAX_STR = 4: the elastic energy is built from\n"
+                 " eta = sym(u) + 1/2 u u^T, which represents the intended strain only for symmetric u.");
+        }
+    }
+    input_setter->set_initial_strain(phon, u_tensor_tmp);
+}
+
+void InputParser::parse_initial_displace(PHON *phon)
+{
+    int i, j;
+    int itmp;
+    int ixyz;
+    int iat;
+    std::string line;
+    std::vector<std::string> line_split;
+
+    int input_mode{-1};
+
+    double unit;
+    double a[3][3];
+    std::vector<std::vector<double>> u_fractional, u_xyz;
+    std::vector<double> vec_tmp(3);
+
+    const auto line_vec = read_block_lines();
+
+    if (line_vec.empty()) return; // empty field: zero initial displacements
+
+    line = line_vec[0];
+    split(line_split, line, boost::is_any_of("\t "), boost::token_compress_on);
+
+    if (line_split.size() == 1) {
+        input_mode = my_cast<int>(line_split[0], "&displace");
+    } else {
+        exit("parse_initial_displace", "Unacceptable format for &displace field.");
+    }
+
+    if (input_mode < 0 || input_mode > 2) {
+        exit("parse_initial_displace", "Invalid value of input_mode");
+    }
+
+    if (input_mode == 2) {
+        // Normal-mode representation: "branch amplitude [nx ny nz]" per line.
+        std::vector<InitialDisplacementMode> modes;
+        for (i = 1; i < line_vec.size(); ++i) {
+            line = line_vec[i];
+            split(line_split, line, boost::is_any_of("\t "), boost::token_compress_on);
+            if (line_split.size() != 2 && line_split.size() != 5) {
+                exit("parse_initial_displace",
+                     "DISPMODE = 2 expects \"branch amplitude [nx ny nz]\" on each line of &displace.");
+            }
+            InitialDisplacementMode m{};
+            m.branch = my_cast<int>(line_split[0], "&displace") - 1;
+            m.amplitude = my_cast<double>(line_split[1], "&displace");
+            if (line_split.size() == 5) {
+                for (j = 0; j < 3; ++j) m.axis[j] = my_cast<double>(line_split[2 + j], "&displace");
+            }
+            if (m.branch < 0) exit("parse_initial_displace", "Branch indices in &displace start from 1.");
+            modes.push_back(m);
+        }
+        if (modes.empty()) exit("parse_initial_displace", "No mode entry follows DISPMODE = 2 in &displace.");
+        input_setter->set_initial_displacement_modes(phon, modes);
+        return;
+    }
+
+    // read displacements
+    u_fractional.clear();
+    u_xyz.clear();
+
+    if (input_mode == 0) {
+        // check the number of input lines later because
+        // system->natmin has not been set at this stage.
+        // if (line_vec.size() != 5 + natmin) {
+        //     exit("parse_initial_displace",
+        //          "Too few or too many lines for the &displace field.");
+        // }
+
+        // read cell information
+        for (i = 1; i < 5; ++i) {
+
+            line = line_vec[i];
+            split(line_split, line, boost::is_any_of("\t "), boost::token_compress_on);
+
+            if (i == 1) {
+                // read unit
+                if (line_split.size() == 1) {
+                    unit = my_cast<double>(line_split[0], "&displace");
+                } else {
+                    exit("parse_initial_displace", "Unacceptable format for &displace field.");
+                }
+
+            } else {
+                // Lattice vectors a1, a2, a3
+                if (line_split.size() == 3) {
+                    for (j = 0; j < 3; ++j) {
+                        a[i - 2][j] = my_cast<double>(line_split[j], "&displace");
+                    }
+                } else {
+                    exit("parse_initial_displace", "Unacceptable format for &displace field.");
+                }
+            }
+        }
+
+        for (itmp = 0; itmp < 3; itmp++) {
+            for (ixyz = 0; ixyz < 3; ixyz++) {
+                a[itmp][ixyz] *= unit;
+            }
+        }
+        const auto det_a = a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) -
+                           a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) +
+                           a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+        if (!(std::abs(det_a) > 1.0e-12)) {
+            exit("parse_initial_displace", "The lattice vectors in &displace (DISPMODE = 0) are singular.");
+        }
+
+        // read fractional coordinate
+        for (i = 5; i < line_vec.size(); i++) {
+
+            line = line_vec[i];
+            split(line_split, line, boost::is_any_of("\t "), boost::token_compress_on);
+
+            if (line_split.size() == 3) {
+                for (j = 0; j < 3; ++j) {
+                    vec_tmp[j] = my_cast<double>(line_split[j], "&displace");
+                }
+                u_fractional.push_back(vec_tmp);
+            } else {
+                exit("parse_initial_displace", "Unacceptable format for &displace field.");
+            }
+        }
+
+        // transform to xyz coordinate
+        for (iat = 0; iat < u_fractional.size(); iat++) {
+            for (ixyz = 0; ixyz < 3; ixyz++) {
+                vec_tmp[ixyz] = 0.0;
+                for (itmp = 0; itmp < 3; itmp++) {
+                    vec_tmp[ixyz] += a[itmp][ixyz] * u_fractional[iat][itmp];
+                }
+            }
+            u_xyz.push_back(vec_tmp);
+        }
+
+    } else if (input_mode == 1) {
+
+        // check the number of input lines later because
+        // system->natmin has not been set at this stage.
+
+        // if (line_vec.size() != 1 + natmin) {
+        //     exit("parse_initial_displace",
+        //          "Too few or too many lines for the &displace field.");
+        // }
+
+        for (i = 1; i < line_vec.size(); i++) {
+
+            line = line_vec[i];
+            split(line_split, line, boost::is_any_of("\t "), boost::token_compress_on);
+
+            if (line_split.size() == 3) {
+                for (j = 0; j < 3; ++j) {
+                    vec_tmp[j] = my_cast<double>(line_split[j], "&displace");
+                }
+                u_xyz.push_back(vec_tmp);
+            } else {
+                exit("parse_cell_parameter", "Unacceptable format for &displace field.");
+            }
+        }
+    }
+
+    input_setter->set_initial_displacements(phon, u_xyz);
+}
+
+void InputParser::parse_cell_parameter(PHON *phon)
+{
+    // Read the cell parameter
+
+    int i, j;
+    double a;
+    double lavec_tmp[3][3];
+    double lavec[3][3];
+    std::string line;
+    std::vector<std::string> line_split;
+
+    const auto line_vec = read_block_lines();
+
+    if (line_vec.size() != 4) {
+        exit("parse_cell_parameter",
+             "Too few or too much lines for the &cell field.\n "
+             "The number of valid lines for the &cell field should be 4.");
+    }
+
+    for (i = 0; i < 4; ++i) {
+
+        line = line_vec[i];
+        split(line_split, line, boost::is_any_of("\t "), boost::token_compress_on);
+
+        if (i == 0) {
+            // Lattice factor a
+            if (line_split.size() == 1) {
+                a = my_cast<double>(line_split[0], "&cell");
+            } else {
+                exit("parse_cell_parameter", "Unacceptable format for &cell field.");
+            }
+
+        } else {
+            // Lattice vectors a1, a2, a3
+            if (line_split.size() == 3) {
+                for (j = 0; j < 3; ++j) {
+                    lavec_tmp[j][i - 1] = my_cast<double>(line_split[j], "&cell");
+                }
+            } else {
+                exit("parse_cell_parameter", "Unacceptable format for &cell field.");
+            }
+        }
+    }
+
+    for (i = 0; i < 3; ++i) {
+        for (j = 0; j < 3; ++j) {
+            lavec[i][j] = a * lavec_tmp[i][j];
+        }
+    }
+
+    // anphon assumes a right-handed &cell (positive cell volume, e.g. the atom count derived from
+    // det(L_super^-1 L_prim)); a left-handed basis otherwise fails later with a misleading error.
+    const auto det = lavec[0][0] * (lavec[1][1] * lavec[2][2] - lavec[1][2] * lavec[2][1]) -
+                     lavec[0][1] * (lavec[1][0] * lavec[2][2] - lavec[1][2] * lavec[2][0]) +
+                     lavec[0][2] * (lavec[1][0] * lavec[2][1] - lavec[1][1] * lavec[2][0]);
+    if (std::abs(det) < 1.0e-12) {
+        exit("parse_cell_parameter",
+             "The lattice vectors of the &cell field have zero volume. Check the lattice factor and vectors.");
+    }
+    if (det < 0.0) {
+        exit("parse_cell_parameter",
+             "The lattice vectors of the &cell field form a left-handed (or degenerate) basis:\n"
+             " a1 . (a2 x a3) <= 0. Swap two of the vectors (or reverse one) to make the basis right-handed.");
+    }
+
+    input_setter->set_cell_parameter(phon, lavec);
+}
+
+void InputParser::parse_selfenergy_vars(PHON *phon)
+{
+    // KMESH controls integration; &kpoint and BRANCHES select targets.
+    const std::vector<std::string> input_list{"KMESH",
+                                              "BRANCHES",
+                                              "LINEWIDTH",
+                                              "SHIFT",
+                                              "SELF_W",
+                                              "FSTATE_W",
+                                              "PRINTV3",
+                                              "PRINTV4",
+                                              "INTERPOLATE",
+                                              "KMESH_COARSE",
+                                              "OMEGA_RANGE"};
+    std::map<std::string, std::string> var_dict;
+    if (from_stdin) {
+        std::cin.ignore();
+    } else {
+        ifs_input.ignore();
+    }
+    get_var_dict(input_list, var_dict);
+
+    if (var_dict.find("KMESH") == var_dict.end()) exit("parse_selfenergy_vars", "Please specify KMESH in &selfenergy.");
+    const auto kmesh_v = parse_positive_mesh(var_dict["KMESH"], "parse_selfenergy_vars", "KMESH");
+    const unsigned int kmesh[3] = {kmesh_v[0], kmesh_v[1], kmesh_v[2]};
+    std::string branches = "all";
+    int linewidth = 1, shift = 0, self_w = 0, fstate_w = 0, print_v3 = 0, print_v4 = 0, interpolate = 0;
+    unsigned int kmesh_coarse[3] = {0, 0, 0};
+    assign_val(interpolate, "INTERPOLATE", var_dict);
+    if (interpolate) {
+        if (var_dict.find("KMESH_COARSE") == var_dict.end()) {
+            exit("parse_selfenergy_vars", "INTERPOLATE = 1 needs KMESH_COARSE.");
+        }
+        const auto kc = parse_positive_mesh(var_dict["KMESH_COARSE"], "parse_selfenergy_vars", "KMESH_COARSE");
+        for (auto i = 0; i < 3; ++i) kmesh_coarse[i] = kc[i];
+    }
+    double omega_range[3] = {-1.0,
+                             -1.0,
+                             -1.0}; // min max step (cm^-1); default: the DOS grid (0 .. 2 omega_max, DELTA_E)
+    if (var_dict.find("OMEGA_RANGE") != var_dict.end()) {
+        std::vector<std::string> ov;
+        split_str_by_space(var_dict["OMEGA_RANGE"], ov);
+        if (ov.size() != 3) exit("parse_selfenergy_vars", "OMEGA_RANGE expects \"min max step\" in cm^-1.");
+        for (auto i = 0; i < 3; ++i) omega_range[i] = my_cast<double>(ov[i], "OMEGA_RANGE");
+        if (omega_range[2] <= 0.0 || omega_range[1] <= omega_range[0] || omega_range[0] < 0.0) {
+            exit("parse_selfenergy_vars", "OMEGA_RANGE needs 0 <= min < max and step > 0.");
+        }
+    }
+    assign_val(branches, "BRANCHES", var_dict);
+    assign_val(linewidth, "LINEWIDTH", var_dict);
+    assign_val(shift, "SHIFT", var_dict);
+    assign_val(self_w, "SELF_W", var_dict);
+    assign_val(fstate_w, "FSTATE_W", var_dict);
+    assign_val(print_v3, "PRINTV3", var_dict);
+    assign_val(print_v4, "PRINTV4", var_dict);
+    if (!linewidth && !shift && !self_w && !fstate_w && !print_v3 && !print_v4 && !interpolate) {
+        exit("parse_selfenergy_vars",
+             "Nothing to compute: LINEWIDTH, SHIFT, SELF_W, FSTATE_W, PRINTV3, PRINTV4 and INTERPOLATE are all 0.");
+    }
+
+    input_setter->set_selfenergy_vars(phon,
+                                      kmesh,
+                                      branches,
+                                      linewidth,
+                                      shift,
+                                      self_w,
+                                      fstate_w,
+                                      print_v3,
+                                      print_v4,
+                                      interpolate,
+                                      kmesh_coarse,
+                                      omega_range);
+}
+
+void InputParser::parse_kpoints(PHON *phon)
+{
+    // Read the settings in the &kpoint field.
+
+    int kpmode;
+    std::string line;
+    std::vector<std::string> kpelem;
+    std::vector<std::vector<std::string>> kpdata;
+
+    const auto line_vec = read_block_lines();
+
+    for (int i = 0; i < line_vec.size(); ++i) {
+        line = line_vec[i];
+        split(kpelem, line, boost::is_any_of("\t "), boost::token_compress_on);
+
+        if (i == 0) {
+            // kpmode
+            if (kpelem.size() == 1) {
+                try {
+                    kpmode = boost::lexical_cast<int>(kpelem[0]);
+                } catch (std::exception &e) {
+                    std::cout << e.what() << '\n';
+                    exit("parse_kpoints", "KPMODE must be an integer. [0, 1, or 2]");
+                }
+
+                if (!(kpmode >= 0 && kpmode <= 2)) {
+                    exit("parse_kpoints", "KPMODE must be 0, 1, or 2.");
+                }
+
+            } else {
+                exit("parse_kpoints", "Unacceptable format for the &kpoint field.");
+            }
+
+        } else {
+            // Read each entry of kpoint
+
+            if (kpmode == 0 && kpelem.size() != 3) {
+                exit("parse_kpoints", "The number of columns must be 3 when KPMODE = 0");
+            }
+            if (kpmode == 1 && kpelem.size() != 9) {
+                exit("parse_kpoints", "The number of columns must be 9 when KPMODE = 1");
+            }
+            if (kpmode == 2 && kpelem.size() != 3) {
+                exit("parse_kpoints", "The number of columns must be 3 when KPMODE = 2");
+            }
+            if (kpmode == 2) {
+                parse_positive_mesh(line, "parse_kpoints", "the k-point mesh (KPMODE = 2)");
+            } else {
+                // KPMODE = 1: "label k1 k2 k3 label k1 k2 k3 npoints"
+                for (auto j = 0; j < kpelem.size(); ++j) {
+                    if (kpmode == 1 && (j == 0 || j == 4)) continue;
+                    if (kpmode == 1 && j == 8) {
+                        if (my_cast<int>(kpelem[j], "&kpoint") < 1) {
+                            exit("parse_kpoints", "The number of k points in each segment must be positive.");
+                        }
+                    } else if (!std::isfinite(my_cast<double>(kpelem[j], "&kpoint"))) {
+                        exit("parse_kpoints", "k-point coordinates must be finite numbers.");
+                    }
+                }
+                if (kpmode == 1 && kpelem[1] == kpelem[5] && kpelem[2] == kpelem[6] && kpelem[3] == kpelem[7]) {
+                    warn("parse_kpoints", ("Zero-length band segment: " + line).c_str());
+                }
+            }
+
+            kpdata.push_back(kpelem);
+        }
+    }
+
+    if (kpdata.empty()) {
+        exit("parse_kpoints", "The &kpoint field needs KPMODE followed by at least one line of k-point data.");
+    }
+
+    if (run_mode == "PHONONS" && kpmode != 2 && !kpmode2_only_tags.empty()) {
+        warn("parse_kpoints",
+             ("The following &analysis tags are used only with KPMODE = 2 and are ignored: " +
+              boost::algorithm::join(kpmode2_only_tags, ", "))
+                 .c_str());
+    }
+    input_setter->set_kpoint_vars(phon, kpmode, kpdata);
+}
+
+std::vector<std::string> InputParser::read_block_lines()
+{
+    std::istream &is = from_stdin ? static_cast<std::istream &>(std::cin) : ifs_input;
+
+    std::string line;
+    std::vector<std::string> line_vec;
+
+    while (std::getline(is, line)) {
+
+        // Ignore comment region
+        const auto pos_first_comment_tag = line.find_first_of('#');
+
+        std::string line_wo_comment;
+        if (pos_first_comment_tag == std::string::npos) {
+            line_wo_comment = line;
+        } else {
+            line_wo_comment = line.substr(0, pos_first_comment_tag);
+        }
+
+        trim_if(line_wo_comment, boost::is_any_of("\t\r\n "));
+
+        if (line_wo_comment.empty()) continue;
+        if (is_endof_entry(line_wo_comment)) break;
+
+        line_vec.push_back(line_wo_comment);
+    }
+
+    return line_vec;
+}
+
+int InputParser::locate_tag(const std::string &key)
+{
+    std::istream &is = from_stdin ? static_cast<std::istream &>(std::cin) : ifs_input;
+
+    auto ret = 0;
+    std::string line, line2;
+
+    // The following two lines do nothing when MPI version is executed.
+    // I don't know why this happens.
+    is.clear();
+    is.seekg(0, std::ios_base::beg);
+
+    while (is >> line) {
+#ifdef _USE_BOOST
+        boost::to_lower(line);
+        boost::trim(line);
+#else
+        std::transform(line.begin(), line.end(), line.begin(), tolower);
+        line2 = line;
+        line = trim(line2);
+#endif
+        if (line == key) {
+            ret = 1;
+            break;
+        }
+    }
+    return ret;
+}
+
+void InputParser::get_var_dict(const std::vector<std::string> &input_list, std::map<std::string, std::string> &var_dict)
+{
+    std::istream &is = from_stdin ? static_cast<std::istream &>(std::cin) : ifs_input;
+
+    std::string line, key, val;
+    std::string line_wo_comment, line_tmp;
+    std::string::size_type pos_first_comment_tag;
+    std::vector<std::string> str_entry, str_varval;
+    std::set<std::string> keyword_set;
+
+    for (const auto &it: input_list) {
+        keyword_set.insert(it);
+    }
+
+    var_dict.clear();
+
+    while (std::getline(is, line)) {
+
+        // Ignore comment region
+        pos_first_comment_tag = line.find_first_of('#');
+
+        if (pos_first_comment_tag == std::string::npos) {
+            line_wo_comment = line;
+        } else {
+            line_wo_comment = line.substr(0, pos_first_comment_tag);
+        }
+#ifdef _USE_BOOST
+        boost::trim_left(line_wo_comment);
+#else
+        line_tmp = line_wo_comment;
+        line_wo_comment = ltrim(line_tmp);
+#endif
+        if (line_wo_comment.empty()) continue;
+        if (is_endof_entry(line_wo_comment)) break;
+
+            // Split the input line by ';'
+#ifdef _USE_BOOST
+        boost::split(str_entry, line_wo_comment, boost::is_any_of(";"));
+#else
+        str_entry = my_split(line_wo_comment, ';');
+#endif
+
+        for (auto &it: str_entry) {
+
+            // Split the input entry by '='
+#ifdef _USE_BOOST
+            std::string str_tmp = boost::trim_copy(it);
+#else
+            std::string str_tmp = trim(it);
+#endif
+            if (!str_tmp.empty()) {
+#ifdef _USE_BOOST
+                boost::split(str_varval, str_tmp, boost::is_any_of("="));
+#else
+                str_varval = my_split(str_tmp, '=');
+#endif
+                if (str_varval.size() != 2) {
+                    std::cout << " Failed to parse : ";
+                    for (auto &it2: str_varval) {
+                        std::cout << it2 << ' ';
+                    }
+                    std::cout << '\n';
+                    exit("get_var_dict", "Unacceptable format");
+                }
+#ifdef _USE_BOOST
+                key = boost::to_upper_copy(boost::trim_copy(str_varval[0]));
+                val = boost::trim_copy(str_varval[1]);
+#else
+                key = trim(str_varval[0]);
+                std::transform(key.begin(), key.end(), key.begin(), toupper);
+                val = trim(str_varval[1]);
+#endif
+                if (keyword_set.find(key) == keyword_set.end()) {
+                    std::cout << "Could not recognize the variable " << key << '\n';
+                    exit("get_var_dict", "Invalid variable found");
+                }
+
+                if (var_dict.find(key) != var_dict.end()) {
+                    std::cout << "Variable " << key << " appears twice in the input file.\n";
+                    exit("get_var_dict", "Redundant input parameter");
+                }
+
+                // If everything is OK, add the variable and the corresponding value
+                // to the dictionary.
+
+                var_dict.insert(std::map<std::string, std::string>::value_type(key, val));
+            }
+        }
+    }
+
+    keyword_set.clear();
+}
+
+bool InputParser::is_endof_entry(const std::string &str)
+{
+    return str[0] == '/';
+}
+
+void InputParser::split_str_by_space(const std::string &str, std::vector<std::string> &str_vec)
+{
+    std::string str_tmp;
+    std::istringstream is(str);
+
+    str_vec.clear();
+
+    while (true) {
+        str_tmp.clear();
+        is >> str_tmp;
+        if (str_tmp.empty()) {
+            break;
+        }
+        str_vec.push_back(str_tmp);
+    }
+    str_tmp.clear();
+}
+
+std::vector<unsigned int> InputParser::parse_positive_mesh(const std::string &str, const char *func,
+                                                           const std::string &tag)
+{
+    // Parse the value of a mesh tag: exactly three positive integers.
+
+    std::vector<std::string> str_vec;
+    split_str_by_space(str, str_vec);
+    if (str_vec.size() != 3) {
+        exit(func, ("The number of entries for " + tag + " has to be 3.").c_str());
+    }
+
+    std::vector<unsigned int> mesh(3);
+    for (auto i = 0; i < 3; ++i) {
+        mesh[i] = my_cast<unsigned int>(str_vec[i], tag);
+        // a negative entry wraps to a value above INT_MAX in my_cast<unsigned int>
+        if (mesh[i] == 0 || mesh[i] > static_cast<unsigned int>(INT_MAX)) {
+            exit(func, (tag + " must be positive integers.").c_str());
+        }
+    }
+    return mesh;
+}
+
+template <typename T>
+void InputParser::assign_val(T &val, const std::string &key, const std::map<std::string, std::string> &dict)
+{
+    // Assign a value to the variable "key" using the boost::lexica_cast.
+
+    const auto it = dict.find(key);
+    if (it != dict.end() && !it->second.empty()) {
+        try {
+            // lexical_cast wraps "-1" into a huge unsigned value instead of failing
+            if constexpr (std::is_unsigned_v<T>) {
+                if (it->second.find('-') != std::string::npos) throw std::invalid_argument(it->second);
+            }
+            val = boost::lexical_cast<T>(it->second);
+        } catch (std::exception &e) {
+            std::cout << e.what() << '\n';
+            std::string str_tmp = "Invalid entry for the " + key + " tag.\n";
+            str_tmp += " Please check the input value.";
+            exit("assign_val", str_tmp.c_str());
+        }
+    }
+}
+
+template <typename T_to, typename T_from>
+T_to InputParser::my_cast(T_from const &x, const std::string &what)
+{
+    std::stringstream ss;
+    T_to ret;
+
+    ss << x;
+    // operator>> wraps "-1" into a huge unsigned value instead of failing
+    const auto negative_unsigned = std::is_unsigned_v<T_to> && ss.str().find('-') != std::string::npos;
+    if (negative_unsigned || !(ss >> ret) || !(ss >> std::ws).eof()) {
+        const auto field = what.empty() ? std::string("the input") : what;
+        exit("my_cast", ("Invalid numerical entry in " + field + ": " + ss.str()).c_str());
+    }
+
+    return ret;
+}

@@ -9,9 +9,10 @@
 */
 
 #include "timer.h"
-#include <string>
-#include <iostream>
 #include <ctime>
+#include <iostream>
+#include <string>
+#include "fatal_error.h"
 
 using namespace ALM_NS;
 
@@ -43,18 +44,16 @@ void Timer::reset()
 #endif
 }
 
-double Timer::elapsed_walltime() const
+auto Timer::elapsed_walltime() const -> double
 {
 #if defined(WIN32) || defined(_WIN32)
     LARGE_INTEGER time_now;
     QueryPerformanceCounter(&time_now);
-    return static_cast<double>(time_now.QuadPart - walltime_ref.QuadPart)
-        / static_cast<double>(frequency.QuadPart);
+    return static_cast<double>(time_now.QuadPart - walltime_ref.QuadPart) / static_cast<double>(frequency.QuadPart);
 #else
     timeval time_now;
     gettimeofday(&time_now, nullptr);
-    return (time_now.tv_sec - walltime_ref.tv_sec)
-           + (time_now.tv_usec - walltime_ref.tv_usec) * 1.0e-6;
+    return (time_now.tv_sec - walltime_ref.tv_sec) + (time_now.tv_usec - walltime_ref.tv_usec) * 1.0e-6;
 #endif
 }
 
@@ -65,20 +64,18 @@ double Timer::get_cputime() const
     FILETIME exitTime;
     FILETIME kernelTime;
     FILETIME userTime;
-    if (GetProcessTimes(GetCurrentProcess(),
-                        &createTime, &exitTime, &kernelTime, &userTime) != -1) {
+    if (GetProcessTimes(GetCurrentProcess(), &createTime, &exitTime, &kernelTime, &userTime) != -1) {
         SYSTEMTIME userSystemTime;
         if (FileTimeToSystemTime(&userTime, &userSystemTime) != -1)
             return static_cast<double>(userSystemTime.wHour) * 3600.0 +
-                static_cast<double>(userSystemTime.wMinute) * 60.0 +
-                static_cast<double>(userSystemTime.wSecond) +
-                static_cast<double>(userSystemTime.wMilliseconds) / 1000.0;
+                   static_cast<double>(userSystemTime.wMinute) * 60.0 + static_cast<double>(userSystemTime.wSecond) +
+                   static_cast<double>(userSystemTime.wMilliseconds) / 1000.0;
     }
     return 0.0;
 }
 #endif
 
-double Timer::elapsed_cputime() const
+auto Timer::elapsed_cputime() const -> double
 {
 #if defined(WIN32) || defined(_WIN32)
     return get_cputime() - cputime_ref;
@@ -87,20 +84,20 @@ double Timer::elapsed_cputime() const
 #endif
 }
 
-void Timer::print_elapsed() const
+auto Timer::print_elapsed() const -> void
 {
-    std::cout << "  Time Elapsed: " << elapsed_walltime() << " sec."
-              << std::endl << std::endl;
+    std::cout << "  Time Elapsed: " << elapsed_walltime() << " sec.\n\n" << std::flush;
 }
 
 
-std::string Timer::DateAndTime()
+auto Timer::DateAndTime() -> std::string
 {
     time_t current;
     std::time(&current);
 
 #if defined(WIN32) || defined(_WIN32)
-    struct tm local{};
+    struct tm local
+    {};
     char str_now[32];
 
     auto err_t = localtime_s(&local, &current);
@@ -115,11 +112,10 @@ std::string Timer::DateAndTime()
 }
 
 
-void Timer::start_clock(const std::string str_tag)
+auto Timer::start_clock(const std::string &str_tag) -> void
 {
     if (lock) {
-        std::cout << "Error: cannot start clock because it's occupied." << std::endl;
-        exit(1);
+        alamode::fatal("Error: cannot start clock because it's occupied.\n");
     }
     // Initialize the counter if the key is new
     if (walltime.find(str_tag) == walltime.end()) {
@@ -135,18 +131,16 @@ void Timer::start_clock(const std::string str_tag)
     lock = true;
 }
 
-void Timer::stop_clock(const std::string str_tag)
+auto Timer::stop_clock(const std::string &str_tag) -> void
 {
     if (!lock) {
-        std::cout << "Error: cannot stop clock because it's not initialized." << std::endl;
-        exit(1);
+        alamode::fatal("Error: cannot stop clock because it's not initialized.\n");
     }
 
     auto it = walltime.find(str_tag);
 
     if (it == walltime.end()) {
-        std::cout << "Error: invalid tag for clock" << std::endl;
-        exit(1);
+        alamode::fatal("Error: invalid tag for clock\n");
     }
 
     auto time_tmp = (*it).second;
@@ -155,8 +149,7 @@ void Timer::stop_clock(const std::string str_tag)
 
     it = cputime.find(str_tag);
     if (it == cputime.end()) {
-        std::cout << "Error: invalid tag for clock" << std::endl;
-        exit(1);
+        alamode::fatal("Error: invalid tag for clock\n");
     }
 
     time_tmp = (*it).second;
@@ -166,25 +159,23 @@ void Timer::stop_clock(const std::string str_tag)
     lock = false;
 }
 
-double Timer::get_walltime(const std::string str_tag)
+auto Timer::get_walltime(const std::string &str_tag) -> double
 {
     const auto it = walltime.find(str_tag);
 
     if (it == walltime.end()) {
-        std::cout << "Error: invalid tag for clock" << std::endl;
-        exit(1);
+        alamode::fatal("Error: invalid tag for clock\n");
     }
     return (*it).second;
 }
 
 
-double Timer::get_cputime(const std::string str_tag)
+auto Timer::get_cputime(const std::string &str_tag) -> double
 {
     const auto it = cputime.find(str_tag);
 
     if (it == cputime.end()) {
-        std::cout << "Error: invalid tag for clock" << std::endl;
-        exit(1);
+        alamode::fatal("Error: invalid tag for clock\n");
     }
     return (*it).second;
 }

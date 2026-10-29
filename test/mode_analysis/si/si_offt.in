@@ -1,0 +1,19 @@
+&general
+ PREFIX = si_offt; MODE = kappa; FCSFILE = si222_cubic.h5; KD = Si
+ TMIN = 100; TMAX = 300; DT = 100
+ ISMEAR = -1
+/
+&cell
+  10.203
+  0.0 0.5 0.5
+  0.5 0.0 0.5
+  0.5 0.5 0.0
+/
+&kpoint
+  2
+  10 10 10
+/
+&analysis
+ KS_INPUT = KS_INPUT_offt
+ SELF_ENERGY = 1; SELF_W = 1; FSTATE_W = 1
+/

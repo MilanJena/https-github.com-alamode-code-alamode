@@ -1,0 +1,107 @@
+name: Run ZnO example
+
+# Expensive: run nightly from nightly.yaml (and manually), not on every push.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ github.repository == 'alamode-code/alamode-developer' && fromJSON(format('["self-hosted","{0}"]', matrix.os)) || (matrix.os == 'macOS' && 'macos-latest' || 'ubuntu-latest') }}
+    strategy:
+      matrix:
+        os: [Linux]
+#        os: [ubuntu-latest, windows-latest, macOS-latest]
+        python-version: ['3.10']
+    name: OS ${{ matrix.os }} Python ${{ matrix.python-version }}
+    env:
+      # Private-repo runners expose 2 hardware threads but a single core, so a
+      # 2-rank mpirun is refused without oversubscription (Open MPI 5 / 4).
+      PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
+      OMPI_MCA_rmaps_base_oversubscribe: "1"
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: alamode
+          python-version: ${{ matrix.python-version }}
+      - name: Get date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> "${GITHUB_OUTPUT}"
+      - name: Cache Conda env
+        uses: actions/cache@v4
+        env:
+          # Increase this value to reset cache if etc/alm-environment.yml has not changed
+          CACHE_NUMBER: 0
+        with:
+          path: ${{ env.CONDA }}/envs
+          key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('etc/alamode-environment.yml') }}-${{ env.CACHE_NUMBER }}
+        id: cache
+      - name: Update environment
+        run: conda env update -n alamode -f etc/alamode-environment.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+      - run: |
+          conda info
+          conda list
+          conda config --show-sources
+          conda config --show
+          printenv | sort
+
+      - name: Build alm and anphon with cmake
+        run: |
+          mkdir -p _build
+          cd _build
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_VELOCITY_SYMMETRY_TEST=ON ..
+          # Bounded parallelism: unbounded "make -j" OOM-kills the 16 GB runner and the
+          # job ends as "canceled" with no compiler diagnostics (see test_si.yaml).
+          make alm anphon test_velocity_symmetry -j4
+          cd ..
+      
+      - name: Copy files
+        working-directory: ./test
+        run: | 
+          python test_zno.py --job copy
+          cd zno
+          ls
+          cd strain_IFC
+          ls
+          cd ../../
+      
+      - name: Run ZnO example manually
+        working-directory: ./test/zno
+        run: | 
+          ../../_build/anphon/anphon ZnO_qha_thermo.in
+
+      # - name: Run ZnO example
+      #   working-directory: ./test
+      #   run: | 
+      #     python test_zno.py --job run
+      #     cd zno
+      #     ls
+      #     cat ZnO_qha_thermo.log
+      #     cd ../
+
+      - name: Compare results
+        working-directory: ./test
+        run: python test_zno.py --job compare
+
+      - name: Run QHA regression tests (restart, IALGO, perturbative)
+        working-directory: ./test
+        run: python test_qha.py
+
+      - name: Run SCPH KPMODE=0 regression test
+        working-directory: ./test
+        run: python test_kpmode0.py
+
+      - name: Run little-group velocity symmetrization unit test
+        run: ./_build/anphon/test_velocity_symmetry
+
+      - name: Run little-group velocity symmetrization test (NONANALYTIC = 2)
+        working-directory: ./test
+        run: python test_velsym.py

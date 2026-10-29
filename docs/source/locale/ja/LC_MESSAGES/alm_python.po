@@ -1,0 +1,1429 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-27 16:07+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/alm_python.rst:4
+msgid "alm (force constants)"
+msgstr "alm (力定数)"
+
+#: ../../source/alm_python.rst:7
+msgid "Overview"
+msgstr "概要"
+
+#: ../../source/alm_python.rst:9
+msgid ""
+"ALAMODE 2.0 ships a `nanobind <https://nanobind.readthedocs.io>`_ Python "
+"interface to the ALM force-constant library (package name ``alm``).  "
+"Besides the built-in solvers (ordinary least squares, elastic-net, "
+"adaptive LASSO), the interface exposes ALM's **exact sensing matrix** "
+":math:`(A, b)` so that *any* external regressor can be used to determine "
+"the anharmonic interatomic force constants (IFCs) and the result written "
+"back into an anphon-readable file."
+msgstr ""
+"ALAMODE 2.0 には、ALM 力定数 (force constant) ライブラリ (パッケージ名 ``alm``) への "
+"`nanobind <https://nanobind.readthedocs.io>`_ ベースの Python "
+"インターフェースが付属しています。組み込みソルバー (通常最小二乗法、elastic-net、adaptive LASSO) "
+"に加えて、このインターフェースは ALM の\\ **厳密なセンシング行列 (exact sensing matrix)** :math:`(A,"
+" b)` を公開します。これにより、\\ *任意の*\\ 外部回帰器を用いて非調和原子間力定数 (anharmonic interatomic "
+"force constants, IFCs) を決定し、その結果を anphon が読み取れるファイルに書き戻すことができます。"
+
+#: ../../source/alm_python.rst:16
+msgid "The intended workflow is::"
+msgstr "想定しているワークフローは次のとおりです::"
+
+#: ../../source/alm_python.rst:21
+msgid ""
+"This page documents the installation, the conventions you must respect, "
+"and a complete worked example using the scikit-learn regressors **ARD**, "
+"**BayesianRidge**, **RFECV**, and a small **Bayesian LASSO** (Gibbs) "
+"sampler."
+msgstr ""
+"このページでは、インストール (installation)、守るべき規約、そして scikit-learn の回帰器 **ARD**、\\ "
+"**BayesianRidge**、\\ **RFECV**、および小規模な **Bayesian LASSO** (Gibbs) "
+"サンプラーを用いた完全な実例を解説します。"
+
+#: ../../source/alm_python.rst:27
+msgid ""
+"This interface replaces the C-extension wrapper of ALAMODE 1.x and keeps "
+"the same high-level API (``define`` / ``set_training_data`` / "
+"``get_matrix_elements`` / ``get_fc`` / ``set_fc`` / ``save_fc`` / "
+"``optimizer_control``)."
+msgstr ""
+"このインターフェースは ALAMODE 1.x の C 拡張ラッパーを置き換えるもので、同じ高レベル API (``define`` / "
+"``set_training_data`` / ``get_matrix_elements`` / ``get_fc`` / ``set_fc``"
+" / ``save_fc`` / ``optimizer_control``) を維持しています。"
+
+#: ../../source/alm_python.rst:34
+msgid ""
+"**Object lifetime.**  The C++ instance is created in ``ALM.__init__``, so"
+" ``a = ALM(lavec, xcoord, numbers)`` is ready to use immediately and is "
+"freed automatically when ``a`` goes out of scope (the underlying C++ "
+"class is fully RAII).  A ``with`` block — or an explicit ``alm_delete()``"
+" — is **optional**: use it only for a prompt, deterministic release, e.g."
+" inside a loop that builds many large sensing matrices."
+msgstr ""
+"**オブジェクトの寿命。** C++ インスタンスは ``ALM.__init__`` 内で生成されるため、``a = ALM(lavec, "
+"xcoord, numbers)`` は直ちに使用可能であり、``a`` がスコープを外れると自動的に解放されます (基盤となる C++ "
+"クラスは完全に RAII です)。``with`` ブロック (または明示的な ``alm_delete()``) は\\ **任意**\\ "
+"です。多数の大きなセンシング行列を構築するループの中など、即時かつ確定的な解放が必要な場合にのみ使用してください。"
+
+#: ../../source/alm_python.rst:45
+msgid "Installation"
+msgstr "インストール"
+
+#: ../../source/alm_python.rst:47
+msgid ""
+"The Python interface is the distribution ``alamode``, which contains two "
+"packages: ``alm`` and :ref:`anphon <anphon_python>`.  The build compiles "
+"the ALM and anphon C++ sources together with the bindings, so it needs "
+"the same dependencies as ALM itself (spglib, Boost, Eigen, HDF5, a "
+"BLAS/LAPACK backend, OpenMP), an MPI library for anphon, the build front-"
+"end (``nanobind``, ``scikit-build-core``) and, for the external "
+"regressors, ``scikit-learn``. To build ``alm`` only, without MPI, add "
+"``-C cmake.define.ALAMODE_PYTHON_ANPHON=OFF`` to the ``pip install`` "
+"command of Step 2."
+msgstr ""
+"Python インターフェースはディストリビューション ``alamode`` で、``alm`` と :ref:`anphon "
+"<anphon_python>` の 2 つのパッケージを含みます。ビルドでは ALM と anphon の C++ "
+"ソースをバインディングとともにコンパイルするため、ALM 本体と同じ依存関係 "
+"(spglib、Boost、Eigen、HDF5、BLAS/LAPACK バックエンド、OpenMP)、anphon のための MPI "
+"ライブラリ、ビルドフロントエンド (``nanobind``、``scikit-build-core``)、そして外部回帰器のための "
+"``scikit-learn`` を必要とします。MPI なしで ``alm`` だけをビルドするには、ステップ2の ``pip "
+"install`` コマンドに ``-C cmake.define.ALAMODE_PYTHON_ANPHON=OFF`` を加えます。"
+
+#: ../../source/alm_python.rst:59
+msgid ""
+"The :ref:`pixi route <install_pixi>` sets up an equivalent project-local "
+"environment from the same environment file and builds the wrapper with a "
+"single command, ``pixi run 'cd python && pip install .'``."
+msgstr ""
+":ref:`pixiを使う方法 <install_pixi>` では、同じ環境ファイルから同等のプロジェクトローカル環境を構築し、コマンド一つ "
+"(``pixi run 'cd python && pip install .'``) でラッパーをビルドできます。"
+
+#: ../../source/alm_python.rst:64
+msgid "Step 1. Create an environment"
+msgstr "ステップ 1. 環境を作成する"
+
+#: ../../source/alm_python.rst:66
+msgid ""
+"The easiest route is conda-forge, reusing the project environment file "
+"and adding the wrapper-specific packages::"
+msgstr "最も簡単な方法は conda-forge を使うことです。プロジェクトの環境ファイルを再利用し、ラッパー固有のパッケージを追加します::"
+
+#: ../../source/alm_python.rst:76
+msgid "Step 2. Build and install the wrapper"
+msgstr "ステップ 2. ラッパーをビルドしてインストールする"
+
+#: ../../source/alm_python.rst:78
+msgid "From the top of the source tree::"
+msgstr "ソースツリーの最上位ディレクトリから次を実行します::"
+
+#: ../../source/alm_python.rst:83
+msgid ""
+"Inside an activated conda environment (or a pixi environment, see "
+":ref:`install_pixi`), the wrapper's CMake setup automatically searches "
+"the environment prefix (``$CONDA_PREFIX``) for spglib, Boost, Eigen, and "
+"HDF5, so no further options are needed.  When the dependencies live in "
+"custom locations instead, pass them explicitly::"
+msgstr ""
+"アクティブなconda環境 (またはpixi環境、:ref:`install_pixi` 参照) "
+"の中では、ラッパーのCMake設定が環境のプレフィックス (``$CONDA_PREFIX``) からspglib, Boost, Eigen, "
+"HDF5を自動的に検索するため、追加のオプションは不要です。依存ライブラリが別の場所にある場合は、明示的に指定してください::"
+
+#: ../../source/alm_python.rst:95
+msgid ""
+"If CMake selects the wrong BLAS, add ``-C "
+"cmake.define.BLA_VENDOR=OpenBLAS``."
+msgstr ""
+"CMake が誤った BLAS を選択する場合は、``-C cmake.define.BLA_VENDOR=OpenBLAS`` "
+"を追加してください。"
+
+#: ../../source/alm_python.rst:98
+msgid "Step 3. Verify"
+msgstr "ステップ 3. 確認する"
+
+#: ../../source/alm_python.rst:106
+msgid "``pip show alamode`` shows the installed version."
+msgstr "``pip show alamode`` でインストールされたバージョンを確認できます。"
+
+#: ../../source/alm_python.rst:111
+msgid "A note on the BLAS backend and performance"
+msgstr "BLAS バックエンドと性能に関する注意"
+
+#: ../../source/alm_python.rst:113
+msgid "On **Linux**, conda's NumPy links a threaded **OpenBLAS**."
+msgstr "**Linux** では、conda の NumPy はマルチスレッドの **OpenBLAS** にリンクされます。"
+
+#: ../../source/alm_python.rst:114
+msgid ""
+"On **macOS**, the pip/conda NumPy may link **Apple Accelerate**, whose "
+"eigensolver runs single-threaded and ignores ``OMP_NUM_THREADS`` / "
+"``OPENBLAS_NUM_THREADS``."
+msgstr ""
+"**macOS** では、pip/conda の NumPy が **Apple Accelerate** "
+"にリンクされることがあります。その固有値ソルバーはシングルスレッドで動作し、``OMP_NUM_THREADS`` / "
+"``OPENBLAS_NUM_THREADS`` を無視します。"
+
+#: ../../source/alm_python.rst:118
+msgid ""
+"Several external regressors (notably ``ARDRegression``) spend most of "
+"their time in a symmetric eigendecomposition that **parallelizes poorly**"
+" regardless of the backend (measured speed-up at :math:`p\\approx8000` "
+"was only ~1.16x on 12 threads). The effective way to use many cores is "
+"therefore **process-level parallelism across independent fits** "
+"(different ``ndata`` / functionals / orders), not BLAS threads — see "
+":ref:`alm_python_performance`."
+msgstr ""
+"いくつかの外部回帰器 (特に ``ARDRegression``) "
+"は、処理時間の大半を対称固有値分解に費やしますが、これはバックエンドによらず\\ **並列化の効率が低い**\\ です "
+"(:math:`p\\approx8000` で測定した高速化は 12 スレッドでわずか約 1.16 "
+"倍でした)。したがって多数のコアを有効に活用する方法は、BLAS スレッドではなく、\\ **独立したフィット間でのプロセスレベルの並列化** "
+"(異なる ``ndata`` / 汎関数 / 次数) です。:ref:`alm_python_performance` を参照してください。"
+
+#: ../../source/alm_python.rst:129
+msgid "Conventions you must respect"
+msgstr "守るべき規約"
+
+#: ../../source/alm_python.rst:131
+msgid ""
+"These follow the ALM command-line interface (CLI) and are easy to get "
+"wrong:"
+msgstr "これらは ALM のコマンドラインインターフェース (CLI) に従っており、間違えやすい点です:"
+
+#: ../../source/alm_python.rst:135
+msgid "**Units.**"
+msgstr "**単位。**"
+
+#: ../../source/alm_python.rst:137
+msgid ""
+"By default (as in the ALM CLI), the lattice vectors passed to "
+"``ALM(...)`` must be in **Bohr**, and the displacements ``u`` and forces "
+"``f`` in **atomic units** (Bohr and Ry/Bohr).  To pass data in other "
+"units, declare them at construction: ``ALM(lavec, xcoord, numbers, "
+"length_unit='angstrom', force_unit='eV/angstrom')`` — the arrays are then"
+" converted internally. ``length_unit`` applies to the lattice vectors, "
+"displacements, and cutoff radii; ``force_unit`` to the forces."
+msgstr ""
+"既定では (ALM CLI と同様に)、``ALM(...)`` に渡す格子ベクトルは **Bohr** 単位、変位 ``u`` と力 ``f``"
+" は **原子単位** (Bohr および Ry/Bohr) でなければなりません。他の単位でデータを渡すには、コンストラクタで宣言します: "
+"``ALM(lavec, xcoord, numbers, length_unit='angstrom', "
+"force_unit='eV/angstrom')`` — 配列は内部で変換されます。``length_unit`` "
+"は格子ベクトル・変位・カットオフ半径に、``force_unit`` は力に適用されます。"
+
+#: ../../source/alm_python.rst:144
+msgid ""
+"The force constants returned by ``get_fc`` / ``set_fc`` / ``fix_fc`` are "
+"**always** in Ry/Bohr\\ :sup:`n`, regardless of the units above. "
+"``save_fc(..., format='alamode_h5', fc_unit='eV/angstrom')`` writes an "
+"eV/Å-converted ``.h5`` (with matching ``unit`` metadata that *anphon* "
+"reads back); the ``.xml`` output is always Ry/Bohr\\ :sup:`n`.  The "
+"``shengbte``/``qefc`` exporters use the fixed units of those formats."
+msgstr ""
+"``get_fc`` / ``set_fc`` / ``fix_fc`` が返す力定数は、上記の単位設定に関わらず **常に** "
+"Ry/Bohr\\ :sup:`n` です。``save_fc(..., format='alamode_h5', "
+"fc_unit='eV/angstrom')`` は eV/Å に変換した ``.h5`` を書き出します (*anphon* が読み戻す "
+"``unit`` メタデータ付き)。``.xml`` 出力は常に Ry/Bohr\\ :sup:`n` "
+"です。``shengbte``/``qefc`` エクスポータはそれぞれの形式で固定された単位を使用します。"
+
+#: ../../source/alm_python.rst:151
+msgid ""
+"``ALM(lavec, xcoord, numbers)`` takes the supercell used for the force "
+"calculations, or the **primitive** cell when ``set_supercell`` is called "
+"afterwards to map it to the supercell: ``lavec`` (3x3, in "
+"``length_unit``), ``xcoord`` (fractional, ``(nat, 3)``), ``numbers`` "
+"(atomic numbers :math:`Z`)."
+msgstr ""
+"``ALM(lavec, xcoord, numbers)`` は、力の計算に用いたスーパーセル (supercell)、または後で "
+"``set_supercell`` を呼んでスーパーセルへ対応付ける場合は\\ **基本セル (primitive cell)** "
+"を受け取ります: ``lavec`` (3x3、``length_unit`` 単位)、``xcoord`` (分率座標、``(nat, "
+"3)``)、``numbers`` (原子番号 :math:`Z`)。"
+
+#: ../../source/alm_python.rst:155
+msgid ""
+"``lavec`` holds the lattice vectors as **rows** (``lavec[i]`` is the i-th"
+" vector, the convention of ase / phonopy / spglib).  The C++ core stores "
+"them as columns; the transposition is done inside the wrapper, so an "
+"``ase.Atoms`` cell can be passed as ``atoms.cell[:]`` directly."
+msgstr ""
+"``lavec`` は格子ベクトルを\\ **行**\\ として保持します (``lavec[i]`` が i 番目のベクトル。ase / "
+"phonopy / spglib の慣例)。C++ "
+"コアは格子ベクトルを列として保持しますが、転置はラッパー内部で行われるため、``ase.Atoms`` のセルを "
+"``atoms.cell[:]`` としてそのまま渡せます。"
+
+#: ../../source/alm_python.rst:159
+msgid ""
+"``symmetry_tolerance`` (constructor keyword or attribute, default "
+"``1e-3``) is the tolerance of the symmetry finder, i.e. the CLI "
+"``TOLERANCE`` tag. Increase it for slightly distorted (e.g. strained) "
+"cells whose symmetry spglib does not recognize at the default value."
+msgstr ""
+"``symmetry_tolerance`` (コンストラクタのキーワード引数または属性、既定値 ``1e-3``) "
+"は対称性探索の許容誤差で、CLI の ``TOLERANCE`` タグに相当します。既定値では spglib "
+"が対称性を認識できない、わずかに歪んだ (例えばひずみを加えた) セルに対しては、この値を大きくしてください。"
+
+#: ../../source/alm_python.rst:163
+msgid ""
+"``cutoff_radii`` has shape ``(maxorder, nkd, nkd)`` where ``nkd`` is the "
+"number of atomic species.  Values are in ``length_unit`` (bohr by "
+"default, same convention as the CLI ``&cutoff`` field).  Use a "
+"**negative** value for \"no cutoff\".  Index 0 is the harmonic term, "
+"index 1 the cubic, etc."
+msgstr ""
+"``cutoff_radii`` の形状は ``(maxorder, nkd, nkd)`` で、``nkd`` は原子種の数です。値は "
+"``length_unit`` 単位です (既定は bohr。CLI の ``&cutoff`` "
+"フィールドと同じ規約)。「カットオフなし」には\\ **負**\\ の値を使います。インデックス 0 は調和 (harmonic) "
+"項、インデックス 1 は 3 次 (cubic) 項、などとなります。"
+
+#: ../../source/alm_python.rst:167
+msgid ""
+"``set_constraint(translation=True)`` applies the algebraic translational "
+"invariance (acoustic sum rule, ``ICONST=11``).  ``get_matrix_elements`` "
+"then returns the **constraint-reduced** matrix whose number of columns "
+"equals ``get_number_of_free_parameters()``. "
+"``set_constraint(rotation=True, rotation_axis=\"xyz\")`` adds the "
+"rotational invariance (``ICONST=12`` with ``ROTAXIS``) and requires "
+"``symmetrization_basis=\"Cartesian\"`` in ``define`` (the default).  Any "
+"CLI value can be selected with ``set_constraint(iconst=...)`` (0-4, "
+"11-14); the numerical modes 1-4 are applied inside ``optimize()`` only, "
+"so use 11-14 with ``get_matrix_elements``. With ``iconst`` 4 or 14, "
+"``set_constraint(..., stress=sigma)`` imposes the Huang invariance for a "
+"stressed reference structure (CLI ``STRESS``): ``sigma`` is the Cauchy "
+"stress in GPa, tension positive, as a (3, 3) array or 6 Voigt values."
+msgstr ""
+"``set_constraint(translation=True)`` は並進不変性 (音響和則, ``ICONST=11``) "
+"を代数的に課します。このとき ``get_matrix_elements`` は **制約で縮約された** 行列を返し、その列数は "
+"``get_number_of_free_parameters()`` "
+"と等しくなります。``set_constraint(rotation=True, rotation_axis=\"xyz\")`` "
+"は回転不変性を追加し (``ROTAXIS`` 付きの ``ICONST=12``)、``define`` で "
+"``symmetrization_basis=\"Cartesian\"`` (デフォルト) "
+"を指定している必要があります。``set_constraint(iconst=...)`` で CLI の任意の値 (0-4, 11-14) "
+"を選べます。数値的なモード 1-4 は ``optimize()`` の内部でのみ適用されるため、``get_matrix_elements`` "
+"と組み合わせる場合は 11-14 を使ってください。``iconst`` が 4 または 14 のとき、``set_constraint(...,"
+" stress=sigma)`` は応力のかかった参照構造に対する Huang 不変性を課します (CLI の "
+"``STRESS``)。``sigma`` は GPa 単位のコーシー応力で、引張りを正とし、(3, 3) 配列または 6 個の Voigt "
+"成分で与えます。"
+
+#: ../../source/alm_python.rst:185
+msgid "Example inputs"
+msgstr "入力例"
+
+#: ../../source/alm_python.rst:187
+msgid ""
+"We use the cubic **BaTiO3** example shipped with ALAMODE "
+"(``example/BaTiO3/anharm_IFCs/``).  It determines cubic and quartic IFCs "
+"of a :math:`2\\times2\\times2` (40-atom) supercell with the harmonic FCs "
+"fixed — exactly the setup of the CLI input ``4_optimize/BTO_alm_opt.in``:"
+msgstr ""
+"ここでは ALAMODE に付属する立方晶 **BaTiO3** の例 (``example/BaTiO3/anharm_IFCs/``) "
+"を使用します。これは、調和力定数を固定したまま :math:`2\\times2\\times2` (40 原子) スーパーセルの 3 次および "
+"4 次 IFCs を決定します。これは CLI 入力 ``4_optimize/BTO_alm_opt.in`` とまったく同じ設定です:"
+
+#: ../../source/alm_python.rst:196
+msgid "Input"
+msgstr "入力"
+
+#: ../../source/alm_python.rst:197
+msgid "Role"
+msgstr "役割"
+
+#: ../../source/alm_python.rst:198
+msgid "``cBTO222_harmonic.xml``"
+msgstr "``cBTO222_harmonic.xml``"
+
+#: ../../source/alm_python.rst:199
+msgid "harmonic (FC2) force constants, fixed during the fit (``FC2FIX``)"
+msgstr "調和 (FC2) 力定数。フィット中は固定されます (``FC2FIX``)"
+
+#: ../../source/alm_python.rst:200
+msgid "``3_cv/reference/DFSET_AIMD_random``"
+msgstr "``3_cv/reference/DFSET_AIMD_random``"
+
+#: ../../source/alm_python.rst:201
+msgid ""
+"80 displacement-force snapshots of the 40-atom supercell (atomic units; "
+"produced by the example's MD -> DFSET workflow in steps 1-2, with a "
+"reference copy shipped under ``3_cv/reference/``)"
+msgstr ""
+"40 原子スーパーセルの変位-力スナップショット 80 個 (原子単位。この例のステップ 1-2 の MD -> DFSET "
+"ワークフローで生成され、参照用コピーが ``3_cv/reference/`` 以下に付属しています)"
+
+#: ../../source/alm_python.rst:204
+msgid "5-atom cubic primitive cell"
+msgstr "5 原子の立方晶基本セル"
+
+#: ../../source/alm_python.rst:205
+msgid "Ba/Ti/O, lattice constant :math:`a_0 = 7.5316` bohr (defined inline below)"
+msgstr "Ba/Ti/O、格子定数 :math:`a_0 = 7.5316` bohr (以下にインラインで定義)"
+
+#: ../../source/alm_python.rst:207
+msgid ""
+"Model (from the example input): ``NORDER = 3``, ``NBODY = 2 3 3``, cutoff"
+" radii **15.0 bohr (cubic)** and **9.0 bohr (quartic)**, harmonic term "
+"fixed."
+msgstr ""
+"モデル (この例の入力より): ``NORDER = 3``、``NBODY = 2 3 3``、カットオフ半径 **15.0 bohr (3 "
+"次)** および **9.0 bohr (4 次)**、調和項は固定。"
+
+#: ../../source/alm_python.rst:212
+msgid ""
+"The CLI input supplies the **supercell** plus ``PRIMCELL`` (super to "
+"prim).  The Python wrapper instead takes the **primitive** cell and maps "
+"it to the supercell with ``set_supercell`` (``transmat_to_super = diag(2,"
+" 2, 2)``). Both describe the same 40-atom system."
+msgstr ""
+"CLI 入力は\\ **スーパーセル**\\ と ``PRIMCELL`` (スーパー→基本) を与えます。一方、Python ラッパーは\\ "
+"**基本セル**\\ を受け取り、``set_supercell`` (``transmat_to_super = diag(2, 2, "
+"2)``) でスーパーセルへ対応付けます。どちらも同じ 40 原子系を記述します。"
+
+#: ../../source/alm_python.rst:217
+msgid ""
+"A ``DFSET`` lists, for each of the ``nat_super`` atoms, one line ``ux uy "
+"uz  fx fy fz`` (Bohr, Ry/Bohr), concatenated over all snapshots.  It is "
+"read with this dependency-free helper (or use ``ase`` / your own reader):"
+msgstr ""
+"``DFSET`` は、``nat_super`` 個の各原子について 1 行 ``ux uy uz  fx fy fz`` "
+"(Bohr、Ry/Bohr) を列挙し、それを全スナップショットにわたって連結したものです。これは、依存関係のない次のヘルパー (または "
+"``ase`` / 独自のリーダー) で読み込めます:"
+
+#: ../../source/alm_python.rst:237
+msgid "Complete example: fitting with an external regressor"
+msgstr "完全な例: 外部回帰器によるフィッティング"
+
+#: ../../source/alm_python.rst:239
+msgid ""
+"The function below defines the BaTiO3 primitive cell, extracts ALM's "
+"exact :math:`(A, b)`, **column-normalizes** it (so the regularization "
+"treats every column on an equal footing), fits the chosen regressor, "
+"writes the solution back, and saves an anphon-readable ``.h5``.  It also "
+"reports ALM's **relative error** — the residual normalized by the **total"
+" forces** (not by the anharmonic residual), which is what ALM's "
+"``.cvscore`` files report."
+msgstr ""
+"以下の関数は、BaTiO3 の基本セルを定義し、ALM の厳密な :math:`(A, b)` を抽出し、それを\\ **列正規化** "
+"(正則化がすべての列を対等に扱うようにする) し、選択した回帰器でフィットし、解を書き戻し、anphon が読める ``.h5`` "
+"を保存します。また、ALM の\\ **相対誤差** (residual を\\ **全体の力**\\ "
+"で正規化したもので、非調和残差で正規化したものではない) も報告します。これは ALM の ``.cvscore`` ファイルが報告する値です。"
+
+#: ../../source/alm_python.rst:302
+msgid "Run it from ``example/BaTiO3/anharm_IFCs/`` with ARD:"
+msgstr "``example/BaTiO3/anharm_IFCs/`` から ARD で実行します:"
+
+#: ../../source/alm_python.rst:313
+msgid ""
+"The resulting ``cBTO222_ard.h5`` can be used directly by anphon "
+"(``FCSFILE``) for the thermal-conductivity and Grüneisen calculations in "
+"``example/BaTiO3``."
+msgstr ""
+"生成された ``cBTO222_ard.h5`` は、``example/BaTiO3`` の熱伝導率 (thermal "
+"conductivity) および Grüneisen 計算において anphon (``FCSFILE``) で直接利用できます。"
+
+#: ../../source/alm_python.rst:318
+msgid ""
+"For a structure stored as a VASP POSCAR (Å), either convert the cell to "
+"bohr (``lavec_bohr = lavec_angstrom * 1.8897261246``, e.g. via "
+"``ase.io.read``) or pass ``length_unit='angstrom'`` (and "
+"``force_unit='eV/angstrom'`` for forces in eV/Å) to ``ALM(...)``.  The "
+"units apply to all arrays passed to the object: a ``DFSET`` written in "
+"atomic units must then be converted as well, or kept with the default "
+"units."
+msgstr ""
+"VASP POSCAR (Å) として保存された構造の場合は、セルを bohr に変換する (``lavec_bohr = "
+"lavec_angstrom * 1.8897261246``、例えば ``ase.io.read`` を介して) か、``ALM(...)`` "
+"に ``length_unit='angstrom'`` (力が eV/Å の場合は ``force_unit='eV/angstrom'`` "
+"も) を渡します。単位はこのオブジェクトに渡すすべての配列に適用されます。したがって、その場合は原子単位で書かれた ``DFSET`` "
+"も変換するか、あるいはデフォルトの単位のまま使う必要があります。"
+
+#: ../../source/alm_python.rst:329
+msgid "The external regressors"
+msgstr "外部回帰器"
+
+#: ../../source/alm_python.rst:331
+msgid ""
+"Any estimator exposing a ``.coef_`` after ``.fit(X, y)`` works.  The four"
+" below cover the common compressive-sensing alternatives to elastic-net /"
+" adaptive LASSO."
+msgstr ""
+"``.fit(X, y)`` の後に ``.coef_`` を公開する推定器であれば何でも動作します。以下の 4 つは、elastic-net /"
+" adaptive LASSO に代わる一般的な圧縮センシングの選択肢を網羅しています。"
+
+#: ../../source/alm_python.rst:336
+msgid "ARD (Automatic Relevance Determination)"
+msgstr "ARD (Automatic Relevance Determination)"
+
+#: ../../source/alm_python.rst:338
+msgid ""
+"Sparse Bayesian linear regression (the regression form of the relevance "
+"vector machine).  Each coefficient gets its own precision (inverse "
+"variance) that is optimized by evidence maximization; irrelevant "
+"coefficients are driven to zero. It is **self-tuning** (no cross-"
+"validation needed) and typically the **sparsest** solution."
+msgstr ""
+"スパースベイズ線形回帰 (relevance vector machine の回帰形式) です。各係数は固有の精度 (分散の逆数) "
+"を持ち、これがエビデンス最大化によって最適化されます。無関係な係数はゼロへと駆動されます。\\ **自己調整型** (交差検証 (cross-"
+"validation) は不要) であり、通常は\\ **最もスパースな**\\ 解となります。"
+
+#: ../../source/alm_python.rst:350 ../../source/alm_python.rst:433
+msgid "BayesianRidge"
+msgstr "BayesianRidge"
+
+#: ../../source/alm_python.rst:352
+msgid ""
+"Bayesian linear regression with a single shared Gaussian prior precision "
+"(ridge- like).  Self-tuning and fast, but the solution is **dense** (no "
+"exact zeros)."
+msgstr ""
+"単一の共有ガウス事前精度を持つベイズ線形回帰 (ridge 風) です。自己調整型で高速ですが、解は\\ **密** (厳密なゼロはなし) "
+"になります。"
+
+#: ../../source/alm_python.rst:361
+msgid "RFECV (recursive feature elimination with CV)"
+msgstr "RFECV (交差検証付き再帰的特徴量除去)"
+
+#: ../../source/alm_python.rst:363
+msgid ""
+"Wraps a base estimator and recursively prunes the least important "
+"features, choosing the number of features by cross-validation.  It is the"
+" most expensive option and can over-prune in the data-scarce regime, so "
+"it is best for small ``p``."
+msgstr ""
+"ベース推定器をラップし、最も重要度の低い特徴量を再帰的に刈り込み、特徴量の数を交差検証によって選択します。最も計算コストの高い選択肢であり、データが少ない領域では刈り込みすぎることがあるため、``p``"
+" が小さい場合に最適です。"
+
+#: ../../source/alm_python.rst:377
+msgid "Bayesian LASSO (Park & Casella 2008)"
+msgstr "Bayesian LASSO (Park & Casella 2008)"
+
+#: ../../source/alm_python.rst:379
+msgid ""
+"A Laplace prior implemented as a scale-mixture of normals, sampled with a"
+" Gibbs sampler.  scikit-learn has no Bayesian LASSO, so a compact "
+"implementation is given below.  The **posterior mean** is used as the "
+"point estimate (note that it shrinks but does not produce exact zeros, so"
+" it behaves like a \"soft LASSO\")."
+msgstr ""
+"正規分布のスケール混合として実装された Laplace 事前分布を、Gibbs サンプラーでサンプリングします。scikit-learn には "
+"Bayesian LASSO がないため、以下にコンパクトな実装を示します。点推定には\\ **事後平均**\\ を使用します "
+"(これは縮約はするものの厳密なゼロは生成しないため、「ソフト LASSO」のように振る舞う点に注意してください)。"
+
+#: ../../source/alm_python.rst:419
+msgid "At a glance:"
+msgstr "一覧:"
+
+#: ../../source/alm_python.rst:425
+msgid "Regressor"
+msgstr "回帰器"
+
+#: ../../source/alm_python.rst:426
+msgid "Prior / mechanism"
+msgstr "事前分布 / 仕組み"
+
+#: ../../source/alm_python.rst:427
+msgid "Sparse?"
+msgstr "スパース?"
+
+#: ../../source/alm_python.rst:428 alm.alm.ALM:26 alm.alm.ALM.get_fc:16
+#: alm.alm.ALM.optimize:12 of
+msgid "Notes"
+msgstr "備考"
+
+#: ../../source/alm_python.rst:429
+msgid "ARD"
+msgstr "ARD"
+
+#: ../../source/alm_python.rst:430
+msgid "per-coefficient Gaussian precision (evidence max.)"
+msgstr "係数ごとのガウス精度 (エビデンス最大化)"
+
+#: ../../source/alm_python.rst:431
+msgid "yes (strong)"
+msgstr "はい (強い)"
+
+#: ../../source/alm_python.rst:432
+msgid "self-tuning; sparsest; eigendecomposition cost ~ :math:`O(p^3)`"
+msgstr "自己調整型; 最もスパース; 固有値分解のコストは ~ :math:`O(p^3)`"
+
+#: ../../source/alm_python.rst:434
+msgid "single shared Gaussian precision"
+msgstr "単一の共有ガウス精度"
+
+#: ../../source/alm_python.rst:435
+msgid "no (dense)"
+msgstr "いいえ (密)"
+
+#: ../../source/alm_python.rst:436
+msgid "self-tuning; fast; good when :math:`n \\gg p`"
+msgstr "自己調整型; 高速; :math:`n \\gg p` のとき良好"
+
+#: ../../source/alm_python.rst:437
+msgid "Bayesian LASSO"
+msgstr "Bayesian LASSO"
+
+#: ../../source/alm_python.rst:438
+msgid "Laplace (scale-mixture), Gibbs"
+msgstr "Laplace (スケール混合)、Gibbs"
+
+#: ../../source/alm_python.rst:439
+msgid "no (soft)"
+msgstr "いいえ (ソフト)"
+
+#: ../../source/alm_python.rst:440
+msgid "posterior mean shrinks small terms; MCMC cost"
+msgstr "事後平均は小さい項を縮約する; MCMC のコスト"
+
+#: ../../source/alm_python.rst:441
+msgid "RFECV"
+msgstr "RFECV"
+
+#: ../../source/alm_python.rst:442
+msgid "recursive elimination + CV"
+msgstr "再帰的除去 + 交差検証"
+
+#: ../../source/alm_python.rst:443
+msgid "yes (hard)"
+msgstr "はい (ハード)"
+
+#: ../../source/alm_python.rst:444
+msgid "expensive; best for small :math:`p`"
+msgstr "計算コストが高い; :math:`p` が小さい場合に最適"
+
+#: ../../source/alm_python.rst:450
+msgid "Performance: scaling and parallelism"
+msgstr "性能: スケーリングと並列化"
+
+#: ../../source/alm_python.rst:452
+msgid ""
+"``get_matrix_elements`` returns the **constraint-reduced** matrix, so its"
+" column count is ``get_number_of_free_parameters()`` (much smaller than "
+"the raw irreducible count).  Reuse the same ``(A, b)`` for several "
+"regressors."
+msgstr ""
+"``get_matrix_elements`` は\\ **制約により縮約された**\\ 行列を返すため、その列数は "
+"``get_number_of_free_parameters()`` です (素の既約な数よりもはるかに小さい)。同じ ``(A, b)`` "
+"を複数の回帰器で再利用してください。"
+
+#: ../../source/alm_python.rst:455
+msgid ""
+"ARD / RFECV scale roughly as :math:`O(p^3)` per iteration; for large "
+"cutoffs (:math:`p \\gtrsim 10^4`) a single fit can take tens of minutes."
+"  LASSO and BayesianRidge scale better to large :math:`p`."
+msgstr ""
+"ARD / RFECV は反復あたりおよそ :math:`O(p^3)` でスケールします。カットオフが大きい場合 (:math:`p "
+"\\gtrsim 10^4`)、1 回のフィットに数十分かかることがあります。LASSO と BayesianRidge は大きな "
+":math:`p` に対してよりよくスケールします。"
+
+#: ../../source/alm_python.rst:458
+msgid ""
+"Threads do **not** help much (the bottleneck eigendecomposition is "
+"essentially serial).  To use many cores, run independent fits as "
+"**separate processes**:"
+msgstr ""
+"スレッドはあまり\\ **役に立ちません** (ボトルネックとなる固有値分解は本質的に逐次的です)。多数のコアを使うには、独立したフィットを\\ "
+"**別々のプロセス**\\ として実行します:"
+
+#: ../../source/alm_python.rst:473
+msgid ""
+"Budget memory accordingly (a large fit at :math:`p\\approx1.7\\times10^4`"
+" needs ~20 GB); reduce ``max_workers`` if a worker is killed "
+"(``BrokenProcessPool``)."
+msgstr ""
+"それに応じてメモリを見積もってください (:math:`p\\approx1.7\\times10^4` の大きなフィットには約 20 GB "
+"が必要です)。ワーカーが強制終了される場合 (``BrokenProcessPool``) は ``max_workers`` "
+"を減らしてください。"
+
+#: ../../source/alm_python.rst:476
+msgid ""
+"To speed up a single large fit, pre-screen the columns with a cheap LASSO"
+" and run the expensive regressor on the surviving support, or lower "
+"``ARDRegression(max_iter=...)``."
+msgstr ""
+"1 回の大きなフィットを高速化するには、安価な LASSO "
+"で列を事前スクリーニングし、残ったサポート上で高コストの回帰器を実行するか、``ARDRegression(max_iter=...)`` "
+"を小さくしてください。"
+
+#: ../../source/alm_python.rst:484
+msgid "API reference"
+msgstr "API リファレンス"
+
+#: ../../source/alm_python.rst:486
+msgid ""
+"The public interface is the high-level :class:`alm.ALM` class, a context "
+"manager wrapping the compiled core.  The members below are generated from"
+" the in-source docstrings."
+msgstr ""
+"公開インターフェースは高レベルの :class:`alm.ALM` "
+"クラスで、コンパイル済みコアをラップするコンテキストマネージャです。以下のメンバーはソース内の docstring から生成されています。"
+
+#: alm.alm.ALM:1 of
+msgid ""
+"Pythonic wrapper around the nanobind ALMCore object (legacy-compatible "
+"API)."
+msgstr "nanobind の ALMCore オブジェクトを包む Python 的なラッパー (従来互換の API) です。"
+
+#: ../../source/alm_python.rst alm.alm.ALM.get_fc alm.alm.ALM.optimize of
+msgid "Parameters"
+msgstr "パラメータ"
+
+#: alm.alm.ALM:3 of
+msgid ""
+"Lattice vectors of the (super)cell in ``length_unit``; row i is the i-th "
+"vector."
+msgstr "(スーパー)セルの格子ベクトル。単位は ``length_unit`` で、第 i 行が第 i ベクトルです。"
+
+#: alm.alm.ALM:6 of
+msgid "Fractional coordinates of the atoms."
+msgstr "原子の分数座標です。"
+
+#: alm.alm.ALM:8 of
+msgid "Atomic numbers."
+msgstr "原子番号です。"
+
+#: alm.alm.ALM:10 of
+msgid "0 (silent, default) or 1 (print progress to stdout)."
+msgstr "0 (出力なし、デフォルト) または 1 (進捗を標準出力に表示) です。"
+
+#: alm.alm.ALM:12 of
+msgid ""
+"Unit of the lattice vectors, displacements and cutoff radii passed to "
+"this object: 'bohr' (default) or 'angstrom'.  Converted to Bohr "
+"internally."
+msgstr ""
+"このオブジェクトに渡す格子ベクトル・変位・カットオフ半径の単位: 'bohr' (既定) または 'angstrom'。内部で Bohr "
+"に変換されます。"
+
+#: alm.alm.ALM:16 of
+msgid ""
+"Unit of the forces passed to this object: 'Ry/bohr' (default), "
+"'eV/angstrom' or 'Ha/bohr'.  Converted to Ry/Bohr internally."
+msgstr ""
+"このオブジェクトに渡す力の単位: 'Ry/bohr' (既定)、'eV/angstrom' または 'Ha/bohr'。内部で Ry/Bohr "
+"に変換されます。"
+
+#: alm.alm.ALM:19 of
+msgid ""
+"Tolerance (in ``length_unit``-independent fractional/Cartesian bohr units"
+" as in the CLI TOLERANCE tag) used by the symmetry finder (spglib), "
+"default 1e-3.  Can be changed later through :attr:`symmetry_tolerance`."
+msgstr ""
+"対称性探索 (spglib) で用いる許容誤差 (CLI の TOLERANCE タグと同様、``length_unit`` "
+"に依存しない分率座標/Cartesian bohr 単位)。既定値は 1e-3 です。後から :attr:`symmetry_tolerance`"
+" を通じて変更できます。"
+
+#: alm.alm.ALM:27 of
+msgid ""
+"Assigning to :attr:`lavec`, :attr:`xcoord` or :attr:`numbers` re-sends "
+"the cell to the C++ core on the next :meth:`define` call; call "
+":meth:`define` again after changing the structure."
+msgstr ""
+":attr:`lavec`, :attr:`xcoord`, :attr:`numbers` への代入は、次の :meth:`define` "
+"呼び出し時にセルをC++コアへ再送します。構造を変更した後は :meth:`define` を呼び直してください。"
+
+#: alm.alm.ALM.alm_new:1 of
+msgid "Create the underlying C++ ALM instance."
+msgstr "基盤となる C++ ALM インスタンスを生成します。"
+
+#: alm.alm.ALM.alm_new:3 of
+msgid ""
+"Called automatically by ``__init__``, so you normally never call this. It"
+" is idempotent (a no-op if the instance already exists) and may be used "
+"to recreate the instance after :meth:`close`."
+msgstr ""
+"``__init__`` から自動的に呼ばれるため、通常はユーザーが呼ぶ必要はありません。冪等であり "
+"(インスタンスが既に存在する場合は何もしません)、:meth:`close` の後にインスタンスを再作成する目的で使えます。"
+
+#: alm.alm.ALM.close:1 of
+msgid "Free the underlying C++ ALM instance immediately."
+msgstr "基盤となる C++ ALM インスタンスを直ちに解放します。"
+
+#: alm.alm.ALM.close:3 of
+msgid ""
+"Optional: the instance is also freed automatically when this object is "
+"garbage-collected.  Call this (or use a ``with`` block) only when you "
+"want a prompt, deterministic release, e.g. inside a tight loop that "
+"builds many large sensing matrices.  Idempotent; :meth:`alm_new` re-"
+"creates the instance."
+msgstr ""
+"省略可能です。このオブジェクトがガベージコレクションされる際にインスタンスは自動的に解放されます。大きなセンシング行列を繰り返し構築するループの内側など、即時かつ確定的に解放したい場合にのみ呼んでください"
+" (``with`` ブロックでも同じ効果が得られます)。冪等であり、:meth:`alm_new` でインスタンスを再作成できます。"
+
+#: alm.alm.ALM.alm_delete:1 of
+msgid "Legacy alias for :meth:`close`."
+msgstr ":meth:`close` の旧名エイリアスです。"
+
+#: alm.ALM.lavec:1 of
+msgid ""
+"Lattice vectors of the (super)cell in :attr:`length_unit`, shape (3, 3); "
+"row i is the i-th vector.  Assigning a new value re-sends the cell to the"
+" C++ core on the next :meth:`define` call."
+msgstr ""
+"(スーパー)セルの格子ベクトル (:attr:`length_unit` 単位、shape (3, 3))。第 i 行が第 i "
+"ベクトルです。新しい値を代入すると、次の :meth:`define` 呼び出し時にセルが C++ コアへ再送されます。"
+
+#: alm.ALM.xcoord:1 of
+msgid ""
+"Fractional coordinates of the atoms, shape (nat, 3).  Assigning a new "
+"value re-sends the cell to the C++ core on the next :meth:`define` call."
+msgstr ""
+"原子の分数座標 (shape (nat, 3)) です。新しい値を代入すると、次の :meth:`define` "
+"呼び出し時にセルがC++コアへ再送されます。"
+
+#: alm.ALM.numbers:1 of
+msgid ""
+"Atomic numbers of the atoms, shape (nat,).  Assigning a new value re-"
+"sends the cell to the C++ core on the next :meth:`define` call."
+msgstr "原子番号 (shape (nat,)) です。新しい値を代入すると、次の :meth:`define` 呼び出し時にセルがC++コアへ再送されます。"
+
+#: alm.ALM.kind_names:1 of
+msgid "Atomic number -> element symbol for the kinds in the cell (a copy)."
+msgstr "セル中の元素種について原子番号から元素記号への対応 (コピー) を返します。"
+
+#: alm.ALM.length_unit:1 of
+msgid ""
+"Unit of the lattice vectors, displacements and cutoff radii passed to "
+"this object ('bohr' or 'angstrom'; read-only, set at construction)."
+msgstr ""
+"このオブジェクトに渡す格子ベクトル・変位・カットオフ半径の単位 ('bohr' または "
+"'angstrom'。読み取り専用で、コンストラクタで設定します)。"
+
+#: alm.ALM.force_unit:1 of
+msgid ""
+"Unit of the forces passed to this object ('Ry/bohr', 'eV/angstrom' or "
+"'Ha/bohr'; read-only, set at construction)."
+msgstr ""
+"このオブジェクトに渡す力の単位 ('Ry/bohr'、'eV/angstrom' または "
+"'Ha/bohr'。読み取り専用で、コンストラクタで設定します)。"
+
+#: alm.ALM.symmetry_tolerance:1 of
+msgid "Tolerance of the symmetry finder (CLI TOLERANCE tag), default 1e-3."
+msgstr "対称性探索の許容誤差 (CLI の TOLERANCE タグ)。既定値は 1e-3 です。"
+
+#: alm.ALM.verbosity:1 of
+msgid "Verbosity level (0 = silent, 1 = print progress to stdout)."
+msgstr "出力レベル (0 = 出力なし、1 = 進捗を標準出力に表示) です。"
+
+#: alm.alm.ALM.set_verbosity:1 of
+msgid "Set the verbosity level (same as assigning to :attr:`verbosity`)."
+msgstr "出力レベルを設定します (:attr:`verbosity` への代入と同じです)。"
+
+#: alm.ALM.output_filename_prefix:1 of
+msgid ""
+"Prefix of the files written by the C++ core (e.g. the ``.cvscore`` file "
+"of cross-validation); mirrors the CLI ``PREFIX`` tag."
+msgstr ""
+"C++コアが書き出すファイル (例: クロスバリデーションの ``.cvscore`` ファイル) の接頭辞です。CLIの ``PREFIX`` "
+"タグに対応します。"
+
+#: alm.ALM.cv_l1_alpha:1 of
+msgid "Optimal L1 alpha found by the last cross-validation run."
+msgstr "直近のクロスバリデーションで得られた最適なL1アルファ値です。"
+
+#: alm.alm.ALM.get_cv_l1_alpha:1 of
+msgid "Legacy alias for :attr:`cv_l1_alpha`."
+msgstr ":attr:`cv_l1_alpha` の旧名エイリアスです。"
+
+#: alm.alm.ALM.define:1 of
+msgid "Define the force-constant model (orders, cutoffs, interaction bodies)."
+msgstr "力定数モデル (次数、カットオフ、多体条件) を定義します。"
+
+#: alm.alm.ALM.define:3 of
+msgid "Highest fc_order to include: 1 = harmonic only, 2 = up to cubic, ..."
+msgstr "含める最高のfc_order。1 = 調和項のみ、2 = 3次まで、... です。"
+
+#: alm.alm.ALM.define:5 of
+msgid ""
+"Interaction cutoff radius in :attr:`length_unit` per order and kind pair."
+"  A negative value means no cutoff (all pairs included); the default "
+"``None`` applies no cutoff at any order."
+msgstr ""
+"次数と元素種ペアごとの相互作用カットオフ半径 (:attr:`length_unit` 単位) です。負の値はカットオフなし "
+"(すべてのペアを含める) を意味し、デフォルトの ``None`` はすべての次数でカットオフを適用しません。"
+
+#: alm.alm.ALM.define:9 of
+msgid ""
+"Maximum number of distinct atoms in a cluster per order. Default: 2, 3, "
+"4, ... (i.e. no restriction)."
+msgstr "次数ごとのクラスター内の相異なる原子の最大数です。デフォルトは 2, 3, 4, ... (すなわち制限なし) です。"
+
+#: alm.alm.ALM.define:12 of
+msgid ""
+"Basis used to symmetrize the force constants (CLI FCSYM_BASIS). Default "
+"'Cartesian' (changed from 'Lattice' in 2.0); rotational invariance "
+"requires 'Cartesian'."
+msgstr ""
+"力定数の対称化に用いる基底 (CLI の FCSYM_BASIS) です。デフォルトは 'Cartesian' (2.0 で 'Lattice' "
+"から変更) です。回転不変性には 'Cartesian' が必要です。"
+
+#: alm.alm.ALM.set_supercell:1 of
+msgid "Declare the cell given to the constructor as the PRIMITIVE cell."
+msgstr "コンストラクタに渡したセルを基本 (primitive) セルとして宣言します。"
+
+#: alm.alm.ALM.set_supercell:3 of
+msgid ""
+"The model is then built on the supercell obtained from "
+"``transmat_to_super`` -- a (3, 3) integer matrix M with a_super = M "
+"a_prim.  Mirrors the CLI STRUCTURE_FILE(primitive)+SUPERCELL setup. Call "
+"before :meth:`define`."
+msgstr ""
+"モデルは ``transmat_to_super`` (a_super = M a_prim を満たす (3, 3) 整数行列 M) "
+"から得られるスーパーセル上に構築されます。CLIの STRUCTURE_FILE(primitive)+SUPERCELL "
+"設定に対応します。:meth:`define` より前に呼んでください。"
+
+#: alm.alm.ALM.set_constraint:1 of
+msgid "Invariance constraints, imposed algebraically (CLI ICONST / ROTAXIS)."
+msgstr "代数的に課す不変性の制約 (CLI の ICONST / ROTAXIS)。"
+
+#: alm.alm.ALM.set_constraint:3 of
+msgid ""
+"``translation=True`` gives ICONST=11 (acoustic sum rule); "
+"``rotation=True`` gives ICONST=12 (translational plus rotational "
+"invariance about ``rotation_axis``, e.g. ``'xyz'`` or ``'z'``). "
+"``iconst`` selects any CLI value directly (0-4, 11-14) and overrides "
+"``translation`` and ``rotation``.  Rotational invariance requires "
+"``symmetrization_basis='Cartesian'`` (the default) in :meth:`define`."
+msgstr ""
+"``translation=True`` は ICONST=11 (音響和則)、``rotation=True`` は ICONST=12 "
+"(並進不変性に加えて ``rotation_axis`` まわりの回転不変性。例: ``'xyz'`` や ``'z'``) "
+"に相当します。``iconst`` は CLI の任意の値 (0-4, 11-14) を直接指定し、``translation`` と "
+"``rotation`` より優先されます。回転不変性には :meth:`define` で "
+"``symmetrization_basis='Cartesian'`` (デフォルト) を指定する必要があります。"
+
+#: alm.alm.ALM.set_constraint:10 of
+msgid ""
+"``stress`` (CLI STRESS) is the Cauchy stress of the reference structure "
+"in GPa, tension positive, as a (3, 3) array or 6 Voigt values (xx, yy, "
+"zz, yz, xz, xy). It modifies the Huang invariance (``iconst`` 4 or 14) "
+"for a stressed reference; ``None`` (default) keeps the stress-free Huang "
+"conditions."
+msgstr ""
+"``stress`` (CLI の STRESS) は参照構造のコーシー応力で、単位は GPa、引張りを正とし、(3, 3) 配列または 6 個の"
+" Voigt 成分 (xx, yy, zz, yz, xz, xy) で与えます。応力のかかった参照構造に対して Huang 不変性 "
+"(``iconst`` が 4 または 14) を修正します。``None`` (デフォルト) では応力のない場合の Huang 条件のままです。"
+
+#: alm.alm.ALM.fix_fc_from_file:1 of
+msgid ""
+"Fix the ``fc_order``-th FCs (1 = harmonic, 2 = cubic) to the values read "
+"from an ALM .xml/.h5 file."
+msgstr "``fc_order`` 次の力定数 (1 = 調和、2 = 3次) を、ALMの .xml/.h5 ファイルから読み込んだ値に固定します。"
+
+#: alm.alm.ALM.fix_fc_from_file:4 of
+msgid "Mirrors the CLI FC2FIX/FC3FIX tags.  Call before :meth:`define`."
+msgstr "CLIの FC2FIX/FC3FIX タグに対応します。:meth:`define` より前に呼んでください。"
+
+#: alm.alm.ALM.fix_force_constants_from_file:1 of
+msgid ""
+"Legacy alias for :meth:`fix_fc_from_file` using the derivative-order "
+"convention (order = 2 harmonic, 3 cubic)."
+msgstr "微分次数の規約 (order = 2 が調和、3 が3次) を用いる :meth:`fix_fc_from_file` の旧名エイリアスです。"
+
+#: alm.alm.ALM.fix_fc:1 of
+msgid ""
+"Fix a subset of FCs to given values during the fit (e.g. FC2 from a "
+"reference fit)."
+msgstr "フィット中に力定数の一部を指定した値に固定します (例: 参照フィットで得たFC2)。"
+
+#: alm.alm.ALM.fix_fc:4 of
+msgid "Force-constant values in Ry/Bohr^(fc_order+1)."
+msgstr "力定数の値 (単位は Ry/Bohr^(fc_order+1)) です。"
+
+#: alm.alm.ALM.fix_fc:6 of
+msgid "Flattened indices 3*atom + xyz of each FC element."
+msgstr "各力定数要素の平坦化インデックス 3*atom + xyz です。"
+
+#: alm.alm.ALM.set_forceconstants_to_fix:1 of
+msgid "Legacy alias for :meth:`fix_fc` (note the swapped argument order)."
+msgstr ":meth:`fix_fc` の旧名エイリアスです (引数の順序が逆であることに注意)。"
+
+#: alm.alm.ALM.freeze_fc:1 of
+msgid "Legacy alias for :meth:`fix_fc`."
+msgstr ":meth:`fix_fc` の旧名エイリアスです。"
+
+#: alm.ALM.displacements:1 of
+msgid "Training displacements in :attr:`length_unit`, shape (nsnap, nat, 3)."
+msgstr "訓練用の変位 (:attr:`length_unit` 単位、shape (nsnap, nat, 3)) です。"
+
+#: alm.ALM.forces:1 of
+msgid "Training forces in :attr:`force_unit`, shape (nsnap, nat, 3)."
+msgstr "訓練用の力 (:attr:`force_unit` 単位、shape (nsnap, nat, 3)) です。"
+
+#: alm.alm.ALM.set_training_data:1 of
+msgid "Set the displacement-force training data."
+msgstr "変位-力の訓練データを設定します。"
+
+#: alm.alm.ALM.set_training_data:3 of
+msgid "Atomic displacements in :attr:`length_unit`."
+msgstr "原子変位 (:attr:`length_unit` 単位) です。"
+
+#: alm.alm.ALM.set_training_data:5 of
+msgid "Forces in :attr:`force_unit`."
+msgstr "力 (:attr:`force_unit` 単位) です。"
+
+#: alm.alm.ALM.set_displacement_and_force:1 of
+msgid "Deprecated alias for :meth:`set_training_data`."
+msgstr ":meth:`set_training_data` の非推奨エイリアスです。"
+
+#: alm.alm.ALM.set_validation_data:1 of
+msgid ""
+"Set the validation set used by cross-validation (same shapes/units as "
+":meth:`set_training_data`)."
+msgstr "クロスバリデーションで使う検証データを設定します (shapeと単位は :meth:`set_training_data` と同じ)。"
+
+#: alm.ALM.optimizer_control:1 of
+msgid ""
+"ALM's optimizer settings as a dict, mirroring the CLI ``&optimize`` tags "
+"(e.g. ``linear_model``, ``cross_validation``, ``l1_alpha``, "
+"``l1_ratio``).  Assign a dict with only the keys to change; unknown keys "
+"raise ``KeyError``.  The legacy key ``mirror_image_conv`` is accepted as "
+"an alias of ``periodic_image_conv``."
+msgstr ""
+"ALMのオプティマイザ設定を、CLIの ``&optimize`` タグに対応する辞書として返します (例: ``linear_model``, "
+"``cross_validation``, ``l1_alpha``, "
+"``l1_ratio``)。変更したいキーだけを含む辞書を代入してください。未知のキーは ``KeyError`` になります。旧キー "
+"``mirror_image_conv`` は ``periodic_image_conv`` のエイリアスとして受け付けます。"
+
+#: alm.alm.ALM.set_optimizer_control:1 of
+msgid "Update a subset of the optimizer settings (see :attr:`optimizer_control`)."
+msgstr "オプティマイザ設定の一部を更新します (:attr:`optimizer_control` を参照)。"
+
+#: alm.alm.ALM.suggest:1 of
+msgid ""
+"Compute the displacement patterns needed to determine the FCs (retrieve "
+"them with :meth:`get_displacement_patterns`)."
+msgstr "力定数の決定に必要な変位パターンを計算します (:meth:`get_displacement_patterns` で取得できます)。"
+
+#: alm.alm.ALM.optimize:1 of
+msgid "Fit the force constants to the training data."
+msgstr "訓練データに力定数をフィットします。"
+
+#: alm.alm.ALM.optimize:3 of
+msgid ""
+"'dense' (LAPACK) or one of the sparse solvers (case-insensitive): "
+"SimplicialLDLT, SparseQR, ConjugateGradient, "
+"LeastSquaresConjugateGradient, BiCGSTAB, SuiteSparseQR, CHOLMOD."
+msgstr ""
+"'dense' (LAPACK) または疎ソルバーのいずれか (大文字小文字は区別しません): SimplicialLDLT, SparseQR,"
+" ConjugateGradient, LeastSquaresConjugateGradient, BiCGSTAB, "
+"SuiteSparseQR, CHOLMOD。"
+
+#: alm.alm.ALM.get_fc alm.alm.ALM.optimize of
+msgid "Returns"
+msgstr "戻り値"
+
+#: alm.alm.ALM.optimize:8 of
+msgid "Solver info code (0 on success)."
+msgstr "ソルバーのinfoコード (成功時は 0) です。"
+
+#: alm.alm.ALM.optimize of
+msgid "Return type"
+msgstr "戻り値の型"
+
+#: alm.alm.ALM.optimize:13 of
+msgid ""
+"With ``optimizer_control['cross_validation']`` set, this runs cross-"
+"validation instead of a single fit; the optimal alpha is then available "
+"as :attr:`cv_l1_alpha`."
+msgstr ""
+"``optimizer_control['cross_validation']`` "
+"が設定されている場合、単一のフィットの代わりにクロスバリデーションを実行します。得られた最適なアルファ値は :attr:`cv_l1_alpha`"
+" から取得できます。"
+
+#: alm.alm.ALM.get_matrix_elements:1 of
+msgid "Return the sensing matrix and force vector (A, b) for external solvers."
+msgstr "外部ソルバー向けにセンシング行列と力ベクトル (A, b) を返します。"
+
+#: alm.alm.ALM.get_matrix_elements:3 of
+msgid ""
+"A has shape (nrows, n_free_parameters) in Fortran order, b shape "
+"(nrows,); the fitted parameters solve ``A @ x = b`` and can be injected "
+"back with :meth:`set_fc`."
+msgstr ""
+"A はFortran順の shape (nrows, n_free_parameters)、b は shape (nrows,) "
+"です。フィットしたパラメータは ``A @ x = b`` の解であり、:meth:`set_fc` で書き戻せます。"
+
+#: alm.alm.ALM.get_fc:1 of
+msgid "Return force constants as ``(values, elem_indices)``."
+msgstr "力定数を ``(values, elem_indices)`` として返します。"
+
+#: alm.alm.ALM.get_fc:3 of
+msgid "1 = harmonic (FC2), 2 = cubic (FC3), ..."
+msgstr "1 = 調和 (FC2)、2 = 3次 (FC3)、... です。"
+
+#: alm.alm.ALM.get_fc:5 of
+msgid ""
+"'origin': FCs whose first atom sits in the primitive cell at the origin; "
+"'irreducible': the symmetry-irreducible set; 'all': FCs expanded over "
+"every pure translation."
+msgstr ""
+"'origin': 最初の原子が原点の基本セルにある力定数、'irreducible': 対称既約なセット、'all': "
+"すべての純並進に展開した力定数です。"
+
+#: alm.alm.ALM.get_fc:9 of
+msgid "Include index-permuted copies of each element."
+msgstr "各要素のインデックス置換コピーを含めるかどうかです。"
+
+#: alm.alm.ALM.get_fc:12 of
+msgid ""
+"* **values** (*ndarray, shape (n,)*) -- Force constants in "
+"Ry/Bohr^(fc_order+1). * **elem_indices** (*ndarray, shape (n, "
+"fc_order+1)*) -- Flattened indices 3*atom + xyz of each element."
+msgstr ""
+"* **values** (*ndarray, shape (n,)*) -- 力定数 (単位は Ry/Bohr^(fc_order+1)) "
+"です。\n"
+"* **elem_indices** (*ndarray, shape (n, fc_order+1)*) -- 各要素の平坦化インデックス "
+"3*atom + xyz です。"
+
+#: alm.alm.ALM.get_fc:12 of
+msgid ""
+"**values** (*ndarray, shape (n,)*) -- Force constants in "
+"Ry/Bohr^(fc_order+1)."
+msgstr "**values** (*ndarray, shape (n,)*) -- 力定数 (単位は Ry/Bohr^(fc_order+1)) です。"
+
+#: alm.alm.ALM.get_fc:13 of
+msgid ""
+"**elem_indices** (*ndarray, shape (n, fc_order+1)*) -- Flattened indices "
+"3*atom + xyz of each element."
+msgstr ""
+"**elem_indices** (*ndarray, shape (n, fc_order+1)*) -- 各要素の平坦化インデックス "
+"3*atom + xyz です。"
+
+#: alm.alm.ALM.get_fc:17 of
+msgid ""
+"The element ordering is not guaranteed to be stable across calls (it "
+"differs e.g. between optimize() and set_fc()); always pair ``values`` "
+"with ``elem_indices`` instead of relying on position."
+msgstr ""
+"要素の並び順は呼び出し間で安定とは限りません (例えば optimize() と set_fc() では異なります)。位置に依存せず、必ず "
+"``values`` を ``elem_indices`` と組にして扱ってください。"
+
+#: alm.alm.ALM.set_fc:1 of
+msgid ""
+"Inject a free-parameter FC vector (e.g. from an external regressor fit to"
+" the matrix returned by :meth:`get_matrix_elements`)."
+msgstr ""
+"自由パラメータの力定数ベクトルを注入します (例: :meth:`get_matrix_elements` "
+"が返す行列に外部回帰モデルをフィットした結果)。"
+
+#: alm.alm.ALM.get_number_of_free_parameters:1 of
+msgid ""
+"Number of free FC parameters after symmetry and constraint reduction; "
+"equals the column count of the matrix returned by "
+":meth:`get_matrix_elements`."
+msgstr ""
+"対称性と拘束条件による削減後の自由な力定数パラメータの数です。:meth:`get_matrix_elements` "
+"が返す行列の列数に等しくなります。"
+
+#: alm.alm.ALM.get_number_of_irred_fc_elements:1 of
+msgid ""
+"Number of symmetry-irreducible FC elements of the given ``fc_order`` (1 ="
+" harmonic)."
+msgstr "指定した ``fc_order`` (1 = 調和) の対称既約な力定数要素の数です。"
+
+#: alm.alm.ALM.getmap_primitive_to_supercell:1 of
+msgid ""
+"Return map_p2s, shape (num_trans, num_atoms_primitive) (legacy "
+"orientation)."
+msgstr "map_p2s を返します。形状は (num_trans, num_atoms_primitive) (従来の向き)。"
+
+#: alm.alm.ALM.get_displacement_patterns:1 of
+msgid ""
+"Return a list (per pattern) of ``(atom_index, direction(3,), basis)`` "
+"tuples; requires :meth:`suggest` to have run."
+msgstr ""
+"パターンごとに ``(atom_index, direction(3,), basis)`` のタプルのリストを返します。事前に "
+":meth:`suggest` を実行しておく必要があります。"
+
+#: alm.alm.ALM.save_fc:1 of
+msgid "Write the force constants to a file."
+msgstr "力定数をファイルに書き出します。"
+
+#: alm.alm.ALM.save_fc:3 of
+msgid "Output path."
+msgstr "出力先のパスです。"
+
+#: alm.alm.ALM.save_fc:5 of
+msgid ""
+"'alamode' (.xml), 'alamode_h5' (.h5, what anphon reads), 'shengbte', "
+"'shengbte4', 'qefc', or 'hessian'."
+msgstr ""
+"'alamode' (.xml)、'alamode_h5' (anphonが読み込む "
+".h5)、'shengbte'、'shengbte4'、'qefc'、'hessian' のいずれかです。"
+
+#: alm.alm.ALM.save_fc:8 of
+msgid "Highest fc_order to write (default: all defined orders)."
+msgstr "書き出す最高のfc_order (デフォルト: 定義したすべての次数) です。"
+
+#: alm.alm.ALM.save_fc:10 of
+msgid ""
+"Unit system of the written file: 'Ry/bohr' (default) or 'eV/angstrom'.  "
+"Only supported for format='alamode_h5', whose files carry the unit as "
+"metadata that anphon reads back; the other formats have fixed units (the "
+".xml is always Ry/bohr^n)."
+msgstr ""
+"書き出すファイルの単位系: 'Ry/bohr' (既定) または 'eV/angstrom'。format='alamode_h5' "
+"でのみサポートされます。このファイルには anphon が読み戻す単位メタデータが含まれます。他の形式は固定の単位を持ちます (.xml は常に "
+"Ry/bohr^n)。"
+
+#: ../../source/alm_python.rst:496
+msgid ""
+"The ``optimizer_control`` property is a ``dict`` mirroring ALM's "
+"``&optimize`` tags; the keys most relevant for comparison with the "
+"external regressors are ``linear_model`` (1 = ordinary least squares, 2 ="
+" elastic-net, 3 = adaptive LASSO), ``cross_validation``, ``l1_alpha``, "
+"and ``l1_ratio``."
+msgstr ""
+"``optimizer_control`` プロパティは、ALM の ``&optimize`` タグに対応する ``dict`` "
+"です。外部回帰器との比較に最も関連するキーは、``linear_model`` (1 = 通常最小二乗法、2 = elastic-net、3 = "
+"adaptive LASSO)、``cross_validation``、``l1_alpha``、``l1_ratio`` です。"
+
+#: ../../source/alm_python.rst:503
+msgid "See also"
+msgstr "関連項目"
+
+#: ../../source/alm_python.rst:505
+msgid ":doc:`alm_root` — the ALM command-line program and its input tags."
+msgstr ":doc:`alm_root` — ALM コマンドラインプログラムとその入力タグ。"
+
+#: ../../source/alm_python.rst:506
+msgid ""
+":doc:`anphon_python` — the anphon Python interface, which runs anphon on "
+"the force-constant files written by ``save_fc``."
+msgstr ""
+":doc:`anphon_python` — ``save_fc`` で書き出した力定数ファイルに対して anphon を実行する、anphon "
+"の Python インターフェース。"
+
+#: ../../source/alm_python.rst:508
+msgid ""
+"The ``optimizer_control`` property exposes ALM's native solvers "
+"(``linear_model`` = 1 OLS, 2 elastic-net, 3 adaptive LASSO) with cross-"
+"validation, for comparison with the external regressors."
+msgstr ""
+"``optimizer_control`` プロパティは、外部回帰器との比較のために、交差検証を備えた ALM のネイティブソルバー "
+"(``linear_model`` = 1 OLS、2 elastic-net、3 adaptive LASSO) を公開します。"
+
+#~ msgid ""
+#~ "Fix the `order`-th FCs (order=2 "
+#~ "harmonic, 3 cubic, ...) to those "
+#~ "in `fc_file` (ALM .xml/.h5). Mirrors the"
+#~ " CLI FC2FIX/FC3FIX tags. Call before "
+#~ "define()."
+#~ msgstr ""
+#~ "`order` 次の力定数 (order=2 は調和、3 は 3 "
+#~ "次、...) を `fc_file` (ALM .xml/.h5) "
+#~ "の値に固定します。CLI の FC2FIX/FC3FIX タグに対応します。define() "
+#~ "の前に呼び出してください。"
+
+#~ msgid ""
+#~ "Legacy alias: freeze FCs to given "
+#~ "values. fc_indices shape (n, order+1)."
+#~ msgstr "従来のエイリアス: 力定数を指定した値に固定します。fc_indices の形状は (n, order+1)。"
+
+#~ msgid ""
+#~ "Fit the FCs. solver: 'dense' (LAPACK "
+#~ "SVD) or 'SimplicialLDLT' (Eigen sparse)."
+#~ msgstr ""
+#~ "力定数をフィットします。solver: 'dense' (LAPACK SVD) または"
+#~ " 'SimplicialLDLT' (Eigen スパース)。"
+
+#~ msgid ""
+#~ "Return (A, b): A shape (nrows, "
+#~ "n_irred_fc) Fortran-order, b shape "
+#~ "(nrows,)."
+#~ msgstr "(A, b) を返します: A の形状は (nrows, n_irred_fc) で Fortran 順、b の形状は (nrows,)。"
+
+#~ msgid ""
+#~ "Return (values, elem_indices[n, fc_order+1]). "
+#~ "mode: origin | irreducible | all."
+#~ msgstr ""
+#~ "(values, elem_indices[n, fc_order+1]) を返します。mode:"
+#~ " origin | irreducible | all。"
+
+#~ msgid "lavec"
+#~ msgstr "lavec"
+
+#~ msgid "array_like, shape (3, 3)"
+#~ msgstr "array_like, shape (3, 3)"
+
+#~ msgid "xcoord"
+#~ msgstr "xcoord"
+
+#~ msgid "array_like, shape (nat, 3)"
+#~ msgstr "array_like, shape (nat, 3)"
+
+#~ msgid "numbers"
+#~ msgstr "numbers"
+
+#~ msgid "array_like, shape (nat,)"
+#~ msgstr "array_like, shape (nat,)"
+
+#~ msgid "int"
+#~ msgstr "int"
+
+#~ msgid "Verbosity level: 0 (silent) or 1 (print progress to stdout)."
+#~ msgstr "出力レベル: 0 (出力なし) または 1 (進捗を標準出力に表示) です。"
+
+#~ msgid "maxorder"
+#~ msgstr "maxorder"
+
+#~ msgid "cutoff_radii"
+#~ msgstr "cutoff_radii"
+
+#~ msgid "array_like, shape (maxorder, nkd, nkd), optional"
+#~ msgstr "array_like, shape (maxorder, nkd, nkd), optional"
+
+#~ msgid "nbody"
+#~ msgstr "nbody"
+
+#~ msgid "sequence of int, length maxorder, optional"
+#~ msgstr "sequence of int, length maxorder, optional"
+
+#~ msgid "symmetrization_basis"
+#~ msgstr "symmetrization_basis"
+
+#~ msgid "{'Lattice', 'Cartesian'}"
+#~ msgstr "{'Lattice', 'Cartesian'}"
+
+#~ msgid "fc_values"
+#~ msgstr "fc_values"
+
+#~ msgid "array_like, shape (n,)"
+#~ msgstr "array_like, shape (n,)"
+
+#~ msgid "fc_indices"
+#~ msgstr "fc_indices"
+
+#~ msgid "array_like, shape (n, fc_order+1)"
+#~ msgstr "array_like, shape (n, fc_order+1)"
+
+#~ msgid "u"
+#~ msgstr "u"
+
+#~ msgid "array_like, shape (nsnap, nat, 3)"
+#~ msgstr "array_like, shape (nsnap, nat, 3)"
+
+#~ msgid "f"
+#~ msgstr "f"
+
+#~ msgid "solver"
+#~ msgstr "solver"
+
+#~ msgid "str"
+#~ msgstr "str"
+
+#~ msgid "fc_order"
+#~ msgstr "fc_order"
+
+#~ msgid "mode"
+#~ msgstr "mode"
+
+#~ msgid "{'origin', 'irreducible', 'all'}"
+#~ msgstr "{'origin', 'irreducible', 'all'}"
+
+#~ msgid "permutation"
+#~ msgstr "permutation"
+
+#~ msgid "bool"
+#~ msgstr "bool"
+
+#~ msgid "values"
+#~ msgstr "values"
+
+#~ msgid "ndarray, shape (n,)"
+#~ msgstr "ndarray, shape (n,)"
+
+#~ msgid "elem_indices"
+#~ msgstr "elem_indices"
+
+#~ msgid "ndarray, shape (n, fc_order+1)"
+#~ msgstr "ndarray, shape (n, fc_order+1)"
+
+#~ msgid "filename"
+#~ msgstr "filename"
+
+#~ msgid "format"
+#~ msgstr "format"
+
+#~ msgid "maxorder_to_save"
+#~ msgstr "maxorder_to_save"
+
+#~ msgid "int, optional"
+#~ msgstr "int, optional"
+
+#~ msgid "type"
+#~ msgstr ""
+
+#~ msgid "Verbosity level"
+#~ msgstr "verbosity"
+
+#~ msgid ""
+#~ "The lattice vectors passed to "
+#~ "``ALM(...)`` must be in **Bohr** "
+#~ "(multiply Å by ``1.8897259886``)."
+#~ msgstr ""
+#~ "``ALM(...)`` に渡す格子ベクトルは **Bohr** 単位でなければなりません "
+#~ "(Å に ``1.8897259886`` を掛けます)。"
+
+#~ msgid ""
+#~ "The displacements ``u`` and forces ``f``"
+#~ " in a ``DFSET`` are read **as-"
+#~ "is in atomic units** (Bohr and "
+#~ "Ry/Bohr) — do **not** convert them."
+#~ msgstr ""
+#~ "``DFSET`` 内の変位 (displacement) ``u`` と力 "
+#~ "(force) ``f`` は**原子単位のまま** (Bohr および "
+#~ "Ry/Bohr) で読み込まれます。これらを変換**しないで**ください。"
+
+#~ msgid ""
+#~ "The force constants returned by "
+#~ "``get_fc`` / written by ``save_fc`` are"
+#~ " converted to eV/Å\\ :sup:`n` by ALM."
+#~ msgstr ""
+#~ "``get_fc`` が返す、または ``save_fc`` が書き出す力定数は、ALM "
+#~ "によって eV/Å\\ :sup:`n` に変換されます。"
+
+#~ msgid "Forces in Ry/Bohr."
+#~ msgstr "力 (Ry/Bohr単位) です。"
+
+#~ msgid ""
+#~ "``set_constraint(translation=True)`` applies the "
+#~ "algebraic translational invariance (acoustic "
+#~ "sum rule, ``ICONST=11``).  ``get_matrix_elements``"
+#~ " then returns the **constraint-reduced**"
+#~ " matrix whose number of columns "
+#~ "equals ``get_number_of_free_parameters()``."
+#~ msgstr ""
+#~ "``set_constraint(translation=True)`` は代数的な並進不変性 "
+#~ "(音響和則、``ICONST=11``) を適用します。これにより ``get_matrix_elements``"
+#~ " は、列数が ``get_number_of_free_parameters()`` "
+#~ "に等しい**制約により縮約された**行列を返します。"
+
+#~ msgid "ICONST=11: algebraic translational invariance (acoustic sum rule)."
+#~ msgstr "ICONST=11: 代数的な並進不変性 (音響和則) です。"
+
+#~ msgid ""
+#~ "Sets both the constraint mode and "
+#~ "the algebraic flag (= ICONST//10), as"
+#~ " the CLI does; required for the "
+#~ "elastic-net optimizer."
+#~ msgstr "CLIと同様に、拘束モードと代数フラグ (= ICONST//10) の両方を設定します。elastic-netオプティマイザには必須です。"
+
+#~ msgid "ALM Python interface (external regressors)"
+#~ msgstr "ALM Python インターフェース (外部回帰器)"
+
+#~ msgid "Basis used to symmetrize the force constants."
+#~ msgstr "力定数の対称化に使う基底です。"
+

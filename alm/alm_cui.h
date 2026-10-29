@@ -11,14 +11,15 @@
 
 #pragma once
 
-namespace ALM_NS {
-class ALMCUI {
+namespace ALM_NS
+{
+class ALMCUI
+{
 public:
     ALMCUI();
 
     ~ALMCUI();
 
-    void run(const int narg,
-             char **arg) const;
+    auto run(const int narg, char **arg) const -> void;
 };
-}
+} // namespace ALM_NS

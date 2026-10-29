@@ -1,11 +1,12 @@
  +-----------------------------------------------------------------+
  +                         Program ANPHON                          +
- +                             Ver.  1.5.0                         +
+ +                             Ver.  1.9.9                         +
+ +                         Commit: unknown                         +
  +-----------------------------------------------------------------+
 
- Job started at Tue Feb 27 18:38:12 2024
+ Job started at Mon Oct 19 08:32:31 2026
 
- The number of MPI processes: 16
+ The number of MPI processes: 4
  The number of OpenMP threads: 1
 
 
@@ -14,11 +15,12 @@
  General:
   PREFIX = si222_harmonic
   MODE = PHONONS
-  FCSXML = si222_harmonic.xml
+  FCSFILE = si222_harmonic.h5
+  FILE_FORMAT = h5; VERBOSITY = 1
 
-  NKD = 1; KD =   Si
-  MASS = 
-  NSYM = 0; TOLERANCE = 0.001; PRINTSYM = 0
+  KD =    Si
+  TREVSYM = 1
+  TOLERANCE = 0.001; PRINTSYM = 0
 
   NONANALYTIC = 0
 
@@ -36,12 +38,11 @@
 
 
  Analysis:
-  PRINTVEL = 0
-  PRINTVEC = 1
-  PRINTXSF = 0
+  PRINTEVAL = 0; PRINTEVEC = 1; PRINTVEL = 0
+  PRINTPR = 0; PRINTXSF = 0; ZMODE = 0
+  IRREPS = 0; DIELEC = 0; FC2_EWALD = 0
 
-  GRUNEISEN = 0
-  NEWFCS = 0
+  GRUNEISEN = 0; NEWFCS = 0
 
 
  -----------------------------------------------------------------
@@ -53,22 +54,13 @@
 
  -----------------------------------------------------------------
 
- Crystal structure
- =================
+ ===================
+  Crystal Structure 
+ ===================
 
  Lattice Vectors:
 
- * Supercell (from si222_harmonic.xml )
-
-    2.052621e+01   0.000000e+00   0.000000e+00 : a1
-    0.000000e+00   2.052621e+01   0.000000e+00 : a2
-    0.000000e+00   0.000000e+00   2.052621e+01 : a3
-
-    3.061055e-01   0.000000e+00   0.000000e+00 : b1
-    0.000000e+00   3.061055e-01   0.000000e+00 : b2
-    0.000000e+00   0.000000e+00   3.061055e-01 : b3
-
- * Primitive cell 
+ * Primitive cell  (from input file)
 
     0.000000e+00   5.131551e+00   5.131551e+00 : a1
     5.131551e+00   0.000000e+00   5.131551e+00 : a2
@@ -81,7 +73,6 @@
 
   Volume of the primitive cell : 2.702564e+02 (a.u.)^3
 
-  Number of atoms in the supercell     : 64
   Number of atoms in the primitive cell: 2
 
   Atomic positions in the primitive cell (fractional):
@@ -92,14 +83,31 @@
   Si:   28.085500
 
 
- Symmetry
- ========
+ * Supercell for harmonic 
 
-  NSYM = 0 is given: Trying to find symmetry operations.
+       20.526205       0.000000       0.000000 : a1
+        0.000000      20.526205       0.000000 : a2
+        0.000000       0.000000      20.526205 : a3
+
+  Transformation matrix:
+       -2.000000        2.000000        2.000000
+        2.000000       -2.000000        2.000000
+        2.000000        2.000000       -2.000000
+
+  Number of atoms in the supercell     : 64
+
+
+ ==========
+  Symmetry 
+ ==========
+
+  Space group: Fd-3m (227)
 
   Number of symmetry operations : 48
- k points
- ========
+
+ ==========
+  K points 
+ ==========
 
   KPMODE = 0 : Calculation on given k points
   Number of k points : 32
@@ -138,28 +146,38 @@
    31:       0.000000      -0.500000       0.000000
    32:      -0.500000       0.000000       0.000000
 
- Force constant
- ==============
 
-  Reading force constants from the XML file ... done !
-  Number of non-zero IFCs for 2 order: 1386
-
-  Maximum deviation from the translational invariance: 
-   Order 2 : 3.374037e-16
-
-
- Dynamical matrix
- ================
+ ==================
+  Dynamical matrix 
+ ==================
 
   NONANALYTIC = 0 : No non-analytic correction. 
 
 
+ =================
+  Force Constants 
+ =================
+
+  Reading force constants from the following file(s):
+   Order 2 : si222_harmonic.h5 (harmonic FC2)
+  ... done.
+
+  Number of non-zero IFCs for 2 order: 1386
+
+  Maximum deviation from the translational invariance: 
+   Order 2 : 4.286935e-16
+
+
+ ================
+  BZ integration 
+ ================
+
+  General settings for DOS and 3-phonon scattering rates:
+   ISMEAR = -1: Tetrahedron method
+
+ 
  -----------------------------------------------------------------
 
-
- ISMEAR = -1: Tetrahedron method will be used.
-
- Now, move on to phonon calculations.
 
  Diagonalizing dynamical matrices for all k points ... done!
 
@@ -459,7 +477,7 @@
  -----------------------------------------------------------------
 
  The following files are created: 
-  si222_harmonic.evec        : Eigenvector of all k points
+  si222_harmonic.evec.h5     : Eigenvector of all k points (HDF5)
 
- Job finished at Tue Feb 27 18:38:12 2024
+ Job finished at Mon Oct 19 08:32:31 2026
 

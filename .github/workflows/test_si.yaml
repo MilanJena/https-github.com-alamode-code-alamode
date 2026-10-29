@@ -1,0 +1,82 @@
+name: Test Si example
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ github.repository == 'alamode-code/alamode-developer' && fromJSON(format('["self-hosted","{0}"]', matrix.os)) || (matrix.os == 'macOS' && 'macos-latest' || 'ubuntu-latest') }}
+    strategy:
+      matrix:
+        os: [Linux, macOS]
+#        os: [ubuntu-latest, windows-latest, macOS-latest]
+        python-version: ['3.10']
+    name: OS ${{ matrix.os }} Python ${{ matrix.python-version }} 
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: alamode
+          python-version: ${{ matrix.python-version }}
+     
+      - name: Get Date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> "${GITHUB_OUTPUT}"
+        shell: bash
+        
+      - name: Cache Conda env
+        uses: actions/cache@v4
+        env:
+          # Increase this value to reset cache if etc/alm-environment.yml has not changed
+          CACHE_NUMBER: 0
+        with:
+          path: ${{ env.CONDA }}/envs
+          key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('etc/alamode-environment.yml') }}-${{ env.CACHE_NUMBER }}
+        id: cache
+         
+      - name: Update environment
+        run: conda env update -n alamode -f etc/alamode-environment.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+      - run: |
+          conda info
+          conda list
+          conda config --show-sources
+          conda config --show
+          printenv | sort
+        
+      - run: echo "${CC} ${CXX}"
+
+      - name: Build alm and anphon with cmake
+        run: |
+          mkdir -p _build
+          cd _build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          # Bounded parallelism: unbounded "make -j" compiles every target's
+          # translation units at once and OOM-kills the 16 GB runner (the
+          # runner agent dies and the job ends as "canceled" with no
+          # compiler diagnostics). The tests only need alm and anphon.
+          make alm anphon -j4
+          cd ..
+      
+      - name: Run test Si
+        working-directory: ./test
+        run: python test_si.py
+
+      - name: Run test ALGO_REDUCTION consistency
+        working-directory: ./test
+        run: python test_algo_reduction.py
+
+      - name: Run test symmetry-deviation warning
+        working-directory: ./test
+        run: python test_symmetry_deviation.py
+
+      - name: Run test units (LENGTH_UNIT / FORCE_UNIT / FCS_UNIT_OUTPUT)
+        working-directory: ./test
+        run: python test_units.py

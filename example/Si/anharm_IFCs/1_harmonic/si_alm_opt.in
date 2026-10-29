@@ -1,8 +1,8 @@
 &general
   PREFIX = si222_harmonic
   MODE = optimize
-  NAT = 64; NKD = 1
   KD = Si
+  PRIMCELL = A
 /
 
 &optimize

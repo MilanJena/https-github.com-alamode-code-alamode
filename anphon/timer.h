@@ -11,21 +11,22 @@
 #pragma once
 
 #include <string>
-#include "pointers.h"
 
 #if defined(WIN32) || defined(_WIN32)
 #include <Windows.h>
 #else
 
-#include <time.h>
 #include <sys/time.h>
+#include <time.h>
 
 #endif
 
-namespace PHON_NS {
-class Timer : protected Pointers {
+namespace PHON_NS
+{
+class Timer
+{
 public:
-    Timer(class PHON *);
+    Timer();
 
     ~Timer();
 
@@ -45,4 +46,4 @@ private:
     timeval time_ref;
 #endif
 };
-}
+} // namespace PHON_NS

@@ -1,11 +1,17 @@
-cmake_minimum_required(VERSION 3.1)
-set(CMAKE_CXX_STANDARD 11)
+if(POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+endif()
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+cmake_minimum_required(VERSION 3.17)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_MACOSX_RPATH 1)
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Wall -O0 -D_DEBUG")
 
 project(tools)
+
+include(GNUInstallDirs)
 
 # Version numbers
 file(READ ${PROJECT_SOURCE_DIR}/../include/version.h version_file)
@@ -15,24 +21,57 @@ MESSAGE("Setting up for TOOLS (ALAMODE version: ${CMAKE_MATCH_1})")
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(openmplibrary OpenMP::OpenMP_CXX)
 endif ()
 
-find_package(Boost)
+if (BOOST_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH "${BOOST_ROOT}")
+endif()
+# boost::sort::block_indirect_sort requires Boost >= 1.66; require it here so an
+# older system Boost is rejected at configure time instead of failing the build.
+find_package(Boost 1.66.0)
 if (Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
+    if (TARGET Boost::boost)
+        set(boost_target Boost::boost)
+    elseif (TARGET Boost::headers)
+        set(boost_target Boost::headers)
+    else()
+        set(boost_includes ${Boost_INCLUDE_DIRS})
+    endif()
 else ()
     if (BOOST_INCLUDE)
-        include_directories(${BOOST_INCLUDE})
+        set(boost_includes ${BOOST_INCLUDE})
     else ()
-        message(FATAL_ERROR "Boost was not found.
+        message(FATAL_ERROR "Boost (>= 1.66) was not found.
         Please specify the location of boost include directories
         via -DBOOST_INCLUDE option.")
     endif ()
 endif ()
 
+option(EIGEN3_ROOT "Path to Eigen3 installation" "")
+if (EIGEN3_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH "${EIGEN3_ROOT}")
+endif()
+# QUIET: config-mode lookup may fail when Eigen is provided only as headers via -DEIGEN3_INCLUDE;
+# that is a supported fallback below, so do not warn about the missing Eigen3Config.cmake.
+find_package(Eigen3 QUIET)
+if (Eigen3_FOUND)
+    if (TARGET Eigen3::Eigen)
+        set(eigen_target Eigen3::Eigen)
+    else()
+        set(eigen_includes ${EIGEN3_INCLUDE_DIR})
+    endif()
+else()
+    if (EIGEN3_INCLUDE)
+        set(eigen_includes ${EIGEN3_INCLUDE})
+    else()
+        message(FATAL_ERROR "Eigen3 was not found.
+        Please specify the location of boost include directories
+        via -DEIGEN3_INCLUDE option.")
+    endif()
+endif()
+
 # Source code
-include_directories("${PROJECT_SOURCE_DIR}/../include")
 set(SOURCES ${PROJECT_SOURCE_DIR}/alm.cpp
         ${PROJECT_SOURCE_DIR}/cluster.cpp
         ${PROJECT_SOURCE_DIR}/constraint.cpp
@@ -64,26 +103,156 @@ set(HEADERS ${PROJECT_SOURCE_DIR}/alm.h
         ${PROJECT_SOURCE_DIR}/writer.h)
 
 # Executable
-add_executable(analyze_phonons
-        ${PROJECT_SOURCE_DIR}/analyze_phonons.cpp
-        ${PROJECT_SOURCE_DIR}/analyze_phonons.h)
-
 add_executable(dfc2
         ${PROJECT_SOURCE_DIR}/dfc2.cpp
         ${PROJECT_SOURCE_DIR}/dfc2.h)
-target_link_libraries(dfc2 ${Boost_LIBRARIES})
+target_compile_options(dfc2 PRIVATE
+    $<$<CONFIG:Release>:-O2>
+    $<$<CONFIG:Debug>:-g -Wall -O0>
+)
+target_compile_definitions(dfc2 PRIVATE
+    $<$<CONFIG:Debug>:_DEBUG>
+)
+target_include_directories(dfc2 PRIVATE
+    ${PROJECT_SOURCE_DIR}/../include
+    ${boost_includes}
+    ${eigen_includes}
+)
+target_link_libraries(dfc2 ${boost_target} ${eigen_target} ${Boost_LIBRARIES})
+if (openmplibrary)
+    target_link_libraries(dfc2 ${openmplibrary})
+endif()
 
 add_executable(qe2alm
         ${PROJECT_SOURCE_DIR}/qe2alm.cpp
         ${PROJECT_SOURCE_DIR}/qe2alm.h)
-target_link_libraries(qe2alm ${Boost_LIBRARIES})
+target_compile_options(qe2alm PRIVATE
+    $<$<CONFIG:Release>:-O2>
+    $<$<CONFIG:Debug>:-g -Wall -O0>
+)
+target_compile_definitions(qe2alm PRIVATE
+    $<$<CONFIG:Debug>:_DEBUG>
+)
+target_include_directories(qe2alm PRIVATE
+    ${PROJECT_SOURCE_DIR}/../include
+    ${boost_includes}
+    ${eigen_includes}
+)
+target_link_libraries(qe2alm ${boost_target} ${eigen_target} ${Boost_LIBRARIES})
+if (openmplibrary)
+    target_link_libraries(qe2alm ${openmplibrary})
+endif()
 
 add_executable(fc_virtual
         ${PROJECT_SOURCE_DIR}/fc_virtual.cpp
         ${PROJECT_SOURCE_DIR}/fc_virtual.h)
-target_link_libraries(qe2alm ${Boost_LIBRARIES})
+target_compile_options(fc_virtual PRIVATE
+    $<$<CONFIG:Release>:-O2>
+    $<$<CONFIG:Debug>:-g -Wall -O0>
+)
+target_compile_definitions(fc_virtual PRIVATE
+    $<$<CONFIG:Debug>:_DEBUG>
+)
+target_include_directories(fc_virtual PRIVATE
+    ${PROJECT_SOURCE_DIR}/../include
+    ${boost_includes}
+    ${eigen_includes}
+)
+target_link_libraries(fc_virtual ${boost_target} ${eigen_target} ${Boost_LIBRARIES})
+if (openmplibrary)
+    target_link_libraries(fc_virtual ${openmplibrary})
+endif()
 
 add_executable(parse_fcsxml
         ${PROJECT_SOURCE_DIR}/parse_fcsxml.cpp
         ${PROJECT_SOURCE_DIR}/parse_fcsxml.h)
-target_link_libraries(parse_fcsxml ${Boost_LIBRARIES})
+target_compile_options(parse_fcsxml PRIVATE
+    $<$<CONFIG:Release>:-O2>
+    $<$<CONFIG:Debug>:-g -Wall -O0>
+)
+target_compile_definitions(parse_fcsxml PRIVATE
+    $<$<CONFIG:Debug>:_DEBUG>
+)
+target_include_directories(parse_fcsxml PRIVATE
+    ${PROJECT_SOURCE_DIR}/../include
+    ${boost_includes}
+    ${eigen_includes}
+)
+target_link_libraries(parse_fcsxml ${boost_target} ${eigen_target} ${Boost_LIBRARIES})
+if (openmplibrary)
+    target_link_libraries(parse_fcsxml ${openmplibrary})
+endif()
+
+install(TARGETS dfc2 qe2alm fc_virtual parse_fcsxml
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# ---- Python post-processing scripts ----
+# The whole collection is installed under <prefix>/share/alamode/tools with the
+# same layout as the source tree, because several scripts import sibling
+# modules (alamode_constants.py, GenDisplacement.py) and packages (analyzer/, fcsio/, interface/).
+# The scripts referenced by the tutorials are additionally symlinked into
+# <prefix>/bin; python resolves the symlink before setting sys.path[0], so the
+# sibling imports keep working from bin/. Python dependencies (numpy,
+# matplotlib, h5py, ase) are NOT handled here -- they must be available in the
+# user's python environment.
+set(pytools_destination ${CMAKE_INSTALL_DATADIR}/alamode/tools)
+
+install(PROGRAMS
+        ${PROJECT_SOURCE_DIR}/analyzer.py
+        ${PROJECT_SOURCE_DIR}/calcpes.py
+        ${PROJECT_SOURCE_DIR}/dfc2.py
+        ${PROJECT_SOURCE_DIR}/displace.py
+        ${PROJECT_SOURCE_DIR}/elastic.py
+        ${PROJECT_SOURCE_DIR}/extract.py
+        ${PROJECT_SOURCE_DIR}/plotband.py
+        ${PROJECT_SOURCE_DIR}/plotdos.py
+        ${PROJECT_SOURCE_DIR}/scph_to_qefc.py
+        ${PROJECT_SOURCE_DIR}/strainifc.py
+        ${PROJECT_SOURCE_DIR}/taylor.py
+        DESTINATION ${pytools_destination})
+
+# Importable modules, not commands; no exec bit. alamode_constants.py holds
+# the physical constants (mirroring include/constants.h) shared by the scripts.
+install(FILES
+        ${PROJECT_SOURCE_DIR}/alamode_constants.py
+        ${PROJECT_SOURCE_DIR}/GenDisplacement.py
+        ${PROJECT_SOURCE_DIR}/interpolate_alamode.py
+        DESTINATION ${pytools_destination})
+
+install(DIRECTORY
+        ${PROJECT_SOURCE_DIR}/analyzer
+        ${PROJECT_SOURCE_DIR}/fcsio
+        ${PROJECT_SOURCE_DIR}/interface
+        ${PROJECT_SOURCE_DIR}/strainkit
+        DESTINATION ${pytools_destination}
+        FILES_MATCHING PATTERN "*.py"
+        PATTERN "__pycache__" EXCLUDE
+        PATTERN ".*" EXCLUDE)
+
+# Tutorial-facing commands, linked into bin/. Relative link targets keep the
+# installed tree relocatable.
+set(pytool_links
+    analyzer.py
+    dfc2.py
+    displace.py
+    elastic.py
+    extract.py
+    plotband.py
+    plotdos.py
+    scph_to_qefc.py
+    strainifc.py)
+
+file(RELATIVE_PATH pytools_from_bindir
+     "${CMAKE_INSTALL_FULL_BINDIR}"
+     "${CMAKE_INSTALL_FULL_DATADIR}/alamode/tools")
+
+foreach(script IN LISTS pytool_links)
+    install(CODE "
+        file(MAKE_DIRECTORY \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\")
+        file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${script}\")
+        file(CREATE_LINK \"${pytools_from_bindir}/${script}\"
+             \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${script}\"
+             SYMBOLIC)
+        message(STATUS \"Symlinking: \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${script} -> ${pytools_from_bindir}/${script}\")
+    ")
+endforeach()

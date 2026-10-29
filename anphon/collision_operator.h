@@ -1,0 +1,213 @@
+/*
+ collision_operator.h
+
+ Copyright (c) 2026 Terumasa Tadano
+
+ This file is distributed under the terms of the MIT license.
+ Please see the file 'LICENCE.txt' in the root directory
+ or http://opensource.org/licenses/mit-license.php for information.
+*/
+
+#pragma once
+
+#include <Eigen/Dense>
+#include <array>
+#include <cstdint>
+#include <vector>
+#include "kpoint.h"
+#include "ndarray.h"
+
+namespace PHON_NS
+{
+class System;
+class Symmetry;
+class Integration;
+class AnharmonicCore;
+class TetraNodes;
+class DymatEigenValue;
+// Three-phonon collision operator on the irreducible wedge. MPI ranks own
+// round-robin k points and store local transition probabilities in
+// L_emitt/L_absorb; symmetry expands vector fields to the full grid.
+// The solver handles diagonal add-ons (isotope, boundary, 4ph).
+// Constructed by Iterativebte::setup after setup_base().
+class CollisionOperator
+{
+public:
+    CollisionOperator(const KpointMeshUniform &kmesh_dos_in, const TetraNodes &tetra_nodes_dos_in,
+                      const DymatEigenValue &dymat_dos_in, const System &system_in, const Symmetry &symmetry_in,
+                      Integration &integration_in, AnharmonicCore &anharmonic_core_in, unsigned int ns_in,
+                      int my_rank_in, int nprocs_in);
+
+    // Distribute the wedge over MPI ranks, enumerate the scattering
+    // triplets of the local k points and build the symmetry table.
+    void setup();
+
+    // Transition probabilities of the local rows (smearing or tetrahedron,
+    // following integration->ismear).
+    void build_L();
+
+    // Enable Tamura isotope in-scattering and its row-sum diagonal, preserving
+    // the constant mode. Call before build_L(); per-species isotope_factor_in
+    // must remain valid for this object's lifetime.
+    void set_isotope_channel(const bool flag, const double *isotope_factor_in = nullptr)
+    {
+        with_isotope = flag;
+        isotope_factor = isotope_factor_in;
+    }
+
+    bool has_isotope_channel() const
+    {
+        return with_isotope;
+    }
+
+    // Add the isotope diagonal 2 g1 sum_j g2_j w(row,j) to the local rows
+    // of q_inout ([nklocal][ns]) - the row sum of the in-scattering entries,
+    // so the elastic channel annihilates constant fields exactly.
+    void add_isotope_diagonal(const double *const *sqrt_occ, double **q_inout) const;
+
+    // The occupation factors enter through the detailed-balance-symmetric
+    // kernel: every three-phonon product n1 n2 (n3+1) / n1 (n2+1)(n3+1) is
+    // replaced by g1 g2 g3 with g = sqrt(n(n+1)) = 1/(2 sinh(bw/2)), to
+    // which it is identical on the energy shell. This makes the operator
+    // exactly symmetric off shell as well (up to the direction dependence
+    // of tetrahedron/adaptive weights), so the three solvers agree on the
+    // same discretized problem. Callers pass the precomputed table
+    // sqrt_occ[k][s] = sqrt(n(n+1)).
+
+    // Diagonal (out-scattering) part at the local wedge points; q1 is
+    // [nklocal][ns].
+    void calc_Q_from_L(const double *const *sqrt_occ, double **q1) const;
+
+    // In-scattering action at local wedge point ikl for all (s1, xyz);
+    // Wks_out is [ns][3]. Thread-safe for concurrent calls on distinct ikl.
+    void calc_W_at(const int ikl, const double *const *sqrt_occ, const double *const *const *dF,
+                   double **Wks_out) const;
+
+    // Reconstruct a full-grid vector field from its wedge values:
+    // dF_full[p] = expand_mat[p] . dF_ir[rep(p)], with dF_ir laid out as
+    // [(irreducible k * ns + s) * 3 + xyz].
+    void reconstruct_full_from_wedge(const double *dF_ir, double ***dF_full) const;
+
+    // Project a wedge vector field onto the little-group-invariant subspace
+    // (physical fields live there; the collision operator is well defined
+    // and self-adjoint only on it).
+    void project_onto_littlegroup(double *dF_ir) const;
+
+    const Eigen::Matrix3d &get_littlegroup_projector(const int ik) const
+    {
+        return littlegroup_proj[ik];
+    }
+
+    // Assemble this rank's wedge rows of the dense operator in the
+    // multiplicity-symmetrized metric, S = M^{1/2} (Q_diag + W) M^{-1/2}
+    // with M = diag(star multiplicity): slab is row-major
+    // [nklocal*ns*3][nk_irred*ns*3], zero-initialized by the caller.
+    // Assembly runs over the stored L entries (3ph and, when enabled,
+    // isotope), i.e. it costs one operator application. Used by SOLVER =
+    // DBTE.
+    void assemble_dense_rows(const double *const *sqrt_occ, const double *const *Qfin_loc, double *slab) const;
+
+    int get_nklocal() const
+    {
+        return nklocal;
+    }
+
+    const std::vector<int> &get_local_irred_ks() const
+    {
+        return nk_l;
+    }
+
+    long get_kplength_total() const
+    {
+        return static_cast<long>(kplength_emitt) + static_cast<long>(kplength_absorb);
+    }
+
+    // Memory held by the local 3ph L (after build_L), in bytes, and its number
+    // of stored (nonzero) entries.
+    long get_L_bytes() const;
+    long get_L_nnz() const;
+
+private:
+    const KpointMeshUniform &kmesh_dos_;
+    const TetraNodes &tetra_nodes_dos_;
+    const DymatEigenValue &dymat_dos_;
+    const System &system_;
+    const Symmetry &symmetry_;
+    Integration &integration_;        // smearing settings and weight kernels
+    AnharmonicCore &anharmonic_core_; // V3 evaluation
+    const int my_rank_;
+    const int nprocs_;
+
+    int kplength_emitt;
+    int kplength_absorb;
+    int nk_3ph, nklocal, ns, ns2;
+
+    bool use_triplet_symmetry;
+    bool sym_permutation;
+
+    // Transition probabilities of the triplets of one local wedge point in
+    // CSR form: row j * ns + s1 (triplet j, band s1) holds the nonzero
+    // entries of the band pairs ib = s2 * ns + s3 in ascending order. Exact zeros are dropped (about 90 % of
+    // the tetrahedron weights), which leaves every sum over L unchanged.
+    // ponytail: Lorentzian smearing has no zeros, so CSR costs 12 instead of
+    // 8 bytes per entry there; add a dense variant if that case matters.
+    struct SparseL
+    {
+        std::vector<size_t> ptr;    // [ntriplet * ns + 1]
+        std::vector<uint32_t> band; // ib
+        std::vector<double> val;
+    };
+
+    std::vector<SparseL> L_absorb; // [nklocal], L q0 + q1 -> q2
+    std::vector<SparseL> L_emitt;  // [nklocal], L q0 -> q1 + q2
+
+    // Elastic isotope-disorder kernel: sparse partners of each local wedge
+    // row with the temperature-independent value w = (pi/4N) w1 w2 g2
+    // |<e2|e1>|^2 delta(w1-w2); rowsum feeds the diagonal.
+    struct IsotopeEntry
+    {
+        int knum;
+        int snum;
+        double val;
+    };
+
+    bool with_isotope;
+    const double *isotope_factor = nullptr;       // per-species mass variance (set_isotope_channel)
+    std::vector<std::vector<IsotopeEntry>> L_iso; // [ikl * ns + s]
+
+    void build_L_isotope();
+
+    std::vector<std::vector<KsListGroup>> localnk_triplets_emitt;
+    std::vector<std::vector<KsListGroup>> localnk_triplets_absorb;
+
+    std::vector<int> nk_l;
+
+    // Cartesian rotation (with the time-reversal sign folded in) mapping
+    // the wedge representative onto each full-grid point.
+    std::vector<Eigen::Matrix3d> expand_mat;
+
+    // Average over the little group of each wedge representative (with the
+    // time-reversal sign): projector onto invariant Cartesian vectors.
+    std::vector<Eigen::Matrix3d> littlegroup_proj;
+
+    void get_triplets();
+
+    void build_expansion_table();
+
+    void setup_L_smear();
+
+    void setup_L_tetra();
+
+    // Compress the dense rows dense[j][s1][ib] of triplet j into CSR rows.
+    struct PairRows
+    {
+        std::vector<uint32_t> cnt; // [ns]
+        std::vector<uint32_t> band;
+        std::vector<double> val;
+    };
+
+    void compress_pair(const double *dense, PairRows &out) const;
+
+    void pack_block(std::vector<PairRows> &rows, SparseL &out) const;
+};
+} // namespace PHON_NS

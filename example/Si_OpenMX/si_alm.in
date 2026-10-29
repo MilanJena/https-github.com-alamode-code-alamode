@@ -1,7 +1,7 @@
 &general
  PREFIX = si222
  MODE = suggest
- NAT = 64; NKD = 1
+ NAT = 64
  KD = Si
 /
 

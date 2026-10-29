@@ -1,11 +1,17 @@
-cmake_minimum_required(VERSION 3.1)
-set(CMAKE_CXX_STANDARD 14)
+if(POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+endif()
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+cmake_minimum_required(VERSION 3.17)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_MACOSX_RPATH 1)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3") 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Wall -O0 -D_DEBUG")
 
 project(anphon)
+
+include(GNUInstallDirs)
 
 # Version numbers
 file(READ ${PROJECT_SOURCE_DIR}/../include/version.h version_file)
@@ -13,41 +19,73 @@ string(REGEX MATCH "ALAMODE_VERSION = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" alm_versio
 set(alm_version ${CMAKE_MATCH_1})
 MESSAGE("Setting up for ANPHON code (ALAMODE version: ${CMAKE_MATCH_1})")
 
-if (FFTW3_ROOT)
-    include_directories("${FFTW3_ROOT}/include")
-    set(fftw3library "-L${FFTW3_ROOT}/lib -lfftw3")
-elseif(NOT USE_MKL_FFT)
-    set(fftw3library "-lfftw3")
+if (SPGLIB_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH "${SPGLIB_ROOT}")
+endif()
+
+find_path(SPGLIB_INCLUDE_DIR spglib.h
+    HINTS ${SPGLIB_ROOT}
+    PATH_SUFFIXES include
+)
+find_library(SPGLIB_LIBRARY
+    NAMES symspg spglib
+    HINTS ${SPGLIB_ROOT}
+    PATH_SUFFIXES lib lib64
+)
+
+if (SPGLIB_INCLUDE_DIR AND SPGLIB_LIBRARY)
+    set(spglib_include ${SPGLIB_INCLUDE_DIR})
+    set(spglib ${SPGLIB_LIBRARY})
 else()
-    set(mkl_root "$ENV{MKLROOT}")
-    include_directories("${mkl_root}/include/fftw")
+    message("SPGLIB not found via hints. Falling back to -lsymspg.")
+    set(spglib "-lsymspg")
 endif()
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     set (openmplibrary OpenMP::OpenMP_CXX)
 endif()
 
-find_package(Boost)
+if (BOOST_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH "${BOOST_ROOT}")
+endif()
+# boost::sort::block_indirect_sort requires Boost >= 1.66; require it here so an
+# older system Boost is rejected at configure time instead of failing the build.
+find_package(Boost 1.66.0)
 if (Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
+    if (TARGET Boost::boost)
+        set(boost_target Boost::boost)
+    elseif (TARGET Boost::headers)
+        set(boost_target Boost::headers)
+    else()
+        set(boost_includes ${Boost_INCLUDE_DIRS})
+    endif()
 else()
     if (BOOST_INCLUDE)
-        include_directories(${BOOST_INCLUDE})
+        set(boost_includes ${BOOST_INCLUDE})
     else()
-        message(FATAL_ERROR "Boost was not found.
+        message(FATAL_ERROR "Boost (>= 1.66) was not found.
         Please specify the location of boost include directories
         via -DBOOST_INCLUDE option.")
     endif()
 endif()
 
-find_package(Eigen3)
+option(EIGEN3_ROOT "Path to Eigen3 installation" "")
+if (EIGEN3_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH "${EIGEN3_ROOT}")
+endif()
+# QUIET: config-mode lookup may fail when Eigen is provided only as headers via -DEIGEN3_INCLUDE;
+# that is a supported fallback below, so do not warn about the missing Eigen3Config.cmake.
+find_package(Eigen3 QUIET)
 if (Eigen3_FOUND)
-    include_directories(${EIGEN3_INCLUDE_DIR})
+    if (TARGET Eigen3::Eigen)
+        set(eigen_target Eigen3::Eigen)
+    else()
+        set(eigen_includes ${EIGEN3_INCLUDE_DIR})
+    endif()
 else()
     if (EIGEN3_INCLUDE)
-        include_directories(${EIGEN3_INCLUDE})
+        set(eigen_includes ${EIGEN3_INCLUDE})
     else()
         message(FATAL_ERROR "Eigen3 was not found.
         Please specify the location of boost include directories
@@ -55,101 +93,426 @@ else()
     endif()
 endif()
 
+if (NOT BLA_VENDOR AND DEFINED ENV{CONDA_PREFIX})
+    find_library(CONDA_OPENBLAS_LIB
+        NAMES openblas openblas64
+        HINTS "$ENV{CONDA_PREFIX}"
+        PATH_SUFFIXES lib
+    )
+    if (CONDA_OPENBLAS_LIB)
+        set(BLA_VENDOR OpenBLAS CACHE STRING "BLAS/LAPACK vendor" FORCE)
+    endif()
+endif()
+# Route Eigen's dense matrix products through the detected BLAS (EIGEN_USE_BLAS) -- e.g. OpenBLAS or
+# Apple Accelerate; choose the vendor with -DBLA_VENDOR=... Relies on the guarded prototypes /
+# zgemm_cpx wrapper in include/blas_wrapper.h. anphon's only BLAS call is the complex zgemm_.
+option(USE_EIGEN_BLAS "Use Eigen's BLAS backend (EIGEN_USE_BLAS) with the detected BLAS" OFF)
 find_package(LAPACK REQUIRED)
-include_directories(${Lapack_INCLUDE_DIRS})
-find_package(MPI REQUIRED)
-include_directories(${MPI_C_INCLUDE_DIRS})
-
-if (WITH_HDF5_SUPPORT)
-    add_definitions(-D_HDF5)
-    find_package(HDF5 COMPONENTS CXX)
-    if (HDF5_FOUND)
-        include_directories(${HDF5_INCLUDE_DIRS})
-        set(hdf5library ${HDF5_LIBRARIES})
+if (TARGET LAPACK::LAPACK)
+    set(lapack_target LAPACK::LAPACK)
+else()
+    set(lapack_target ${LAPACK_LIBRARIES})
+endif()
+if (USE_EIGEN_BLAS)
+    # Only the EIGEN_USE_BLAS path needs a standalone BLAS to link Eigen's dense kernels; the default
+    # build resolves BLAS transitively through LAPACK, so keep find_package(BLAS) opt-in to avoid
+    # breaking configurations where a standalone BLAS is not separately discoverable.
+    find_package(BLAS REQUIRED)
+    if (TARGET BLAS::BLAS)
+        set(blas_target BLAS::BLAS)
     else()
-        if (HDF5_ROOT)
-            include_directories("${HDF5_ROOT}/include")
-            set(hdf5library "-L${HDF5_ROOT}/lib -lhdf5_cpp -lhdf5")
-        else()
-            message(FATAL_ERROR "HDF5 was not found.
-            Please specify the HDF5 install directory
-            via -DHDF5_ROOT option.")
-        endif()
+        set(blas_target ${BLAS_LIBRARIES})
+    endif()
+    add_compile_definitions(EIGEN_USE_BLAS)
+    message(STATUS "EIGEN_USE_BLAS enabled (anphon): Eigen dense products routed through BLAS (${BLAS_LIBRARIES}).")
+    message(STATUS "  Under MPI, pin the BLAS thread count to 1 (e.g. OPENBLAS_NUM_THREADS=1 / "
+                   "VECLIB_MAXIMUM_THREADS=1) to avoid rank x thread oversubscription.")
+endif()
+find_package(MPI REQUIRED)
+if (TARGET MPI::MPI_CXX)
+    set(mpi_target MPI::MPI_CXX)
+else()
+    set(mpi_target ${MPI_CXX_LIBRARIES})
+endif()
+
+if (HDF5_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH "${HDF5_ROOT}")
+endif()
+find_package(HDF5 COMPONENTS CXX)
+if (HDF5_FOUND)
+    set(hdf5library ${HDF5_LIBRARIES})
+    if (TARGET HDF5::HDF5)
+        set(hdf5_target HDF5::HDF5)
+    endif()
+else()
+    if (HDF5_ROOT)
+        set(hdf5_include "${HDF5_ROOT}/include")
+        set(hdf5library "-L${HDF5_ROOT}/lib -lhdf5_cpp -lhdf5")
+    else()
+        message(FATAL_ERROR "HDF5 was not found.
+        Please specify the HDF5 install directory
+        via -DHDF5_ROOT option.")
     endif()
 endif()
 
-get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message(STATUS "dir='${dir}'")
-endforeach()
-
 # Source code
-include_directories("${PROJECT_SOURCE_DIR}/../include")
 set(SOURCES ${PROJECT_SOURCE_DIR}/anharmonic_core.cpp
+        ${PROJECT_SOURCE_DIR}/four_phonon.cpp
+        ${PROJECT_SOURCE_DIR}/three_phonon.cpp
+            ${PROJECT_SOURCE_DIR}/collision_operator.cpp
             ${PROJECT_SOURCE_DIR}/conductivity.cpp
+            ${PROJECT_SOURCE_DIR}/dense_hermitian_eigen.cpp
+            ${PROJECT_SOURCE_DIR}/dense_symmetric_eigen.cpp
             ${PROJECT_SOURCE_DIR}/dielec.cpp
+            ${PROJECT_SOURCE_DIR}/diis.cpp
+            ${PROJECT_SOURCE_DIR}/elastic_tensor.cpp
+            ${PROJECT_SOURCE_DIR}/strain_file_parsers.cpp
+            ${PROJECT_SOURCE_DIR}/strain_reference_cell.cpp
+        ${PROJECT_SOURCE_DIR}/strain_coupling_io.cpp
             ${PROJECT_SOURCE_DIR}/dynamical.cpp
             ${PROJECT_SOURCE_DIR}/ewald.cpp
             ${PROJECT_SOURCE_DIR}/fcs_phonon.cpp
+            ${PROJECT_SOURCE_DIR}/ifc_derivative.cpp
+            ${PROJECT_SOURCE_DIR}/ifc_derivative_real_space.cpp
             ${PROJECT_SOURCE_DIR}/gruneisen.cpp
+            ${PROJECT_SOURCE_DIR}/input_parser.cpp
+            ${PROJECT_SOURCE_DIR}/input_setter.cpp
             ${PROJECT_SOURCE_DIR}/integration.cpp
+            ${PROJECT_SOURCE_DIR}/interpolation.cpp
             ${PROJECT_SOURCE_DIR}/isotope.cpp
+            ${PROJECT_SOURCE_DIR}/iterativebte.cpp
+            ${PROJECT_SOURCE_DIR}/kappa_result_io.cpp
+            ${PROJECT_SOURCE_DIR}/kappa_result_io_text.cpp
             ${PROJECT_SOURCE_DIR}/kpoint.cpp
-            ${PROJECT_SOURCE_DIR}/main.cpp
             ${PROJECT_SOURCE_DIR}/mode_analysis.cpp
+            ${PROJECT_SOURCE_DIR}/mode_symmetry.cpp
             ${PROJECT_SOURCE_DIR}/mpi_common.cpp
-            ${PROJECT_SOURCE_DIR}/parsephon.cpp
+            ${PROJECT_SOURCE_DIR}/phonon.cpp
+            ${PROJECT_SOURCE_DIR}/phonon_cui.cpp
             ${PROJECT_SOURCE_DIR}/phonon_dos.cpp
             ${PROJECT_SOURCE_DIR}/phonon_velocity.cpp
-            ${PROJECT_SOURCE_DIR}/phonons.cpp
+            ${PROJECT_SOURCE_DIR}/optimizers.cpp
             ${PROJECT_SOURCE_DIR}/qha.cpp
+            ${PROJECT_SOURCE_DIR}/quartic_real_space.cpp
             ${PROJECT_SOURCE_DIR}/relaxation.cpp
             ${PROJECT_SOURCE_DIR}/scph.cpp
+            ${PROJECT_SOURCE_DIR}/scph_bubble.cpp
+            ${PROJECT_SOURCE_DIR}/scph_hessian.cpp
+            ${PROJECT_SOURCE_DIR}/scph_derivatives.cpp
+            ${PROJECT_SOURCE_DIR}/scph_io.cpp
+            ${PROJECT_SOURCE_DIR}/scph_qha_common.cpp
+            ${PROJECT_SOURCE_DIR}/scph_result_io.cpp
+            ${PROJECT_SOURCE_DIR}/scph_v3v4_elements.cpp
+            ${PROJECT_SOURCE_DIR}/v4_service.cpp
             ${PROJECT_SOURCE_DIR}/selfenergy.cpp
             ${PROJECT_SOURCE_DIR}/symmetry_core.cpp
             ${PROJECT_SOURCE_DIR}/system.cpp
             ${PROJECT_SOURCE_DIR}/thermodynamics.cpp
             ${PROJECT_SOURCE_DIR}/timer.cpp
             ${PROJECT_SOURCE_DIR}/write_phonons.cpp
-            ${PROJECT_SOURCE_DIR}/../external/niggli.c)
+            ${PROJECT_SOURCE_DIR}/../external/niggli.c
+            ${PROJECT_SOURCE_DIR}/../include/git_commit.cpp
+            )
 
 set(HEADERS ${PROJECT_SOURCE_DIR}/anharmonic_core.h
+            ${PROJECT_SOURCE_DIR}/cell_shift_table.h
             ${PROJECT_SOURCE_DIR}/conductivity.h
+            ${PROJECT_SOURCE_DIR}/dense_hermitian_eigen.h
             ${PROJECT_SOURCE_DIR}/dielec.h
+            ${PROJECT_SOURCE_DIR}/diis.h
+            ${PROJECT_SOURCE_DIR}/elastic_tensor.h
+            ${PROJECT_SOURCE_DIR}/strain_file_parsers.h
+            ${PROJECT_SOURCE_DIR}/strain_reference_cell.h
+        ${PROJECT_SOURCE_DIR}/strain_coupling_types.h
+        ${PROJECT_SOURCE_DIR}/strain_coupling_io.h
             ${PROJECT_SOURCE_DIR}/dynamical.h
             ${PROJECT_SOURCE_DIR}/error.h
             ${PROJECT_SOURCE_DIR}/ewald.h
             ${PROJECT_SOURCE_DIR}/fcs_phonon.h
+            ${PROJECT_SOURCE_DIR}/ifc_derivative.h
+            ${PROJECT_SOURCE_DIR}/grid_phase.h
             ${PROJECT_SOURCE_DIR}/gruneisen.h
+            ${PROJECT_SOURCE_DIR}/input_parser.h
+            ${PROJECT_SOURCE_DIR}/input_setter.h
             ${PROJECT_SOURCE_DIR}/integration.h
+            ${PROJECT_SOURCE_DIR}/interpolation.h
             ${PROJECT_SOURCE_DIR}/isotope.h
+            ${PROJECT_SOURCE_DIR}/isotope_kernel.h
+            ${PROJECT_SOURCE_DIR}/iterativebte.h
             ${PROJECT_SOURCE_DIR}/kpoint.h
-            ${PROJECT_SOURCE_DIR}/memory.h
             ${PROJECT_SOURCE_DIR}/mode_analysis.h
+            ${PROJECT_SOURCE_DIR}/mode_symmetry.h
             ${PROJECT_SOURCE_DIR}/mpi_common.h
-            ${PROJECT_SOURCE_DIR}/parsephon.h
+            ${PROJECT_SOURCE_DIR}/pointgroup_data.h
+            ${PROJECT_SOURCE_DIR}/phonon.h
+            ${PROJECT_SOURCE_DIR}/phonon_cui.h
             ${PROJECT_SOURCE_DIR}/phonon_dos.h
             ${PROJECT_SOURCE_DIR}/phonon_velocity.h
-            ${PROJECT_SOURCE_DIR}/phonons.h
-            ${PROJECT_SOURCE_DIR}/pointers.h
+            ${PROJECT_SOURCE_DIR}/optimizers.h
+            ${PROJECT_SOURCE_DIR}/q0_contraction.h
             ${PROJECT_SOURCE_DIR}/qha.h
+            ${PROJECT_SOURCE_DIR}/quartic_real_space.h
             ${PROJECT_SOURCE_DIR}/relaxation.h
             ${PROJECT_SOURCE_DIR}/scph.h
+            ${PROJECT_SOURCE_DIR}/scph_hessian_kernels.h
             ${PROJECT_SOURCE_DIR}/selfenergy.h
             ${PROJECT_SOURCE_DIR}/symmetry_core.h
             ${PROJECT_SOURCE_DIR}/system.h
             ${PROJECT_SOURCE_DIR}/thermodynamics.h
+            ${PROJECT_SOURCE_DIR}/v4_distributed.h
+            ${PROJECT_SOURCE_DIR}/v4_index_transform.h
+            ${PROJECT_SOURCE_DIR}/stage_timer.h
+            ${PROJECT_SOURCE_DIR}/v4_service.h
             ${PROJECT_SOURCE_DIR}/timer.h
-            ${PROJECT_SOURCE_DIR}/write_phonons.h)
+            ${PROJECT_SOURCE_DIR}/write_phonons.h
+            ${PROJECT_SOURCE_DIR}/../include/progress_bar.h
+            ../include/lapack_wrapper.h
+            ../include/logger.h
+            )
+
+# std::filesystem (used by kappa_result_io.cpp / scph_result_io.cpp) lives in a
+# separate library, libstdc++fs, on older libstdc++ toolchains (e.g. GCC 8 as
+# shipped by RHEL8); GCC 9+ folds it into libstdc++. icpx reports as IntelLLVM
+# but uses the system libstdc++, so probe whether the flag is actually needed
+# rather than keying on the compiler ID.
+include(CheckCXXSourceCompiles)
+set(_filesystem_test_code "#include <filesystem>\nint main() { return std::filesystem::exists(\".\") ? 0 : 1; }\n")
+check_cxx_source_compiles("${_filesystem_test_code}" FILESYSTEM_NO_EXTRA_LIB)
+if (NOT FILESYSTEM_NO_EXTRA_LIB)
+    set(CMAKE_REQUIRED_LIBRARIES stdc++fs)
+    check_cxx_source_compiles("${_filesystem_test_code}" FILESYSTEM_NEEDS_STDCXXFS)
+    unset(CMAKE_REQUIRED_LIBRARIES)
+    if (FILESYSTEM_NEEDS_STDCXXFS)
+        set(filesystem_library stdc++fs)
+    else()
+        message(FATAL_ERROR "std::filesystem could not be linked (tried default and -lstdc++fs).")
+    endif()
+endif()
 
 message("MPI_C_LIBRARIES = ${MPI_C_LIBRARIES}")
 message("MPI_CXX_LIBRARIES = ${MPI_CXX_LIBRARIES}")
+# All sources except main.cpp go into a position-independent static library, so that
+# the anphon executable and a Python extension module can share one compiled core.
+# Usage requirements that callers need to compile against the anphon headers and to
+# link (include dirs, _HDF5 -- it changes the layout of a class in write_phonons.h --,
+# MPI/HDF5/LAPACK/OpenMP/...) are PUBLIC; warning/optimization flags stay PRIVATE.
+add_library(anphoncxx_static STATIC ${SOURCES} ${HEADERS})
+set_target_properties(anphoncxx_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# Warnings on for all build types. -Wno-sign-compare silences ~1500 benign
+# signed/unsigned loop-counter comparisons so that the genuinely useful warnings
+# (unused/uninitialized variables, VLAs, deprecated copies, ...) are visible.
+# Drop -Wno-sign-compare once the loop counters have been cleaned up.
+set(anphon_compile_options
+    -Wall -Wextra -Wno-sign-compare
+    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Debug>:-g -O0>
+)
+target_compile_options(anphoncxx_static PRIVATE ${anphon_compile_options})
+target_compile_definitions(anphoncxx_static
+    PUBLIC _HDF5
+    PRIVATE $<$<CONFIG:Debug>:_DEBUG>
+)
+if (USE_EIGEN_BLAS)
+    # already set directory-wide above; repeated here so that consumers in other directories inherit it
+    target_compile_definitions(anphoncxx_static PUBLIC EIGEN_USE_BLAS)
+endif()
+target_include_directories(anphoncxx_static PUBLIC
+    ${PROJECT_SOURCE_DIR} # anphon headers for consumers in other directories (python/src/_anphon.cpp)
+    ${PROJECT_SOURCE_DIR}/../include
+    ${PROJECT_SOURCE_DIR}/../external
+    ${spglib_include}
+    ${boost_includes}
+    ${eigen_includes}
+    ${hdf5_include}
+)
+
+target_link_libraries(anphoncxx_static PUBLIC
+    ${boost_target}
+    ${eigen_target}
+    ${Boost_LIBRARIES}
+    ${lapack_target}
+    ${blas_target}
+    ${mpi_target}
+    ${spglib}
+    ${openmplibrary}
+    ${hdf5_target}
+    ${hdf5library}
+    ${filesystem_library}
+)
+
+include(${PROJECT_SOURCE_DIR}/../cmake/git_commit.cmake)
+alamode_git_commit(anphoncxx_static) # git_commit.cpp (in the library) consumes alamode_git_commit.h
+
 # Executable
-add_executable(anphon ${SOURCES} ${HEADERS})
-target_link_libraries(anphon ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${MPI_CXX_LIBRARIES} ${openmplibrary})
-if (WITH_HDF5_SUPPORT)
-    target_link_libraries(anphon ${hdf5library})
-endif()
-if (fftw3library)
-    target_link_libraries(anphon ${fftw3library})
-endif()
+add_executable(anphon ${PROJECT_SOURCE_DIR}/main.cpp)
+target_compile_options(anphon PRIVATE ${anphon_compile_options})
+target_compile_definitions(anphon PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
+target_link_libraries(anphon PRIVATE anphoncxx_static)
+
+install(TARGETS anphon RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Unit test for the RAII array owner (include/ndarray.h): layout identity
+# with the legacy memory.h allocate(), view-conversion semantics, and the
+# compile-time safety properties. Header-only dependencies; no MPI.
+option(BUILD_NDARRAY_TEST "Build the ndarray.h unit test" OFF)
+if (BUILD_NDARRAY_TEST)
+    add_executable(test_ndarray ${PROJECT_SOURCE_DIR}/../test/test_ndarray.cpp)
+    target_compile_options(test_ndarray PRIVATE -Wall -Wextra)
+    target_include_directories(test_ndarray PRIVATE ${PROJECT_SOURCE_DIR}/../include)
+endif ()
+
+# Unit test for the parsers of the strain-coupling inputs: the unit tokens of
+# C1_array.in / elastic_constants.in (strain_file_parsers.h) and the
+# &reference_cell header and atom mapping of strain_force.in
+# (strain_reference_cell.h). Standard library and Eigen only; no MPI.
+option(BUILD_STRAIN_PARSER_TEST "Build the strain input parser unit test" OFF)
+if (BUILD_STRAIN_PARSER_TEST)
+    add_executable(test_strain_parsers ${PROJECT_SOURCE_DIR}/../test/test_strain_parsers.cpp
+                                       ${PROJECT_SOURCE_DIR}/strain_file_parsers.cpp
+                                       ${PROJECT_SOURCE_DIR}/strain_reference_cell.cpp)
+    target_compile_options(test_strain_parsers PRIVATE -Wall -Wextra)
+    target_include_directories(test_strain_parsers PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/../include
+                                                           ${eigen_includes})
+    if (eigen_target) # empty with the header-only fallback (-DEIGEN3_INCLUDE); the include dirs above suffice then
+        target_link_libraries(test_strain_parsers ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test for the single sweep over the quartic coefficients that renormalizes
+# v0..v3 by the Gamma-point displacement q0 (q0_contraction.h), compared with the
+# naive loops it replaced. Header-only dependencies plus OpenMP; no MPI.
+option(BUILD_Q0_CONTRACTION_TEST "Build the q0 contraction unit test" OFF)
+if (BUILD_Q0_CONTRACTION_TEST)
+    add_executable(test_q0_contraction ${PROJECT_SOURCE_DIR}/../test/test_q0_contraction.cpp)
+    target_compile_options(test_q0_contraction PRIVATE -Wall -Wextra $<$<CONFIG:Release>:-O3>)
+    target_include_directories(test_q0_contraction PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/../include)
+    target_link_libraries(test_q0_contraction ${openmplibrary})
+endif ()
+
+# Unit test for the BUBBLE = 3 quasiparticle root search (bubble_qp_root.h) on synthetic
+# self-energies: several roots, close pairs, a root at zero, no root. Header-only; no MPI.
+option(BUILD_BUBBLE_QP_ROOT_TEST "Build the BUBBLE = 3 root search unit test" OFF)
+if (BUILD_BUBBLE_QP_ROOT_TEST)
+    add_executable(test_bubble_qp_root ${PROJECT_SOURCE_DIR}/../test/test_bubble_qp_root.cpp)
+    target_compile_options(test_bubble_qp_root PRIVATE -Wall -Wextra)
+    target_include_directories(test_bubble_qp_root PRIVATE ${PROJECT_SOURCE_DIR})
+endif ()
+
+# Unit test for the projection of the real-space SCPH/QHA dymat corrections onto
+# a space group (dymat_projection.h): group check, idempotence, invariance,
+# anisotropic supercell, nonsymmorphic group. Eigen only; no MPI.
+option(BUILD_DYMAT_PROJECTION_TEST "Build the dymat projection unit test" OFF)
+if (BUILD_DYMAT_PROJECTION_TEST)
+    add_executable(test_dymat_projection ${PROJECT_SOURCE_DIR}/../test/test_dymat_projection.cpp)
+    target_compile_options(test_dymat_projection PRIVATE -Wall -Wextra)
+    target_include_directories(test_dymat_projection PRIVATE ${PROJECT_SOURCE_DIR} ${eigen_includes})
+    if (eigen_target)
+        target_link_libraries(test_dymat_projection ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test for the projection of strain-derivative FC2 sets onto index symmetry and the ASR
+# (strain_dfc2_projection.h). Eigen only; no MPI.
+option(BUILD_STRAIN_DFC2_PROJECTION_TEST "Build the strain-derivative FC2 projection unit test" OFF)
+if (BUILD_STRAIN_DFC2_PROJECTION_TEST)
+    add_executable(test_strain_dfc2_projection ${PROJECT_SOURCE_DIR}/../test/test_strain_dfc2_projection.cpp)
+    target_compile_options(test_strain_dfc2_projection PRIVATE -Wall -Wextra)
+    target_include_directories(test_strain_dfc2_projection PRIVATE ${PROJECT_SOURCE_DIR} ${eigen_includes})
+    if (eigen_target)
+        target_link_libraries(test_strain_dfc2_projection ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test for the little-group average of the velocity operator (velocity_symmetry.h):
+# conventions against a symmetric force-constant model, idempotence, invariance, tilted
+# blocks and gauge invariance of the block traces. Eigen only; no MPI.
+option(BUILD_VELOCITY_SYMMETRY_TEST "Build the velocity symmetrization unit test" OFF)
+if (BUILD_VELOCITY_SYMMETRY_TEST)
+    add_executable(test_velocity_symmetry ${PROJECT_SOURCE_DIR}/../test/test_velocity_symmetry.cpp)
+    target_compile_options(test_velocity_symmetry PRIVATE -Wall -Wextra)
+    target_include_directories(test_velocity_symmetry PRIVATE ${PROJECT_SOURCE_DIR} ${eigen_includes})
+    if (eigen_target)
+        target_link_libraries(test_velocity_symmetry ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test for the row-distributed V4 layout (v4_distributed.h): unit and
+# slice partitions and the row-local SCP self-energy accumulation against the
+# naive formula. Header-only dependencies plus Eigen and OpenMP; no MPI.
+option(BUILD_V4_DISTRIBUTED_TEST "Build the distributed-V4 layout unit test" OFF)
+if (BUILD_V4_DISTRIBUTED_TEST)
+    add_executable(test_v4_distributed ${PROJECT_SOURCE_DIR}/../test/test_v4_distributed.cpp)
+    # the diagonal-only check is bitwise; icx defaults to -fp-model=fast, which reassociates
+    target_compile_options(test_v4_distributed PRIVATE -Wall -Wextra $<$<CONFIG:Release>:-O3>
+                                               $<$<CXX_COMPILER_ID:IntelLLVM>:-fp-model=precise>)
+    target_include_directories(test_v4_distributed PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/../include
+                                                           ${eigen_includes})
+    # accumulate_fmat_batch is an Eigen product: BLAS when USE_EIGEN_BLAS is on
+    target_link_libraries(test_v4_distributed ${openmplibrary} ${lapack_target} ${blas_target})
+    if (eigen_target)
+        target_link_libraries(test_v4_distributed ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test for the kernels of the SCPH free-energy Hessian (scph_hessian_kernels.h):
+# occupation factor, divided differences, the Daleckii-Krein map against finite
+# differences, and the one-mode double-well curvature. Eigen only; no MPI.
+option(BUILD_SCPH_HESSIAN_KERNELS_TEST "Build the SCPH Hessian kernels unit test" OFF)
+if (BUILD_SCPH_HESSIAN_KERNELS_TEST)
+    add_executable(test_scph_hessian_kernels ${PROJECT_SOURCE_DIR}/../test/test_scph_hessian_kernels.cpp)
+    target_compile_options(test_scph_hessian_kernels PRIVATE -Wall -Wextra)
+    target_include_directories(test_scph_hessian_kernels PRIVATE ${PROJECT_SOURCE_DIR} ${eigen_includes})
+    # USE_EIGEN_BLAS routes Eigen's products to BLAS
+    target_link_libraries(test_scph_hessian_kernels ${lapack_target} ${blas_target})
+    if (eigen_target)
+        target_link_libraries(test_scph_hessian_kernels ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test for the rotating index-transform GEMM shared by the V4 builders
+# (v4_index_transform.h) against the naive loops, for both column counts, a
+# complex prefactor and several OpenMP thread counts. Needs the BLAS zgemm.
+option(BUILD_V4_INDEX_TRANSFORM_TEST "Build the V4 index-transform unit test" OFF)
+if (BUILD_V4_INDEX_TRANSFORM_TEST)
+    add_executable(test_v4_index_transform ${PROJECT_SOURCE_DIR}/../test/test_v4_index_transform.cpp)
+    target_compile_options(test_v4_index_transform PRIVATE -Wall -Wextra $<$<CONFIG:Release>:-O3>)
+    target_include_directories(test_v4_index_transform PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/../include
+                                                               ${eigen_includes})
+    target_link_libraries(test_v4_index_transform ${openmplibrary} ${lapack_target} ${blas_target})
+    if (eigen_target)
+        target_link_libraries(test_v4_index_transform ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test for the minimum-image search beyond the 27 neighboring cells
+# (images_beyond_27 in cell_shift_table.h) on orthogonal, hexagonal and skewed
+# supercells against a brute-force search. Eigen only; no MPI.
+option(BUILD_CELL_IMAGES_TEST "Build the minimum-image search unit test" OFF)
+if (BUILD_CELL_IMAGES_TEST)
+    add_executable(test_cell_images ${PROJECT_SOURCE_DIR}/../test/test_cell_images.cpp)
+    target_compile_options(test_cell_images PRIVATE -Wall -Wextra)
+    target_include_directories(test_cell_images PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/../include
+                                                        ${eigen_includes})
+    if (eigen_target)
+        target_link_libraries(test_cell_images ${eigen_target})
+    endif ()
+endif ()
+
+# Unit test: the FC5 parts RELAXED_STRUCTURE adds to the deformed FC3 and FC4
+# (DerivativeIFC::strain_fc5_parts) against the STRAIN_FC5 terms of the SCP
+# relaxation (the q0 sweep of RealSpaceV4 over dPhi4/du), on a synthetic FC5 that
+# violates the acoustic sum rule. Links the real-space kernels only; MPI for error.h.
+option(BUILD_STRAIN_FC5_PARTS_TEST "Build the STRAIN_FC5 follow-up unit test" OFF)
+if (BUILD_STRAIN_FC5_PARTS_TEST)
+    add_executable(test_strain_fc5_parts ${PROJECT_SOURCE_DIR}/../test/test_strain_fc5_parts.cpp
+                                         ${PROJECT_SOURCE_DIR}/ifc_derivative_real_space.cpp
+                                         ${PROJECT_SOURCE_DIR}/quartic_real_space.cpp)
+    target_compile_options(test_strain_fc5_parts PRIVATE -Wall -Wextra -Wno-sign-compare)
+    target_include_directories(test_strain_fc5_parts PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/../include
+                                                             ${PROJECT_SOURCE_DIR}/../external ${boost_includes}
+                                                             ${eigen_includes} ${hdf5_include})
+    target_link_libraries(test_strain_fc5_parts ${mpi_target} ${openmplibrary} ${boost_target})
+    if (eigen_target)
+        target_link_libraries(test_strain_fc5_parts ${eigen_target})
+    endif ()
+endif ()

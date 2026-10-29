@@ -1,0 +1,784 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-28 09:16+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/anphon_python.rst:4
+msgid "anphon (phonon properties)"
+msgstr "anphon (フォノン物性)"
+
+#: ../../source/anphon_python.rst:8
+msgid ""
+"The ``anphon`` Python API is **experimental** in version 2.0. It is "
+"tested against the command-line program, but its interface may still "
+"change in later releases; see :ref:`anphon_python_stability`."
+msgstr ""
+"``anphon`` の Python API はバージョン 2.0 では\\ **実験的**\\ "
+"な機能です。コマンドラインプログラムとの一致は確認していますが、インターフェースは今後のリリースで変更される可能性があります。:ref:`anphon_python_stability`"
+" を参照してください。"
+
+#: ../../source/anphon_python.rst:13
+msgid "Overview"
+msgstr "概要"
+
+#: ../../source/anphon_python.rst:15
+msgid ""
+"The Python package ``anphon`` runs anphon inside the Python process. A "
+"run goes through the same code path as the command-line program (``anphon"
+" file.in``): the input is ordinary anphon input text, parsed by anphon "
+"itself, and the results are the usual output files. The package adds "
+"three conveniences on top:"
+msgstr ""
+"Python パッケージ ``anphon`` は、anphon を Python プロセス内で実行します。実行はコマンドラインプログラム "
+"(``anphon file.in``) と同じコードパスを通ります。入力は通常の anphon 入力テキストで anphon "
+"自身が解析し、結果は通常の出力ファイルです。このパッケージはその上に次の 3 つの機能を加えます:"
+
+#: ../../source/anphon_python.rst:20
+msgid ""
+"``anphon.run`` writes the input file from Python dictionaries (or takes "
+"an existing input file) and runs it;"
+msgstr "``anphon.run`` は Python の辞書から入力ファイルを書き出して (または既存の入力ファイルを受け取って) 実行します。"
+
+#: ../../source/anphon_python.rst:22
+msgid ""
+"``anphon.Result`` locates the output files and reads the HDF5 results "
+"(``PREFIX.kappa.h5``, ``PREFIX.scph.h5``, ``PREFIX.qha.h5``, ...) into "
+"nested dictionaries;"
+msgstr ""
+"``anphon.Result`` は出力ファイルの場所を示し、HDF5 の結果 "
+"(``PREFIX.kappa.h5``、``PREFIX.scph.h5``、``PREFIX.qha.h5`` など) "
+"を入れ子の辞書に読み込みます。"
+
+#: ../../source/anphon_python.rst:25
+msgid ""
+"``anphon.Phonon`` returns harmonic phonon frequencies and eigenvectors at"
+" arbitrary :math:`q` points as NumPy arrays."
+msgstr "``anphon.Phonon`` は任意の :math:`q` 点における調和フォノンの振動数と固有ベクトルを NumPy 配列として返します。"
+
+#: ../../source/anphon_python.rst:28
+msgid ""
+"Everything is file based: the inputs are files (force constants, "
+"``BORNINFO``, ...), and the results are read back from the files anphon "
+"writes."
+msgstr ""
+"すべてファイルを介して動作します。入力はファイル (力定数、``BORNINFO`` など) であり、結果は anphon "
+"が書き出したファイルから読み戻されます。"
+
+#: ../../source/anphon_python.rst:31
+msgid ""
+"One Python distribution, ``alamode``, provides both packages, :ref:`alm "
+"<alm_python>` and ``anphon`` (see :ref:`label_python_api`)."
+msgstr ""
+"一つの Python ディストリビューション ``alamode`` が、:ref:`alm <alm_python>` と ``anphon``"
+" の両パッケージを提供します (:ref:`label_python_api` を参照)。"
+
+#: ../../source/anphon_python.rst:38
+msgid "Installation"
+msgstr "インストール"
+
+#: ../../source/anphon_python.rst:40
+msgid ""
+"The ``anphon`` package is built by the same command as ``alm`` (see "
+":ref:`alm_python_install`)::"
+msgstr ""
+"``anphon`` パッケージは ``alm`` と同じコマンドでビルドされます (:ref:`alm_python_install` "
+"を参照)::"
+
+#: ../../source/anphon_python.rst:46
+msgid ""
+"On top of the ``alm`` requirements, the anphon module needs an **MPI** "
+"library at build and run time, and ``h5py`` at run time (installed by "
+"``pip`` as a dependency). The conda environment file ``etc/alamode-"
+"environment.yml`` and the :ref:`pixi route <install_pixi>` already "
+"provide OpenMPI, HDF5, and h5py."
+msgstr ""
+"anphon モジュールは、``alm`` の要件に加えて、ビルド時と実行時に **MPI** ライブラリを、実行時に ``h5py`` "
+"(``pip`` が依存パッケージとしてインストールします) を必要とします。conda 環境ファイル ``etc/alamode-"
+"environment.yml`` および :ref:`pixi による方法 <install_pixi>` "
+"は、OpenMPI、HDF5、h5py をすでに含んでいます。"
+
+#: ../../source/anphon_python.rst:51
+msgid ""
+"If CMake cannot find MPI, the configure step fails with a message. To "
+"build only ``alm`` on a machine without MPI, pass::"
+msgstr ""
+"CMake が MPI を見つけられない場合、configure の段階でメッセージを出して失敗します。MPI のないマシンで ``alm`` "
+"だけをビルドするには、次のオプションを指定します::"
+
+#: ../../source/anphon_python.rst:56
+msgid ""
+"The build compiles the anphon sources. Set ``CMAKE_BUILD_PARALLEL_LEVEL``"
+" to bound the number of parallel compile jobs, e.g. "
+"``CMAKE_BUILD_PARALLEL_LEVEL=4 pip install .``."
+msgstr ""
+"ビルドでは anphon のソースもコンパイルされます。並列コンパイルのジョブ数を制限するには "
+"``CMAKE_BUILD_PARALLEL_LEVEL`` を設定します。例: ``CMAKE_BUILD_PARALLEL_LEVEL=4 "
+"pip install .``"
+
+#: ../../source/anphon_python.rst:60
+msgid "Verify the installation with:"
+msgstr "インストールの確認は次のように行います:"
+
+#: ../../source/anphon_python.rst:67
+msgid ""
+"After an ALM-only build (``ALAMODE_PYTHON_ANPHON=OFF``), only ``import "
+"alm`` works."
+msgstr "ALM のみのビルド (``ALAMODE_PYTHON_ANPHON=OFF``) の後は、``import alm`` だけが動作します。"
+
+#: ../../source/anphon_python.rst:74
+msgid "Running anphon: ``anphon.run``"
+msgstr "anphon の実行: ``anphon.run``"
+
+#: ../../source/anphon_python.rst:76
+msgid ""
+"``anphon.run`` has two forms. With an existing input file, it runs the "
+"file as the command ``anphon si.in`` would:"
+msgstr ""
+"``anphon.run`` には 2 つの形式があります。既存の入力ファイルを与えると、コマンド ``anphon si.in`` "
+"と同様にそのファイルを実行します:"
+
+#: ../../source/anphon_python.rst:85
+msgid ""
+"With keyword arguments, one per input section, it writes the input file "
+"``<workdir>/<PREFIX>.in`` and runs it:"
+msgstr "入力セクションごとにキーワード引数を与えると、入力ファイル ``<workdir>/<PREFIX>.in`` を書き出して実行します:"
+
+#: ../../source/anphon_python.rst:97
+msgid ""
+"The input tags are those of the command-line program "
+"(:doc:`anphon_root`). The section values are turned into input text as "
+"follows:"
+msgstr ""
+"入力タグはコマンドラインプログラムのもの (:doc:`anphon_root`) "
+"と同じです。各セクションの値は次の規則で入力テキストに変換されます:"
+
+#: ../../source/anphon_python.rst:100
+msgid ""
+"A ``dict`` (``general``, ``scph``, ``kappa``, ``analysis``, ...) becomes "
+"one ``KEY = value`` line per entry. Keys are written in upper case, lists"
+" and arrays are joined by spaces (``KD=[\"Ba\", \"Ti\", \"O\"]`` gives "
+"``KD = Ba Ti O``), ``True``/``False`` become ``1``/``0``, and entries "
+"whose value is ``None`` are dropped. A value that contains a newline, "
+"``;``, ``#``, or ``=``, or a non-finite number, raises ``ValueError``."
+msgstr ""
+"``dict`` (``general``、``scph``、``kappa``、``analysis`` など) は、要素ごとに 1 行の "
+"``KEY = value`` になります。キーは大文字で書き出され、リストや配列は空白区切りで連結され (``KD=[\"Ba\", "
+"\"Ti\", \"O\"]`` は ``KD = Ba Ti O`` になります)、``True``/``False`` は "
+"``1``/``0`` になり、値が ``None`` の要素は省かれます。改行、``;``、``#``、``=`` を含む値や有限でない数値は "
+"``ValueError`` になります。"
+
+#: ../../source/anphon_python.rst:106
+#, python-brace-format
+msgid ""
+"``cell`` is ``dict(a=<factor>, lattice=<3x3>)``, as in the ``&cell`` "
+"field: the rows of ``lattice`` (dimensionless) multiplied by ``a`` (in "
+"bohr, default 1.0) are the lattice vectors :math:`\\boldsymbol{a}_1, "
+"\\boldsymbol{a}_2, \\boldsymbol{a}_3` in bohr. Alternatively, give "
+"``lattice`` in bohr and leave ``a = 1``. A bare 3x3 array is accepted as "
+"the lattice with ``a = 1``."
+msgstr ""
+"``cell`` は ``&cell`` フィールドと同様に ``dict(a=<factor>, lattice=<3x3>)`` "
+"で、``lattice`` の各行 (無次元) に ``a`` (bohr 単位、既定値 1.0) を掛けたものが bohr 単位の格子ベクトル "
+":math:`\\boldsymbol{a}_1, \\boldsymbol{a}_2, \\boldsymbol{a}_3` "
+"になります。``lattice`` を bohr 単位で与えて ``a = 1`` のままにしてもかまいません。3x3 配列だけを与えた場合は "
+"``a = 1`` の格子として扱われます。"
+
+#: ../../source/anphon_python.rst:112
+msgid "``kpoint`` is a dict with ``KPMODE`` and"
+msgstr "``kpoint`` は ``KPMODE`` と次の要素を持つ dict です。"
+
+#: ../../source/anphon_python.rst:114
+msgid "``KPMODE=0``: ``qpoints=[[qx, qy, qz], ...]``;"
+msgstr "``KPMODE=0``: ``qpoints=[[qx, qy, qz], ...]``"
+
+#: ../../source/anphon_python.rst:115
+msgid ""
+"``KPMODE=1``: ``path=[(\"G\", [0, 0, 0], \"X\", [0.5, 0.5, 0], 51), "
+"...]``, one ``(label1, q1, label2, q2, npoints)`` tuple per line segment;"
+msgstr ""
+"``KPMODE=1``: ``path=[(\"G\", [0, 0, 0], \"X\", [0.5, 0.5, 0], 51), "
+"...]``。線分ごとに ``(label1, q1, label2, q2, npoints)`` のタプルを 1 つ与えます。"
+
+#: ../../source/anphon_python.rst:117
+msgid "``KPMODE=2``: ``mesh=[n1, n2, n3]``;"
+msgstr "``KPMODE=2``: ``mesh=[n1, n2, n3]``"
+
+#: ../../source/anphon_python.rst:118
+msgid "any mode: ``lines=[...]``, the lines after the ``KPMODE`` line, verbatim."
+msgstr "すべてのモード: ``lines=[...]``。``KPMODE`` の行に続く行をそのまま書き出します。"
+
+#: ../../source/anphon_python.rst:120
+msgid ""
+"``KPMODE``, the mesh, and the numbers of points must be integers (``4.0``"
+" is accepted, ``4.5`` or ``True`` raise ``ValueError``)."
+msgstr ""
+"``KPMODE``、メッシュ、点数は整数でなければなりません (``4.0`` は受け付けられ、``4.5`` や ``True`` は "
+"``ValueError`` になります)。"
+
+#: ../../source/anphon_python.rst:122
+msgid ""
+"Any other non-dict value (e.g. a 3x3 matrix for ``strain``) is written "
+"one line per row."
+msgstr "その他の dict 以外の値 (例えば ``strain`` の 3x3 行列) は、1 行ずつ書き出されます。"
+
+#: ../../source/anphon_python.rst:124
+msgid ""
+"A ``str`` is written verbatim as the body of the section. This is the "
+"escape hatch for anything the rules above do not cover."
+msgstr "``str`` はセクションの本体としてそのまま書き出されます。上の規則でカバーされない場合の逃げ道です。"
+
+#: ../../source/anphon_python.rst:127
+msgid ""
+"Only the form is checked in Python; the content is validated by anphon's "
+"input parser, whose errors raise ``RuntimeError`` (see "
+":ref:`anphon_python_errors`). Passing both an input file and sections "
+"raises ``TypeError``, and a missing ``general`` section or ``PREFIX`` "
+"raises ``ValueError``. ``anphon.format_input(**sections)`` returns the "
+"generated text without running anything, which is useful to check it:"
+msgstr ""
+"Python 側で確認するのは形式だけで、内容は anphon の入力パーサが検証し、そのエラーは ``RuntimeError`` になります "
+"(:ref:`anphon_python_errors` を参照)。入力ファイルとセクションの両方を与えると ``TypeError`` "
+"に、``general`` セクションや ``PREFIX`` がないと ``ValueError`` "
+"になります。``anphon.format_input(**sections)`` "
+"は何も実行せずに生成されるテキストを返すので、その確認に便利です:"
+
+#: ../../source/anphon_python.rst:152
+msgid ""
+"``workdir`` (default: the current directory) is created if it does not "
+"exist. anphon runs inside it, so **relative file names in the input** "
+"(``FCSFILE``, ``BORNINFO``, ...) **are relative to** ``workdir``, as are "
+"all outputs. The current directory of the Python process is restored when"
+" the run ends, also after an error. Use absolute paths when in doubt."
+msgstr ""
+"``workdir`` (既定値: カレントディレクトリ) は存在しなければ作成されます。anphon "
+"はその中で実行されるため、**入力中の相対ファイル名** (``FCSFILE``、``BORNINFO`` など) **は** "
+"``workdir`` **からの相対パス**\\ になり、すべての出力も ``workdir`` に書かれます。Python "
+"プロセスのカレントディレクトリは、エラーの場合も含め、実行の終了時に元に戻されます。迷ったときは絶対パスを使ってください。"
+
+#: ../../source/anphon_python.rst:158
+msgid ""
+"anphon prints its usual log to standard output. Set ``VERBOSITY = 0`` in "
+"``general`` to make it shorter; a run from Python then also omits the "
+"banner and the start and finish lines. The log is written by C++, so when"
+" the output is redirected to a file, it can interleave out of order with "
+"text printed by Python."
+msgstr ""
+"anphon は通常のログを標準出力に表示します。短くするには ``general`` で ``VERBOSITY = 0`` "
+"を設定します。このとき Python からの実行では、バナーと開始・終了時刻の行も表示されません。ログは C++ "
+"から書き出されるため、出力をファイルにリダイレクトすると、Python が表示するテキストと順序が入れ替わることがあります。"
+
+#: ../../source/anphon_python.rst:168
+msgid "Results: ``anphon.Result``"
+msgstr "結果: ``anphon.Result``"
+
+#: ../../source/anphon_python.rst:170
+msgid ""
+"``run`` returns a ``Result`` with the attributes ``workdir`` (absolute "
+"path) and ``prefix``:"
+msgstr "``run`` は、属性 ``workdir`` (絶対パス) と ``prefix`` を持つ ``Result`` を返します:"
+
+#: ../../source/anphon_python.rst:173
+msgid "``r.path(\".bands\")`` returns ``workdir / (prefix + \".bands\")``;"
+msgstr "``r.path(\".bands\")`` は ``workdir / (prefix + \".bands\")`` を返します。"
+
+#: ../../source/anphon_python.rst:174
+msgid ""
+"``r.files()`` lists the files ``<prefix>.*`` in ``workdir`` (including "
+"the input file ``<prefix>.in`` written by ``run``);"
+msgstr ""
+"``r.files()`` は ``workdir`` 内のファイル ``<prefix>.*`` を列挙します (``run`` "
+"が書き出した入力ファイル ``<prefix>.in`` も含みます)。"
+
+#: ../../source/anphon_python.rst:176
+msgid ""
+"``r.h5(kind)`` reads ``PREFIX.<kind>.h5`` into a nested dictionary, e.g. "
+"``r.h5(\"kappa\")``, ``r.h5(\"scph\")``, or ``r.h5(\"qha\")`` "
+"(``FileNotFoundError`` if the file does not exist). It returns the raw "
+"file contents."
+msgstr ""
+"``r.h5(kind)`` は ``PREFIX.<kind>.h5`` を入れ子の辞書に読み込みます。例: "
+"``r.h5(\"kappa\")``、``r.h5(\"scph\")``、``r.h5(\"qha\")`` (ファイルが存在しなければ "
+"``FileNotFoundError``)。返すのはファイルの内容そのままです。"
+
+#: ../../source/anphon_python.rst:181
+msgid ""
+"The text outputs (``.bands``, ``.dos``, ...) are read with the usual "
+"tools, e.g. ``numpy.loadtxt(r.path(\".bands\"))``."
+msgstr ""
+"テキスト出力 (``.bands``、``.dos`` など) は通常のツールで読み込みます。例: "
+"``numpy.loadtxt(r.path(\".bands\"))``"
+
+#: ../../source/anphon_python.rst:184
+msgid "``r.h5`` uses ``anphon.read_h5(path)``, which works for any HDF5 file:"
+msgstr "``r.h5`` は ``anphon.read_h5(path)`` を使っており、これは任意の HDF5 ファイルに使えます:"
+
+#: ../../source/anphon_python.rst:186
+msgid "groups become dicts, datasets NumPy arrays (scalars as NumPy scalars);"
+msgstr "グループは dict に、データセットは NumPy 配列になります (スカラーは NumPy スカラー)。"
+
+#: ../../source/anphon_python.rst:187
+msgid "strings are decoded to ``str`` (string arrays become lists of ``str``);"
+msgstr "文字列は ``str`` にデコードされます (文字列の配列は ``str`` のリストになります)。"
+
+#: ../../source/anphon_python.rst:188
+msgid ""
+"an attribute of a group is stored in that group's dict under "
+"``\"@name\"``, and an attribute of a dataset under ``\"dataset@name\"`` "
+"next to the dataset."
+msgstr ""
+"グループの属性はそのグループの dict に ``\"@name\"`` というキーで、データセットの属性はデータセットの隣に "
+"``\"dataset@name\"`` というキーで格納されます。"
+
+#: ../../source/anphon_python.rst:191
+msgid "For example, for a ``MODE = kappa`` run:"
+msgstr "例えば ``MODE = kappa`` の計算では次のようになります:"
+
+#: ../../source/anphon_python.rst:201
+msgid ""
+"The layouts of the files are described in :doc:`hdf5_format` "
+"(:ref:`label_hdf5_kappa`, :ref:`label_hdf5_scph`)."
+msgstr ""
+"ファイルの構成は :doc:`hdf5_format` "
+"(:ref:`label_hdf5_kappa`、:ref:`label_hdf5_scph`) で説明しています。"
+
+#: ../../source/anphon_python.rst:208
+msgid "Phonons at arbitrary q: ``anphon.Phonon``"
+msgstr "任意の q 点のフォノン: ``anphon.Phonon``"
+
+#: ../../source/anphon_python.rst:210
+msgid "``Phonon`` returns harmonic frequencies and eigenvectors as arrays:"
+msgstr "``Phonon`` は調和振動数と固有ベクトルを配列として返します:"
+
+#: ../../source/anphon_python.rst:219
+msgid ""
+"``Phonon(fcsfile, *, cell=None, kd=None, borninfo=None, nonanalytic=0, "
+"general=None)`` takes the settings. They are validated, and the files are"
+" loaded, at construction or at the first calculation. ``cell`` has the "
+"form described for ``run``. An HDF5 force-constant file written by ALM "
+"2.0 carries the primitive cell, so ``cell`` and ``kd`` are not needed; an"
+" XML file does not, so ``cell=`` must be given. Other ``&general`` tags "
+"(``MASS``, ``TOLERANCE``, ``VERBOSITY``, ...) go in the dict ``general``."
+" ``VERBOSITY`` defaults to 0 here, so ``Phonon`` prints only warnings; "
+"set ``VERBOSITY=1`` to see the anphon log. The tags ``PREFIX``, ``MODE``,"
+" ``FCSFILE``, ``BORNINFO``, ``NONANALYTIC``, ``FILE_FORMAT``, and ``KD`` "
+"are set by ``Phonon`` itself (or through its arguments) and raise "
+"``ValueError`` in ``general``, in any letter case. ``Phonon`` keeps its "
+"own copy of the settings, so changing the dicts passed to it afterwards "
+"has no effect."
+msgstr ""
+"``Phonon(fcsfile, *, cell=None, kd=None, borninfo=None, nonanalytic=0, "
+"general=None)`` は設定を受け取ります。設定の検証とファイルの読み込みは、生成時または最初の計算時に行われます。``cell`` "
+"の形式は ``run`` で説明したものと同じです。ALM 2.0 が書き出した HDF5 の力定数ファイルは基本セルの情報を含むので "
+"``cell`` と ``kd`` は不要ですが、XML ファイルは含まないので ``cell=`` を指定する必要があります。その他の "
+"``&general`` タグ (``MASS``、``TOLERANCE``、``VERBOSITY`` など) は dict "
+"``general`` に入れます。``Phonon`` では ``VERBOSITY`` の既定値が 0 "
+"なので警告しか表示されません。anphon のログを見るには ``VERBOSITY=1`` "
+"を設定します。``PREFIX``、``MODE``、``FCSFILE``、``BORNINFO``、``NONANALYTIC``、``FILE_FORMAT``、``KD``"
+" の各タグは ``Phonon`` 自身が (または引数を通じて) 設定するため、``general`` に入れると大文字・小文字を問わず "
+"``ValueError`` になります。``Phonon`` は設定のコピーを保持するので、渡した dict を後で変更しても影響はありません。"
+
+#: ../../source/anphon_python.rst:232
+msgid ""
+"``frequencies(q, eigenvectors=False)`` takes :math:`q` points in "
+"fractional coordinates of the reciprocal primitive lattice (shape ``(nq, "
+"3)`` or ``(3,)``; other shapes raise ``ValueError``) and returns the "
+"frequencies in cm\\ :sup:`-1` with shape ``(nq, nmodes)``, ``nmodes = 3 *"
+" natoms`` of the primitive cell. Imaginary modes come out as negative "
+"numbers. With ``eigenvectors=True`` it also returns the complex "
+"eigenvectors of the dynamical matrix with shape ``(nq, nmodes, nmodes)``,"
+" laid out as ``evec[iq, imode, 3 * iatom + ixyz]`` (axis 1 is the mode)."
+msgstr ""
+"``frequencies(q, eigenvectors=False)`` は逆格子 (基本セル) の分率座標で表した :math:`q` 点 "
+"(形状 ``(nq, 3)`` または ``(3,)``。それ以外の形状は ``ValueError`` になります) を受け取り、振動数を "
+"cm\\ :sup:`-1` 単位、形状 ``(nq, nmodes)`` で返します。``nmodes = 3 * natoms`` "
+"(基本セルの原子数) です。虚数モードは負の値として返されます。``eigenvectors=True`` "
+"の場合は、動的行列の複素固有ベクトルも形状 ``(nq, nmodes, nmodes)`` で返します。並びは ``evec[iq, "
+"imode, 3 * iatom + ixyz]`` (軸 1 がモード) です。"
+
+#: ../../source/anphon_python.rst:240
+msgid ""
+"Each call runs anphon (``MODE = phonons``, ``KPMODE = 0``) in a temporary"
+" directory, which is removed afterwards. Ask for all :math:`q` points in "
+"one call rather than one call per point."
+msgstr ""
+"呼び出しのたびに一時ディレクトリで anphon (``MODE = phonons``、``KPMODE = 0``) "
+"を実行し、そのディレクトリは終了後に削除されます。:math:`q` 点ごとに呼び出すのではなく、すべての点を一度に渡してください。"
+
+#: ../../source/anphon_python.rst:243
+msgid ""
+"``Phonon`` is serial only: it raises ``RuntimeError`` when MPI runs with "
+"more than one process."
+msgstr "``Phonon`` はシリアル実行専用です。MPI のプロセス数が 2 以上の場合は ``RuntimeError`` になります。"
+
+#: ../../source/anphon_python.rst:248
+#, python-brace-format
+msgid ""
+"**Non-analytic correction at** :math:`\\Gamma`. With ``nonanalytic > 0``,"
+" the direction of :math:`q` used by the non-analytic term is obtained by "
+"shifting each fractional component of :math:`q` by the nearest integer "
+"(:math:`q_i - \\mathrm{nint}(q_i)`) and converting the result to "
+"Cartesian coordinates. At :math:`\\Gamma` and at every reciprocal-lattice"
+" point (``[0, 0, 0]``, ``[1, 0, 0]``, ...), this direction is zero and "
+"the non-analytic term vanishes, so there is **no LO-TO splitting exactly "
+"at these points**. To get the LO frequencies for a given direction, use a"
+" small :math:`q` along it (e.g. ``[1e-4, 0, 0]``), or run a band "
+"structure (``KPMODE = 1``) with ``run``, which takes the direction of the"
+" path."
+msgstr ""
+":math:`\\Gamma` **点での非解析項補正。** ``nonanalytic > 0`` のとき、非解析項で用いる :math:`q`"
+" の方向は、:math:`q` の分率座標の各成分から最も近い整数を引き (:math:`q_i - "
+"\\mathrm{nint}(q_i)`)、その結果をデカルト座標に変換して求めます。:math:`\\Gamma` 点およびすべての逆格子点 "
+"(``[0, 0, 0]``、``[1, 0, 0]`` など) ではこの方向がゼロになり、非解析項が消えるため、**これらの点そのものでは "
+"LO-TO 分裂は現れません**。ある方向の LO 振動数を得るには、その方向の小さな :math:`q` (例えば ``[1e-4, 0, "
+"0]``) を使うか、``run`` でバンド構造 (``KPMODE = 1``) を計算してください。後者では経路の方向が使われます。"
+
+#: ../../source/anphon_python.rst:264
+msgid "Errors"
+msgstr "エラー"
+
+#: ../../source/anphon_python.rst:266
+msgid ""
+"In a serial run, errors while ``run`` prepares the input in Python raise "
+"ordinary Python exceptions: ``TypeError`` for an input file plus "
+"sections, ``ValueError`` for a missing ``general`` section or ``PREFIX`` "
+"or a bad value, and ``OSError`` from the filesystem."
+msgstr ""
+"シリアル実行では、``run`` が Python で入力を準備している間のエラーは通常の Python "
+"の例外になります。入力ファイルとセクションの両方を与えると ``TypeError``、``general`` セクションや ``PREFIX``"
+" がない場合や値が不正な場合は ``ValueError``、ファイルシステムのエラーは ``OSError`` です。"
+
+#: ../../source/anphon_python.rst:270
+msgid ""
+"In a serial run, errors that anphon reports (invalid input, a missing or "
+"broken file, ...) raise ``RuntimeError`` with anphon's error message. The"
+" message is also printed to the log first. The process stays usable: the "
+"current directory is restored, and the next run starts from a clean "
+"state."
+msgstr ""
+"シリアル実行では、anphon が報告するエラー (不正な入力、ファイルがない・壊れているなど) は anphon のエラーメッセージ付きの "
+"``RuntimeError`` "
+"になります。メッセージは先にログにも表示されます。プロセスはそのまま使い続けられます。カレントディレクトリは元に戻り、次の実行はクリーンな状態から始まります。"
+
+#: ../../source/anphon_python.rst:274
+msgid ""
+"Errors raised inside an OpenMP parallel region, and out-of-memory errors,"
+" still terminate the process, as in the command-line program."
+msgstr "OpenMP の並列領域内で発生したエラーとメモリ不足のエラーは、コマンドラインプログラムと同様に、引き続きプロセスを終了させます。"
+
+#: ../../source/anphon_python.rst:276
+msgid ""
+"Under MPI with more than one process, errors in ``run`` abort all ranks "
+"(``MPI_Abort``): both an error while ``run`` prepares the input in "
+"Python, even on one rank only, and a failure inside the collective anphon"
+" run. This avoids a deadlock in which the other ranks wait forever. "
+"Errors outside a run still raise locally: ``format_input`` and "
+"``read_h5`` errors, the errors of ``Phonon`` (``TypeError`` or "
+"``ValueError`` for its arguments, ``RuntimeError`` because it is serial "
+"only), and the ``RuntimeError`` for a call from a thread other than the "
+"main thread, which is raised before the run starts."
+msgstr ""
+"MPI でプロセス数が 2 以上の場合、``run`` 内のエラーはすべてのランクを中断させます "
+"(``MPI_Abort``)。これには、``run`` が Python で入力を準備している間のエラー (一つのランクだけで起きた場合も含む)"
+" と、anphon "
+"の集団的な実行の内部での失敗の両方が含まれます。これにより、他のランクが永久に待ち続けるデッドロックを避けます。実行の外で起きるエラーは、引き続きそのランクで例外として送出されます:"
+" ``format_input`` と ``read_h5`` のエラー、``Phonon`` のエラー (引数に対する "
+"``TypeError`` または ``ValueError``、およびシリアル実行専用であることによる "
+"``RuntimeError``)、およびメインスレッド以外からの呼び出しに対する ``RuntimeError`` "
+"(実行の開始前に送出されます) です。"
+
+#: ../../source/anphon_python.rst:290
+msgid "MPI"
+msgstr "MPI"
+
+#: ../../source/anphon_python.rst:292
+msgid ""
+"anphon is parallelized with MPI and OpenMP, and the Python interface runs"
+" under MPI as the command-line program does:"
+msgstr ""
+"anphon は MPI と OpenMP で並列化されており、Python インターフェースもコマンドラインプログラムと同様に MPI "
+"の下で動作します:"
+
+#: ../../source/anphon_python.rst:299
+msgid ""
+"Importing ``anphon`` initializes MPI (``MPI_THREAD_FUNNELED``) unless it "
+"is already initialized, e.g. by ``mpi4py``. Initialization is collective,"
+" so in that case **all ranks** must import ``anphon`` (an import on rank "
+"0 only can hang). Both orders of ``import mpi4py`` / ``import anphon`` "
+"work. MPI that is already initialized must provide at least "
+"``MPI_THREAD_FUNNELED``; otherwise the import raises ``ImportError``. MPI"
+" is finalized at exit only if ``anphon`` initialized it."
+msgstr ""
+"``anphon`` をインポートすると、MPI が (例えば ``mpi4py`` によって) まだ初期化されていなければ MPI "
+"を初期化します (``MPI_THREAD_FUNNELED``)。初期化は集団操作なので、その場合は\\ **すべてのランク**\\ で "
+"``anphon`` をインポートする必要があります (ランク 0 だけでインポートするとハングすることがあります)。``import "
+"mpi4py`` と ``import anphon`` はどちらの順序でも動作します。すでに初期化された MPI は少なくとも "
+"``MPI_THREAD_FUNNELED`` を提供している必要があり、そうでなければインポートは ``ImportError`` "
+"になります。MPI の終了処理 (finalize) は、``anphon`` が初期化した場合に限り終了時に行われます。"
+
+#: ../../source/anphon_python.rst:306
+msgid ""
+"``mpi4py`` and the anphon module must be built against the **same MPI "
+"library**."
+msgstr "``mpi4py`` と anphon モジュールは\\ **同じ MPI ライブラリ**\\ でビルドされている必要があります。"
+
+#: ../../source/anphon_python.rst:308
+msgid ""
+"Every ``run`` call is **collective** over ``MPI_COMM_WORLD``: all ranks "
+"must call it with the same arguments. Rank 0 writes the outputs, and "
+"every rank returns only after they are complete, so all ranks can read "
+"them afterwards."
+msgstr ""
+"``run`` の呼び出しはすべて ``MPI_COMM_WORLD`` 上の\\ **集団操作 (collective)** "
+"です。すべてのランクが同じ引数で呼び出す必要があります。出力はランク 0 "
+"が書き出し、すべてのランクは出力が完成してから戻るので、その後はどのランクからも出力を読めます。"
+
+#: ../../source/anphon_python.rst:312
+msgid ""
+"Import ``anphon`` and call ``run`` from the main Python thread only "
+"(other threads get ``ImportError`` / ``RuntimeError``). Python threads "
+"keep running during a run, but cannot start another one."
+msgstr ""
+"``anphon`` のインポートと ``run`` の呼び出しは Python のメインスレッドからのみ行ってください (他のスレッドからは "
+"``ImportError`` / ``RuntimeError`` になります)。実行中も他の Python "
+"スレッドは動き続けますが、別の実行を始めることはできません。"
+
+#: ../../source/anphon_python.rst:318
+msgid ""
+"**Reproducibility.** OpenMP reductions can make the results of two runs "
+"differ in the last bit, as for the command-line program. With "
+"``OMP_NUM_THREADS=1``, the results are numerically identical to those of "
+"the command-line program with the same build and settings (all datasets "
+"equal); only the metadata attributes ``created_date``, "
+"``alamode_git_commit``, and ``alamode_version`` differ."
+msgstr ""
+"**再現性。** コマンドラインプログラムと同様に、OpenMP のリダクションにより、2 "
+"回の実行結果が最後のビットで異なることがあります。``OMP_NUM_THREADS=1`` "
+"とすると、同じビルドと設定のコマンドラインプログラムと数値的に同一の結果 (すべてのデータセットが一致) が得られます。異なるのはメタデータの属性"
+" ``created_date``、``alamode_git_commit``、``alamode_version`` だけです。"
+
+#: ../../source/anphon_python.rst:329
+msgid "Example: silicon"
+msgstr "例: シリコン"
+
+#: ../../source/anphon_python.rst:331
+msgid ""
+"The following script uses the silicon force constants shipped in "
+"``example/Si``. Copy them to a working directory first::"
+msgstr "次のスクリプトは ``example/Si`` に含まれるシリコンの力定数を使います。まずそれらを作業ディレクトリにコピーします::"
+
+#: ../../source/anphon_python.rst:338
+msgid ""
+"It computes the phonon dispersion, the lattice thermal conductivity in "
+"the relaxation-time approximation (on a coarse :math:`4\\times4\\times4` "
+"mesh, which takes a few seconds), and the frequencies at :math:`\\Gamma`,"
+" X, and L."
+msgstr ""
+"このスクリプトは、フォノン分散、緩和時間近似による格子熱伝導率 (数秒で終わる粗い :math:`4\\times4\\times4` "
+"メッシュ)、および :math:`\\Gamma`、X、L 点の振動数を計算します。"
+
+#: ../../source/anphon_python.rst:391
+msgid "The frequencies printed in step 3 are:"
+msgstr "ステップ 3 で表示される振動数は次のとおりです:"
+
+#: ../../source/anphon_python.rst:399
+msgid ""
+"The coarse mesh of step 2 gives a thermal conductivity far from "
+"convergence (34 W/mK at 300 K, against 104 W/mK on the "
+":math:`10\\times10\\times10` mesh of "
+"``example/Si/reference/si222_kappa.in``); use a denser mesh for real "
+"calculations."
+msgstr ""
+"ステップ 2 の粗いメッシュでは、熱伝導率は収束から程遠い値になります (300 K で 34 "
+"W/mK。``example/Si/reference/si222_kappa.in`` の "
+":math:`10\\times10\\times10` メッシュでは 104 W/mK)。実際の計算ではより密なメッシュを使ってください。"
+
+#: ../../source/anphon_python.rst:408
+msgid "Limitations"
+msgstr "制限事項"
+
+#: ../../source/anphon_python.rst:410
+msgid "The following are not available in this version:"
+msgstr "次の機能はこのバージョンでは利用できません:"
+
+#: ../../source/anphon_python.rst:412
+msgid ""
+"in-memory input of force constants and structures: force constants from "
+"``alm`` go through a file (``ALM.save_fc``), which is then passed as "
+"``FCSFILE``;"
+msgstr ""
+"力定数と構造のメモリ上での受け渡し: ``alm`` の力定数はファイル (``ALM.save_fc``) を経由し、それを "
+"``FCSFILE`` として渡します。"
+
+#: ../../source/anphon_python.rst:415
+msgid ""
+"a persistent ``Phonon`` object: each ``frequencies`` call runs anphon "
+"anew;"
+msgstr "永続的な ``Phonon`` オブジェクト: ``frequencies`` を呼び出すたびに anphon を新たに実行します。"
+
+#: ../../source/anphon_python.rst:416
+msgid "sub-communicators: runs always use ``MPI_COMM_WORLD``;"
+msgstr "サブコミュニケータ: 実行には常に ``MPI_COMM_WORLD`` を使います。"
+
+#: ../../source/anphon_python.rst:417
+msgid "pip wheels with MPI: the package is built from source."
+msgstr "MPI 対応の pip wheel: パッケージはソースからビルドします。"
+
+#: ../../source/anphon_python.rst:423
+msgid "API stability"
+msgstr "API の安定性"
+
+#: ../../source/anphon_python.rst:425
+msgid ""
+"**Intended to stay stable in 2.x:** ``run`` (the file runner) and its "
+"documented arguments; ``Result.workdir``, ``Result.prefix``, "
+"``Result.path()``, and ``Result.files()``; ``format_input``; "
+"``__version__``; the unit and shape conventions of ``Phonon.frequencies``"
+" (cm\\ :sup:`-1`, fractional :math:`q`, shape ``(nq, nmodes)``, "
+"``evec[iq, imode, 3 * iatom + ixyz]``)."
+msgstr ""
+"**2.x の間は安定に保つ予定:** ``run`` (ファイルを実行するもの) "
+"とその文書化された引数、``Result.workdir``、``Result.prefix``、``Result.path()``、``Result.files()``、``format_input``、``__version__``、および"
+" ``Phonon.frequencies`` の単位と形状の規約 (cm\\ :sup:`-1`、分率座標の :math:`q`、形状 "
+"``(nq, nmodes)``、``evec[iq, imode, 3 * iatom + ixyz]``)。"
+
+#: ../../source/anphon_python.rst:430
+msgid ""
+"**Provisional** (may change in a 2.x minor release, with release notes): "
+"``Phonon`` (its implementation and any further arguments); ``Result.h5`` "
+"and ``read_h5``, whose content is the raw file schema, versioned "
+"separately in :doc:`hdf5_format`."
+msgstr ""
+"**暫定** (2.x のマイナーリリースで、リリースノートとともに変更される可能性があります): ``Phonon`` "
+"(その実装と今後追加される引数)、および ``Result.h5`` と "
+"``read_h5``。後者二つが返す内容はファイルのスキーマそのものであり、そのバージョンは :doc:`hdf5_format` "
+"で別に管理されています。"
+
+#: ../../source/anphon_python.rst:434
+msgid ""
+"**Deprecation rule:** a stable name is not removed or changed "
+"incompatibly in 2.x. A deprecation warns for at least one minor release "
+"before the removal in a major release."
+msgstr ""
+"**非推奨化の規則:** 安定な名前は 2.x "
+"の間に削除されたり互換性のない形で変更されたりしません。非推奨になった名前は、メジャーリリースで削除される前に、少なくとも 1 "
+"つのマイナーリリースの間は警告を出します。"
+
+#: ../../source/anphon_python.rst:442
+msgid "API reference"
+msgstr "API リファレンス"
+
+#: ../../source/anphon_python.rst:444
+msgid "``anphon.run(input=None, *, workdir=None, **sections)``"
+msgstr "``anphon.run(input=None, *, workdir=None, **sections)``"
+
+#: ../../source/anphon_python.rst:445
+msgid ""
+"Run anphon on the input file ``input``, or on the input generated from "
+"``sections``, inside ``workdir``. Returns a ``Result``. Collective under "
+"MPI. The keyword-only argument names (``workdir``, and future ones such "
+"as ``comm``) are reserved; all other keywords are input sections."
+msgstr ""
+"入力ファイル ``input``、または ``sections`` から生成した入力について、``workdir`` 内で anphon "
+"を実行します。``Result`` を返します。MPI では集団操作です。キーワード専用引数の名前 (``workdir``、および今後追加される"
+" ``comm`` など) は予約されており、それ以外のキーワードはすべて入力セクションです。"
+
+#: ../../source/anphon_python.rst:450
+msgid "``anphon.format_input(**sections)``"
+msgstr "``anphon.format_input(**sections)``"
+
+#: ../../source/anphon_python.rst:451
+msgid "Return the input text that ``run`` would write for ``sections``."
+msgstr "``sections`` に対して ``run`` が書き出す入力テキストを返します。"
+
+#: ../../source/anphon_python.rst:453
+msgid "``anphon.Result(workdir, prefix)``"
+msgstr "``anphon.Result(workdir, prefix)``"
+
+#: ../../source/anphon_python.rst:454
+msgid ""
+"Outputs of a run. Attributes ``workdir``, ``prefix``; methods "
+"``path(suffix)``, ``files()``, ``h5(kind)``."
+msgstr ""
+"実行の出力。属性 ``workdir``、``prefix``、メソッド "
+"``path(suffix)``、``files()``、``h5(kind)`` を持ちます。"
+
+#: ../../source/anphon_python.rst:457
+msgid "``anphon.read_h5(path)``"
+msgstr "``anphon.read_h5(path)``"
+
+#: ../../source/anphon_python.rst:458
+msgid ""
+"Read an HDF5 file into a nested dict (``\"@name\"`` and "
+"``\"dataset@name\"`` keys for attributes)."
+msgstr "HDF5 ファイルを入れ子の dict に読み込みます (属性のキーは ``\"@name\"`` と ``\"dataset@name\"``)。"
+
+#: ../../source/anphon_python.rst:461
+msgid ""
+"``anphon.Phonon(fcsfile, *, cell=None, kd=None, borninfo=None, "
+"nonanalytic=0, general=None)``"
+msgstr ""
+"``anphon.Phonon(fcsfile, *, cell=None, kd=None, borninfo=None, "
+"nonanalytic=0, general=None)``"
+
+#: ../../source/anphon_python.rst:462
+msgid ""
+"Harmonic phonons from a force-constant file. Method "
+"``frequencies(qpoints_frac, eigenvectors=False)``. Serial only."
+msgstr ""
+"力定数ファイルからの調和フォノン。メソッド ``frequencies(qpoints_frac, "
+"eigenvectors=False)``。シリアル実行専用です。"
+
+#: ../../source/anphon_python.rst:465
+msgid "``anphon.__version__``"
+msgstr "``anphon.__version__``"
+
+#: ../../source/anphon_python.rst:466
+msgid "Version of the ``alamode`` distribution."
+msgstr "``alamode`` ディストリビューションのバージョン。"
+
+#: ../../source/anphon_python.rst:468
+msgid "The low-level binding underneath ``run`` is private."
+msgstr "``run`` の下にある低レベルのバインディングは非公開です。"
+
+#: ../../source/anphon_python.rst:472
+msgid "See also"
+msgstr "関連項目"
+
+#: ../../source/anphon_python.rst:474
+msgid ":doc:`anphon_root` — the anphon command-line program and its input tags."
+msgstr ":doc:`anphon_root` — anphon コマンドラインプログラムとその入力タグ。"
+
+#: ../../source/anphon_python.rst:475
+msgid ""
+":doc:`alm_python` — the ALM Python interface, which writes the force-"
+"constant files used here."
+msgstr ":doc:`alm_python` — ALM Python インターフェース。ここで使う力定数ファイルを書き出します。"
+
+#: ../../source/anphon_python.rst:477
+msgid ":doc:`hdf5_format` — layouts of the HDF5 files read by ``Result``."
+msgstr ":doc:`hdf5_format` — ``Result`` が読み込む HDF5 ファイルの構成。"
+
+#: ../../source/anphon_python.rst:478
+msgid ""
+":ref:`label_tutorial_si_python` — a tutorial that uses ``run``, "
+"``Phonon``, and ``Result.h5`` on silicon."
+msgstr ""
+":ref:`label_tutorial_si_python` — シリコンを例に "
+"``run``、``Phonon``、``Result.h5`` を使うチュートリアル。"
+

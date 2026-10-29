@@ -1,0 +1,1472 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2014, Terumasa Tadano
+# This file is distributed under the same license as the ALAMODE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ALAMODE 2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-29 00:07+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: ja <LL@li.org>\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/migration.rst:4
+msgid "Migrating from 1.x to 2.0"
+msgstr "1.x から 2.0 への移行"
+
+#: ../../source/migration.rst:6
+msgid ""
+"This page lists what a user of version 1.5 has to change, and what will "
+"look different, when moving to ALAMODE 2.0. New features are described in "
+"the input-variable pages; see also the `ChangeLog "
+"<https://github.com/alamode-code/alamode/blob/master/ChangeLog.md>`_."
+msgstr ""
+"このページでは、バージョン 1.5 のユーザーが ALAMODE 2.0 "
+"に移行する際に変更が必要な点と、見た目が変わる点をまとめます。新機能については各入力変数のページで説明しています。 `ChangeLog "
+"<https://github.com/alamode-code/alamode/blob/master/ChangeLog.md>`_ "
+"も参照してください。"
+
+#: ../../source/migration.rst:10
+msgid "In short:"
+msgstr "要点:"
+
+#: ../../source/migration.rst:12
+msgid ""
+"**Inputs.** *anphon* rejects unknown tags field by field, so a 1.5 input "
+"with ``FCSXML``, ``NKD``, or ``ISOTOPE`` in ``&analysis`` stops at once. "
+"Rename and move the tags as shown in :ref:`label_migration_anphon`."
+msgstr ""
+"**入力。** *anphon* は未知のタグをフィールドごとに拒否するため、 ``FCSXML`` 、 ``NKD`` 、または "
+"``&analysis`` 内の ``ISOTOPE`` を含む 1.5 の入力はただちに停止します。 "
+":ref:`label_migration_anphon` に示すとおりにタグの名前を変更・移動してください。"
+
+#: ../../source/migration.rst:14
+msgid ""
+"**Files.** *alm* writes ``PREFIX``.h5 instead of ``PREFIX``.xml, and "
+"*anphon* keeps its results and restart data in ``PREFIX``.kappa.h5, "
+"``PREFIX``.scph.h5, and ``PREFIX``.qha.h5."
+msgstr ""
+"**ファイル。** *alm* は ``PREFIX``.xml の代わりに ``PREFIX``.h5 を書き出し、 *anphon* "
+"は計算結果とリスタートデータを ``PREFIX``.kappa.h5 、 ``PREFIX``.scph.h5 、 "
+"``PREFIX``.qha.h5 に保存します。"
+
+#: ../../source/migration.rst:16
+msgid ""
+"**Numbers.** Isotope scattering is on by default, and several fixes change"
+" the thermal conductivity. See :ref:`label_migration_results`."
+msgstr ""
+"**数値。** 同位体散乱がデフォルトで有効になり、またいくつかの修正により熱伝導率が変わります。 "
+":ref:`label_migration_results` を参照してください。"
+
+#: ../../source/migration.rst:18
+msgid ""
+"**Build.** HDF5 and spglib are required, FFTW is no longer used, and CMake"
+" >= 3.17 and a C++17 compiler are needed."
+msgstr ""
+"**ビルド。** HDF5 と spglib が必須となり、FFTW は使われなくなりました。また CMake >= 3.17 と C++17 "
+"対応コンパイラが必要です。"
+
+#: ../../source/migration.rst:24
+msgid "Building"
+msgstr "ビルド"
+
+#: ../../source/migration.rst:30
+msgid "Item"
+msgstr "項目"
+
+#: ../../source/migration.rst:31 ../../source/migration.rst:82
+#: ../../source/migration.rst:201 ../../source/migration.rst:336
+#: ../../source/migration.rst:373 ../../source/migration.rst:503
+msgid "1.5"
+msgstr "1.5"
+
+#: ../../source/migration.rst:32 ../../source/migration.rst:83
+#: ../../source/migration.rst:156 ../../source/migration.rst:202
+#: ../../source/migration.rst:337 ../../source/migration.rst:374
+#: ../../source/migration.rst:504
+msgid "2.0"
+msgstr "2.0"
+
+#: ../../source/migration.rst:33
+msgid "CMake"
+msgstr "CMake"
+
+#: ../../source/migration.rst:34
+msgid ">= 3.1"
+msgstr ">= 3.1"
+
+#: ../../source/migration.rst:35
+msgid ">= 3.17"
+msgstr ">= 3.17"
+
+#: ../../source/migration.rst:36
+msgid "C++ standard"
+msgstr "C++ 規格"
+
+#: ../../source/migration.rst:37
+msgid "C++14"
+msgstr "C++14"
+
+#: ../../source/migration.rst:38
+msgid "C++17"
+msgstr "C++17"
+
+#: ../../source/migration.rst:39
+msgid "HDF5"
+msgstr "HDF5"
+
+#: ../../source/migration.rst:40
+msgid "optional (``WITH_HDF5_SUPPORT``)"
+msgstr "オプション ( ``WITH_HDF5_SUPPORT`` )"
+
+#: ../../source/migration.rst:41 ../../source/migration.rst:44
+msgid "**required** by *alm* and *anphon*"
+msgstr "*alm* と *anphon* で **必須**"
+
+#: ../../source/migration.rst:42
+msgid "spglib"
+msgstr "spglib"
+
+#: ../../source/migration.rst:43
+msgid "*alm* only"
+msgstr "*alm* のみ"
+
+#: ../../source/migration.rst:45
+msgid "FFTW3"
+msgstr "FFTW3"
+
+#: ../../source/migration.rst:46
+msgid "required by *anphon* (unless MKL)"
+msgstr "*anphon* で必須 (MKL を使う場合を除く)"
+
+#: ../../source/migration.rst:47
+msgid "not used"
+msgstr "使用しない"
+
+#: ../../source/migration.rst:48
+msgid "Boost"
+msgstr "Boost"
+
+#: ../../source/migration.rst:49
+msgid "any version"
+msgstr "任意のバージョン"
+
+#: ../../source/migration.rst:50
+msgid ">= 1.66 (headers only)"
+msgstr ">= 1.66 (ヘッダのみ)"
+
+#: ../../source/migration.rst:51
+msgid "OpenMP"
+msgstr "OpenMP"
+
+#: ../../source/migration.rst:52
+msgid "optional"
+msgstr "オプション"
+
+#: ../../source/migration.rst:53
+msgid "required by *alm*"
+msgstr "*alm* で必須"
+
+#: ../../source/migration.rst:54
+msgid "Intel MKL"
+msgstr "Intel MKL"
+
+#: ../../source/migration.rst:55 ../../source/migration.rst:58
+#: ../../source/migration.rst:210 ../../source/migration.rst:215
+#: ../../source/migration.rst:219 ../../source/migration.rst:391
+#: ../../source/migration.rst:397 ../../source/migration.rst:518
+msgid "--"
+msgstr "--"
+
+#: ../../source/migration.rst:56
+msgid ""
+"supported through ``USE_MKL_BACKEND``, LP64 interface only "
+"(``-DMKL_INTERFACE=lp64``)"
+msgstr ""
+"``USE_MKL_BACKEND`` でサポート (LP64 インターフェースのみ、 ``-DMKL_INTERFACE=lp64`` )"
+
+#: ../../source/migration.rst:57
+msgid "Optional backends"
+msgstr "オプションのバックエンド"
+
+#: ../../source/migration.rst:59
+msgid ""
+"``USE_MKL_BACKEND``, ``USE_ACCEL_BACKEND``, ``USE_SUITESPARSE_BACKEND``, "
+"``USE_EIGEN_BLAS`` (see :ref:`install_backends`)"
+msgstr ""
+"``USE_MKL_BACKEND`` 、 ``USE_ACCEL_BACKEND`` 、 ``USE_SUITESPARSE_BACKEND`` "
+"、 ``USE_EIGEN_BLAS`` ( :ref:`install_backends` を参照)"
+
+#: ../../source/migration.rst:61
+msgid "Python interface"
+msgstr "Python インターフェース"
+
+#: ../../source/migration.rst:62
+msgid "separate project"
+msgstr "別プロジェクト"
+
+#: ../../source/migration.rst:63
+msgid ""
+"``pip install .`` in ``python/`` (Python >= 3.9, nanobind, scikit-build-"
+"core, and MPI unless the anphon module is switched off), see "
+":ref:`label_migration_python`"
+msgstr ""
+"``python/`` で ``pip install .`` (Python >= 3.9、nanobind、scikit-build-"
+"core、および anphon モジュールを無効にしない場合は MPI が必要)。 :ref:`label_migration_python` "
+"を参照"
+
+#: ../../source/migration.rst:66
+msgid ""
+"``cmake --install`` (or ``make install``) now installs the binaries and "
+"the common scripts; see :doc:`install`."
+msgstr ""
+"``cmake --install`` (または ``make install`` ) "
+"で、バイナリと共通スクリプトがインストールされるようになりました。 :doc:`install` を参照してください。"
+
+#: ../../source/migration.rst:68
+msgid ""
+"The legacy ``Makefile.*`` files of 1.x (in ``alm/``, ``anphon/`` and "
+"``tools/``) are removed; CMake is the only supported build."
+msgstr ""
+"1.x の旧来の ``Makefile.*`` ファイル ( ``alm/`` 、 ``anphon/`` 、 ``tools/`` 内) "
+"は削除されました。サポートされるビルド方法は CMake のみです。"
+
+#: ../../source/migration.rst:75
+msgid "Changes in *alm*"
+msgstr "*alm* の変更点"
+
+#: ../../source/migration.rst:81 ../../source/migration.rst:200
+msgid "Tag"
+msgstr "タグ"
+
+#: ../../source/migration.rst:84
+msgid "``FCS_ALAMODE``"
+msgstr "``FCS_ALAMODE``"
+
+#: ../../source/migration.rst:85
+msgid "default 1: ``PREFIX``.xml and ``PREFIX``.fcs"
+msgstr "デフォルト 1: ``PREFIX``.xml と ``PREFIX``.fcs"
+
+#: ../../source/migration.rst:86
+msgid ""
+"default 0: only ``PREFIX``.h5. Set ``FCS_ALAMODE = 1`` for the XML and "
+"``.fcs`` files (:ref:`FCS_ALAMODE <alm_fcs_alamode>`)"
+msgstr ""
+"デフォルト 0: ``PREFIX``.h5 のみ。XML と ``.fcs`` ファイルが必要な場合は ``FCS_ALAMODE = 1`` "
+"を設定 ( :ref:`FCS_ALAMODE <alm_fcs_alamode>` )"
+
+#: ../../source/migration.rst:88
+msgid "``FCSYM_BASIS``"
+msgstr "``FCSYM_BASIS``"
+
+#: ../../source/migration.rst:89
+msgid "default ``Lattice``"
+msgstr "デフォルト ``Lattice``"
+
+#: ../../source/migration.rst:90
+msgid "default ``Cartesian`` (:ref:`FCSYM_BASIS <alm_fcsym_basis>`)"
+msgstr "デフォルト ``Cartesian`` ( :ref:`FCSYM_BASIS <alm_fcsym_basis>` )"
+
+#: ../../source/migration.rst:91
+msgid "``NAT``, ``NKD``"
+msgstr "``NAT``, ``NKD``"
+
+#: ../../source/migration.rst:92 ../../source/migration.rst:191
+msgid "required"
+msgstr "必須"
+
+#: ../../source/migration.rst:93
+msgid "optional; ``NKD``, when given, must match ``KD``"
+msgstr "オプション。 ``NKD`` を指定する場合は ``KD`` と一致している必要があります"
+
+#: ../../source/migration.rst:94
+msgid "``FC2XML``, ``FC3XML``"
+msgstr "``FC2XML``, ``FC3XML``"
+
+#: ../../source/migration.rst:95
+msgid "fix FC2 / FC3 to an XML file"
+msgstr "FC2 / FC3 を XML ファイルの値に固定"
+
+#: ../../source/migration.rst:96
+msgid ""
+"renamed ``FC2FIX``, ``FC3FIX`` (accept ``.xml`` and ``.h5``); the old "
+"names still work with a warning (:ref:`FC2FIX <alm_fc2fix>`)"
+msgstr ""
+"``FC2FIX`` 、 ``FC3FIX`` に名称変更 ( ``.xml`` と ``.h5`` "
+"を受け付けます)。旧名称も警告付きで引き続き使用できます ( :ref:`FC2FIX <alm_fc2fix>` )"
+
+#: ../../source/migration.rst:98
+msgid "``ICONST``"
+msgstr "``ICONST``"
+
+#: ../../source/migration.rst:99
+msgid "0, 1, 2, 3, 11"
+msgstr "0, 1, 2, 3, 11"
+
+#: ../../source/migration.rst:100
+msgid ""
+"0--4, 10--14: Huang invariance (4, 14), algebraic rotational invariance "
+"(12--14), see :ref:`ICONST <alm_iconst>`"
+msgstr ""
+"0--4、10--14: Huang 不変性 (4、14)、代数的な回転不変性 (12--14)。 :ref:`ICONST "
+"<alm_iconst>` を参照"
+
+#: ../../source/migration.rst:101
+msgid "``FC3_SHENGBTE`` output"
+msgstr "``FC3_SHENGBTE`` の出力"
+
+#: ../../source/migration.rst:102
+msgid "``PREFIX``.FORCE_CONSTANT_3RD"
+msgstr "``PREFIX``.FORCE_CONSTANT_3RD"
+
+#: ../../source/migration.rst:103
+msgid ""
+"``PREFIX``.FORCE_CONSTANTS_3RD (the name ShengBTE reads); ``FC4_SHENGBTE``"
+" writes ``PREFIX``.FORCE_CONSTANTS_4TH"
+msgstr ""
+"``PREFIX``.FORCE_CONSTANTS_3RD (ShengBTE が読み込む名前)。 ``FC4_SHENGBTE`` は "
+"``PREFIX``.FORCE_CONSTANTS_4TH を書き出します"
+
+#: ../../source/migration.rst:104
+msgid "``MODE = suggest`` output"
+msgstr "``MODE = suggest`` の出力"
+
+#: ../../source/migration.rst:105
+msgid "plain-text ``PREFIX``.pattern_*"
+msgstr "プレーンテキストの ``PREFIX``.pattern_*"
+
+#: ../../source/migration.rst:106
+msgid ""
+"YAML ``PREFIX``.pattern_* (``displace.py`` reads both; it needs PyYAML). "
+"``FORMAT_PATTERN = old`` (:ref:`FORMAT_PATTERN <alm_format_pattern>`) "
+"writes the 1.5 format"
+msgstr ""
+"YAML 形式の ``PREFIX``.pattern_* ( ``displace.py`` は両方を読み込めます。PyYAML が必要です)。 "
+"``FORMAT_PATTERN = old`` ( :ref:`FORMAT_PATTERN <alm_format_pattern>` ) で "
+"1.5 の形式で書き出します"
+
+#: ../../source/migration.rst:109
+msgid ""
+"New tags you may want when updating old inputs: ``STRUCTURE_FILE`` (read a"
+" POSCAR), ``SUPERCELL`` and ``PRIMCELL`` (build the supercell and the "
+"primitive cell inside *alm*, see :ref:`SUPERCELL <alm_supercell>` and "
+":ref:`PRIMCELL <alm_primcell>`), ``SYMMETRIZE_STRUCTURE``, and the unit "
+"tags ``LENGTH_UNIT``, ``FORCE_UNIT``, and ``FCS_UNIT_OUTPUT`` "
+"(:ref:`LENGTH_UNIT <alm_length_unit>`)."
+msgstr ""
+"古い入力を更新する際に役立つ新しいタグ: ``STRUCTURE_FILE`` (POSCAR を読み込む)、 ``SUPERCELL`` と "
+"``PRIMCELL`` ( *alm* 内でスーパーセルと基本セルを構築する。 :ref:`SUPERCELL <alm_supercell>` "
+"と :ref:`PRIMCELL <alm_primcell>` を参照)、 ``SYMMETRIZE_STRUCTURE`` 、および単位のタグ "
+"``LENGTH_UNIT`` 、 ``FORCE_UNIT`` 、 ``FCS_UNIT_OUTPUT`` ( :ref:`LENGTH_UNIT"
+" <alm_length_unit>` )。"
+
+#: ../../source/migration.rst:114
+msgid "Notes on the changed defaults:"
+msgstr "デフォルト値の変更に関する注意:"
+
+#: ../../source/migration.rst:116
+msgid ""
+"**FCSYM_BASIS.** For ``LMODEL = ols`` the force constants do not depend on"
+" the basis. With ``enet`` or ``adaptive-lasso`` the optimal ``L1_ALPHA`` "
+"can change, so redo the cross-validation. An XML file of 1.5 given as "
+"``FC2FIX`` / ``FC3FIX`` keeps working: without an explicit "
+"``FCSYM_BASIS``, *alm* uses the basis recorded in that file. *alm* now "
+"warns when the input structure deviates from its space group by more than "
+":math:`10^{-6}` bohr. In that case, give the coordinates with full "
+"precision or set :ref:`SYMMETRIZE_STRUCTURE = 1 "
+"<alm_symmetrize_structure>`."
+msgstr ""
+"**FCSYM_BASIS。** ``LMODEL = ols`` では、力定数は基底に依存しません。 ``enet`` や ``adaptive-"
+"lasso`` では最適な ``L1_ALPHA`` が変わる可能性があるため、交差検証をやり直してください。 ``FC2FIX`` / "
+"``FC3FIX`` に 1.5 の XML ファイルを指定した場合も引き続き動作します。 ``FCSYM_BASIS`` "
+"を明示的に指定しなければ、 *alm* はそのファイルに記録された基底を使います。また *alm* は、入力構造が空間群から "
+":math:`10^{-6}` bohr を超えてずれている場合に警告を出すようになりました。その場合は、座標を十分な精度で与えるか、 "
+":ref:`SYMMETRIZE_STRUCTURE = 1 <alm_symmetrize_structure>` を設定してください。"
+
+#: ../../source/migration.rst:122
+msgid ""
+"**Constraints.** With rotational or Huang constraints (``ICONST = 2, 3, "
+"4``), constraint rows that are nearly linearly dependent are now dropped, "
+"using a relative test with :ref:`TOL_CONST <alm_tol_const>` (default "
+":math:`10^{-6}`, as in 1.5); ``ICONST = 1`` skips this test. Such rows "
+"occur, for example, for internally relaxed structures combined with a "
+"short cutoff, where imposing them exactly inflates the fitting error. When"
+" no row is dropped, the results are the same as before. The algebraic "
+"constraints (``ICONST >= 11``) are reduced by a new algorithm "
+"(:ref:`ALGO_REDUCTION <alm_algo_reduction>`, default 3), which is much "
+"faster for large models."
+msgstr ""
+"**拘束条件。** 回転不変性または Huang の拘束条件 ( ``ICONST = 2, 3, 4`` ) "
+"を課す場合、ほぼ線形従属な拘束条件の行は、 :ref:`TOL_CONST <alm_tol_const>` (デフォルト "
+":math:`10^{-6}` 、1.5 と同じ) を用いた相対判定により除外されるようになりました。 ``ICONST = 1`` "
+"ではこの判定を行いません。このような行は、例えば内部座標を緩和した構造と短いカットオフを組み合わせた場合に現れ、これを厳密に課すとフィッティング誤差が大きくなります。除外される行がない場合、結果は従来と同じです。代数的な拘束条件"
+" ( ``ICONST >= 11`` ) は新しいアルゴリズム ( :ref:`ALGO_REDUCTION "
+"<alm_algo_reduction>` 、デフォルト 3) で縮約され、大規模なモデルでは大幅に高速です。"
+
+#: ../../source/migration.rst:129
+msgid ""
+"**Stressed reference structures.** The new ``STRESS`` tag in ``&optimize``"
+" generalizes the Huang conditions of ``ICONST = 4, 14`` to a reference "
+"structure under stress (:ref:`STRESS <alm_stress>`)."
+msgstr ""
+"**応力下の参照構造。** ``&optimize`` の新しいタグ ``STRESS`` は、 ``ICONST = 4, 14`` の "
+"Huang 条件を応力下にある参照構造へ一般化します ( :ref:`STRESS <alm_stress>` )。"
+
+#: ../../source/migration.rst:132
+msgid "Input checks are stricter. The following inputs are now errors:"
+msgstr "入力のチェックが厳しくなりました。以下の入力はエラーになります:"
+
+#: ../../source/migration.rst:134
+msgid "a ``DFSET`` line that does not hold exactly six finite numbers;"
+msgstr "ちょうど 6 個の有限な数値を含まない ``DFSET`` の行"
+
+#: ../../source/migration.rst:135
+msgid ""
+"``ICONST`` outside 0--4 and 10--14, an invalid ``ROTAXIS``, ``SKIP = 0``, "
+"and ``TOLERANCE <= 0``;"
+msgstr ""
+"0--4 および 10--14 以外の ``ICONST`` 、不正な ``ROTAXIS`` 、 ``SKIP = 0`` 、 "
+"``TOLERANCE <= 0``"
+
+#: ../../source/migration.rst:136
+msgid ""
+"trailing characters after a number (``1.0abc``), and ``nan`` or ``inf`` in"
+" numeric fields;"
+msgstr "数値の後に続く余分な文字 ( ``1.0abc`` )、および数値欄の ``nan`` や ``inf``"
+
+#: ../../source/migration.rst:137
+msgid ""
+"a ``&cutoff`` entry that is neither a number nor a token starting with "
+"``N`` (``None``), and unknown element names in ``&cutoff``. Extra columns "
+"in a ``&cutoff`` line are ignored with a warning;"
+msgstr ""
+"数値でも ``N`` で始まるトークン ( ``None`` ) でもない ``&cutoff`` の値、および ``&cutoff`` "
+"内の未知の元素名。 ``&cutoff`` の行にある余分な列は警告付きで無視されます"
+
+#: ../../source/migration.rst:139
+msgid ""
+"negative ``NDATA``, ``NSTART``, ``NEND``, data ranges beyond the ``DFSET``"
+" size, duplicate ``KD`` entries, and ``FC2FIX`` / ``FC3FIX`` equal to the "
+"output file."
+msgstr ""
+"負の ``NDATA`` 、 ``NSTART`` 、 ``NEND`` 、 ``DFSET`` のサイズを超えるデータ範囲、重複した ``KD``"
+" の要素、および出力ファイルと同じ ``FC2FIX`` / ``FC3FIX`` 。"
+
+#: ../../source/migration.rst:146
+msgid "Changes in *anphon* input"
+msgstr "*anphon* の入力の変更点"
+
+#: ../../source/migration.rst:148
+msgid ""
+"*anphon* stops with ``Could not recognize the variable ...`` when a field "
+"contains a tag it does not know. The table lists how 1.5 inputs are "
+"treated."
+msgstr ""
+"*anphon* は、フィールドに未知のタグが含まれていると ``Could not recognize the variable ...`` "
+"を出力して停止します。1.5 の入力の扱いを以下の表に示します。"
+
+#: ../../source/migration.rst:155
+msgid "1.5 input"
+msgstr "1.5 の入力"
+
+#: ../../source/migration.rst:157
+msgid "What to do"
+msgstr "対処方法"
+
+#: ../../source/migration.rst:158
+msgid "``FCSXML``, ``FC2XML`` (``&general``)"
+msgstr "``FCSXML``, ``FC2XML`` (``&general``)"
+
+#: ../../source/migration.rst:159 ../../source/migration.rst:162
+#: ../../source/migration.rst:165 ../../source/migration.rst:169
+#: ../../source/migration.rst:172
+msgid "error"
+msgstr "エラー"
+
+#: ../../source/migration.rst:160
+msgid ""
+"Use ``FCSFILE``, ``FC2FILE`` (:ref:`FCSFILE <anphon_fcsfile>`). XML files "
+"of 1.5 are still read."
+msgstr ""
+"``FCSFILE`` 、 ``FC2FILE`` を使ってください ( :ref:`FCSFILE <anphon_fcsfile>` )。1.5"
+" の XML ファイルも引き続き読み込めます。"
+
+#: ../../source/migration.rst:161
+msgid "``NKD`` (``&general``)"
+msgstr "``NKD`` (``&general``)"
+
+#: ../../source/migration.rst:163
+msgid ""
+"Delete it. ``KD`` is optional and defaults to the elements in ``FCSFILE`` "
+"(:ref:`KD <anphon_kd>`)."
+msgstr ""
+"削除してください。 ``KD`` はオプションで、デフォルトでは ``FCSFILE`` 内の元素が使われます ( :ref:`KD "
+"<anphon_kd>` )。"
+
+#: ../../source/migration.rst:164
+msgid "``NSYM`` (``&general``)"
+msgstr "``NSYM`` (``&general``)"
+
+#: ../../source/migration.rst:166
+msgid ""
+"Delete it. In 1.5, ``NSYM = 1`` restricted the symmetry to the identity "
+"and ``NSYM > 1`` read the operations from ``SYMM_INFO_PRIM``; 2.0 always "
+"uses the space group found by spglib, and has no replacement for these "
+"options."
+msgstr ""
+"削除してください。1.5 では ``NSYM = 1`` で対称操作を恒等操作のみに制限し、 ``NSYM > 1`` で "
+"``SYMM_INFO_PRIM`` から対称操作を読み込んでいました。2.0 では常に spglib "
+"で求めた空間群を使い、これらのオプションに代わるものはありません。"
+
+#: ../../source/migration.rst:168
+msgid ""
+"``ISOTOPE``, ``ISOFACT``, ``KAPPA_SPEC``, ``KAPPA_COHERENT`` "
+"(``&analysis``)"
+msgstr ""
+"``ISOTOPE``, ``ISOFACT``, ``KAPPA_SPEC``, ``KAPPA_COHERENT`` "
+"(``&analysis``)"
+
+#: ../../source/migration.rst:170
+msgid "Move them to the new ``&kappa`` field (``MODE = kappa`` only)."
+msgstr "新しい ``&kappa`` フィールドに移動してください ( ``MODE = kappa`` のみ)。"
+
+#: ../../source/migration.rst:171
+msgid "``FSTATE_K`` (``&analysis``)"
+msgstr "``FSTATE_K`` (``&analysis``)"
+
+#: ../../source/migration.rst:173
+msgid "Removed."
+msgstr "削除されました。"
+
+#: ../../source/migration.rst:174
+msgid "``MODE = RTA``"
+msgstr "``MODE = RTA``"
+
+#: ../../source/migration.rst:175 ../../source/migration.rst:178
+#: ../../source/migration.rst:185
+msgid "warning"
+msgstr "警告"
+
+#: ../../source/migration.rst:176
+msgid ""
+"Use ``MODE = kappa``; the solver is chosen with :ref:`SOLVER "
+"<anphon_solver>` (default ``RTA``)."
+msgstr ""
+"``MODE = kappa`` を使ってください。ソルバーは :ref:`SOLVER <anphon_solver>` で選択します "
+"(デフォルト ``RTA`` )。"
+
+#: ../../source/migration.rst:177
+msgid "``RESTART`` (``&general``)"
+msgstr "``RESTART`` (``&general``)"
+
+#: ../../source/migration.rst:179
+msgid "Move it to ``&kappa`` (:ref:`RESTART <anphon_restart>`)."
+msgstr "``&kappa`` に移動してください ( :ref:`RESTART <anphon_restart>` )。"
+
+#: ../../source/migration.rst:180
+msgid "``KS_INPUT`` (``&analysis``)"
+msgstr "``KS_INPUT`` (``&analysis``)"
+
+#: ../../source/migration.rst:181
+msgid "accepted, deprecated"
+msgstr "受け付けるが非推奨"
+
+#: ../../source/migration.rst:182
+msgid ""
+"Prefer ``MODE = selfenergy`` with the ``&selfenergy`` field, which also "
+"accepts :math:`q` points off the mesh (:ref:`KS_INPUT <anphon_ks_input>`)."
+msgstr ""
+"``&selfenergy`` フィールドとともに ``MODE = selfenergy`` を使うことを推奨します。こちらはメッシュ上にない "
+":math:`q` 点も指定できます ( :ref:`KS_INPUT <anphon_ks_input>` )。"
+
+#: ../../source/migration.rst:184
+msgid ""
+"``RENORM_2TO1ST``, ``RENORM_34TO1ST``, ``RENORM_3TO2ND`` (``&relax``)"
+msgstr ""
+"``RENORM_2TO1ST``, ``RENORM_34TO1ST``, ``RENORM_3TO2ND`` (``&relax``)"
+
+#: ../../source/migration.rst:186
+msgid ""
+"Use ``STRAIN_COUPLING`` (see below). The old tags will be removed in a "
+"later release."
+msgstr "``STRAIN_COUPLING`` を使ってください (後述)。旧タグは将来のリリースで削除されます。"
+
+#: ../../source/migration.rst:187
+msgid "``COOLING_U0_INDEX``, ``COOLING_U0_THR`` (``&relax``)"
+msgstr "``COOLING_U0_INDEX``, ``COOLING_U0_THR`` (``&relax``)"
+
+#: ../../source/migration.rst:188
+msgid "ignored, warning"
+msgstr "無視され、警告"
+
+#: ../../source/migration.rst:189
+msgid ""
+"``SET_INIT_STR = 3`` now detects the high-symmetry phase with spglib "
+"(:ref:`SET_INIT_STR <anphon_set_init_str>`)."
+msgstr ""
+"``SET_INIT_STR = 3`` は spglib を用いて高対称相を検出するようになりました ( :ref:`SET_INIT_STR "
+"<anphon_set_init_str>` )。"
+
+#: ../../source/migration.rst:190
+msgid "``&cell`` field"
+msgstr "``&cell`` フィールド"
+
+#: ../../source/migration.rst:192
+msgid ""
+"Optional when ``FCSFILE`` is an HDF5 file of *alm* that defines the "
+"primitive cell (``PRIMCELL``); see :ref:`anphon_cell_field`."
+msgstr ""
+"``FCSFILE`` が基本セル ( ``PRIMCELL`` ) を定義した *alm* の HDF5 ファイルである場合はオプションです。 "
+":ref:`anphon_cell_field` を参照してください。"
+
+#: ../../source/migration.rst:194
+msgid "Default changes:"
+msgstr "デフォルト値の変更:"
+
+#: ../../source/migration.rst:203
+msgid "Effect"
+msgstr "影響"
+
+#: ../../source/migration.rst:204
+msgid "``ISOTOPE`` (``&kappa``)"
+msgstr "``ISOTOPE`` (``&kappa``)"
+
+#: ../../source/migration.rst:205
+msgid "0"
+msgstr "0"
+
+#: ../../source/migration.rst:206 ../../source/migration.rst:211
+#: ../../source/migration.rst:216
+msgid "1"
+msgstr "1"
+
+#: ../../source/migration.rst:207
+msgid ""
+"Isotope scattering with natural abundances is included; set ``ISOTOPE = "
+"0`` for the 1.5 behaviour (:ref:`ISOTOPE <anphon_isotope>`)"
+msgstr ""
+"天然存在比による同位体散乱が考慮されます。1.5 と同じ動作にするには ``ISOTOPE = 0`` を設定してください ( "
+":ref:`ISOTOPE <anphon_isotope>` )"
+
+#: ../../source/migration.rst:209
+msgid "``TREVSYM`` (``&general``, new)"
+msgstr "``TREVSYM`` ( ``&general`` 、新規)"
+
+#: ../../source/migration.rst:212
+msgid ""
+"Time-reversal symmetry also reduces the :math:`k` meshes; fewer "
+"irreducible points for non-centrosymmetric crystals. ``TREVSYM = 0`` gives"
+" the 1.5 reduction (:ref:`TREVSYM <anphon_trevsym>`)"
+msgstr ""
+"時間反転対称性も用いて :math:`k` メッシュを縮約します。反転対称性のない結晶では既約点が少なくなります。 ``TREVSYM = 0`` "
+"で 1.5 と同じ縮約になります ( :ref:`TREVSYM <anphon_trevsym>` )"
+
+#: ../../source/migration.rst:214
+msgid "``IMIX`` (``&scph``, new)"
+msgstr "``IMIX`` ( ``&scph`` 、新規)"
+
+#: ../../source/migration.rst:217
+msgid ""
+"SCPH iterations use DIIS mixing; ``IMIX = 0`` gives the simple mixing of "
+"1.5 (:ref:`IMIX <anphon_imix>`)"
+msgstr ""
+"SCPH の反復で DIIS ミキシングを使います。 ``IMIX = 0`` で 1.5 の単純ミキシングになります ( :ref:`IMIX "
+"<anphon_imix>` )"
+
+#: ../../source/migration.rst:218
+msgid "``FILE_FORMAT`` (``&general``, new)"
+msgstr "``FILE_FORMAT`` ( ``&general`` 、新規)"
+
+#: ../../source/migration.rst:220
+msgid "h5"
+msgstr "h5"
+
+#: ../../source/migration.rst:221
+msgid ""
+"Restart and eigenvector files are HDF5; ``FILE_FORMAT = text`` writes the "
+"1.5 text files (deprecated; :ref:`FILE_FORMAT <anphon_file_format>`)"
+msgstr ""
+"リスタートファイルと固有ベクトルファイルは HDF5 形式です。 ``FILE_FORMAT = text`` で 1.5 "
+"のテキストファイルを書き出します (非推奨。 :ref:`FILE_FORMAT <anphon_file_format>` )"
+
+#: ../../source/migration.rst:224
+msgid "Thermal conductivity, 1.5::"
+msgstr "熱伝導率の計算、1.5 の場合::"
+
+#: ../../source/migration.rst:244
+msgid "and 2.0::"
+msgstr "2.0 の場合::"
+
+#: ../../source/migration.rst:260
+msgid ""
+"Here ``&cell`` was dropped because ``si222.h5`` holds the primitive cell. "
+"Keep it when *alm* was run without ``PRIMCELL`` or when ``FCSFILE`` is an "
+"XML file."
+msgstr ""
+"ここでは ``si222.h5`` が基本セルを保持しているため ``&cell`` を省略しています。 *alm* を ``PRIMCELL`` "
+"なしで実行した場合や、 ``FCSFILE`` が XML ファイルの場合は ``&cell`` を残してください。"
+
+#: ../../source/migration.rst:263
+msgid ""
+"*anphon* also checks the input more strictly. A 1.5 input may stop for one"
+" of these reasons:"
+msgstr "*anphon* も入力をより厳しくチェックします。1.5 の入力は以下のいずれかの理由で停止することがあります:"
+
+#: ../../source/migration.rst:265
+msgid ""
+"The ``&cell`` must tile the supercell of ``FCSFILE`` exactly. A lattice "
+"constant rounded to a few digits makes the transformation matrix non-"
+"integer and stops the run: give the lattice constant with full precision, "
+"or omit ``&cell`` with an HDF5 file. A left-handed ``&cell``, a ``&cell`` "
+"larger than the supercell, and, with ``NONANALYTIC = 2``, an FC2 supercell"
+" so skewed that some minimum-distance images lie beyond the 26 "
+"neighbouring supercells are errors (use ``NONANALYTIC = 1`` or ``3``, or a"
+" near-orthogonal supercell, in that case)."
+msgstr ""
+"``&cell`` は ``FCSFILE`` "
+"のスーパーセルを過不足なく敷き詰める必要があります。数桁に丸めた格子定数を与えると変換行列が整数にならず、実行が停止します。格子定数を十分な精度で与えるか、HDF5"
+" ファイルを使って ``&cell`` を省略してください。左手系の ``&cell`` 、スーパーセルより大きい ``&cell`` 、および "
+"``NONANALYTIC = 2`` の場合に、最小距離の像の一部が隣接する 26 個のスーパーセルの外側に位置するほど歪んだ FC2 "
+"のスーパーセルはエラーになります (その場合は ``NONANALYTIC = 1`` または ``3`` "
+"を使うか、直交に近いスーパーセルを使ってください)。"
+
+#: ../../source/migration.rst:270
+msgid ""
+"``BORNINFO`` must hold exactly :math:`\\varepsilon_\\infty` and one "
+":math:`Z^*` tensor per atom."
+msgstr ""
+"``BORNINFO`` は :math:`\\varepsilon_\\infty` と、原子ごとに 1 つの :math:`Z^*` "
+"テンソルを過不足なく含む必要があります。"
+
+#: ../../source/migration.rst:271
+msgid ""
+"Range checks: ``DT > 0``, ``TMIN <= TMAX``, ``TMIN >= 0``, ``DELTA_E > "
+"0``, ``EPSILON > 0`` for ``ISMEAR = 0, 1``, ``0 < TOLERANCE < 0.5``, "
+"``MASS > 0`` with one value per species, ``NBANDS`` not larger than the "
+"number of modes."
+msgstr ""
+"範囲のチェック: ``DT > 0`` 、 ``TMIN <= TMAX`` 、 ``TMIN >= 0`` 、 ``DELTA_E > 0`` 、"
+" ``ISMEAR = 0, 1`` の場合の ``EPSILON > 0`` 、 ``0 < TOLERANCE < 0.5`` 、元素ごとに 1"
+" つの値を持つ ``MASS > 0`` 、モード数以下の ``NBANDS`` 。"
+
+#: ../../source/migration.rst:273
+msgid ""
+"Malformed numbers, such as ``ISOFACT = abc`` or ``4.5`` for a mesh size in"
+" ``&kpoint``, are now rejected (earlier versions read them as 0 and 4)."
+msgstr ""
+"``ISOFACT = abc`` や ``&kpoint`` のメッシュサイズに指定した ``4.5`` "
+"のような不正な数値は、エラーになるようになりました (以前のバージョンではそれぞれ 0 と 4 として読み込まれていました)。"
+
+#: ../../source/migration.rst:274
+msgid ""
+"``EMIN`` and ``EMAX`` now set the DOS energy range (1.5 reset ``EMIN`` to "
+"0 and followed the eigenvalue range)."
+msgstr ""
+"``EMIN`` と ``EMAX`` で DOS のエネルギー範囲を設定するようになりました (1.5 では ``EMIN`` を 0 "
+"にリセットし、固有値の範囲に合わせていました)。"
+
+#: ../../source/migration.rst:280
+msgid "SCPH, QHA, and structural optimization"
+msgstr "SCPH、QHA、構造最適化"
+
+#: ../../source/migration.rst:282
+msgid ""
+"**Temperature-dependent harmonic force constants.** In 1.5, the SCPH (or "
+"QHA) force constants were used in a later run by converting "
+"``PREFIX``.scph_dfc2 with the ``dfc2`` program::"
+msgstr ""
+"**温度依存の調和力定数。** 1.5 では、SCPH (または QHA) の力定数を後続の計算で使うには、 "
+"``PREFIX``.scph_dfc2 を ``dfc2`` プログラムで変換していました ::"
+
+#: ../../source/migration.rst:291
+msgid "In 2.0, *anphon* reads them from the SCPH result file:"
+msgstr "2.0 では、 *anphon* が SCPH の結果ファイルから直接読み込みます:"
+
+#: ../../source/migration.rst:299
+msgid ""
+"``DFC2FILE`` adds the correction of ``FC2_TEMPERATURE`` to the harmonic "
+"force constants of ``FCSFILE`` (or ``FC2FILE``), which may come from a "
+"larger supercell than the SCPH run. Use the same ``NONANALYTIC`` and "
+"``BORNINFO`` as the SCPH run. For ``MODE = kappa``, run one temperature "
+"per calculation with ``TMIN = TMAX = FC2_TEMPERATURE``. The results then "
+"accumulate in one ``PREFIX``.kappa.h5. See :ref:`DFC2FILE "
+"<anphon_dfc2file>` and :ref:`FC2_TEMPERATURE <anphon_fc2_temperature>`. "
+"``tools/dfc2.py`` (HDF5 version of ``dfc2``) and the ``dfc2`` program are "
+"still shipped. Both read the ``PREFIX``.scph_dfc2 files of 1.x and 2.0."
+msgstr ""
+"``DFC2FILE`` は、 ``FC2_TEMPERATURE`` における補正を ``FCSFILE`` (または ``FC2FILE`` )"
+" の調和力定数に加えます。この調和力定数は SCPH 計算より大きなスーパーセルから得たものでも構いません。 ``NONANALYTIC`` と "
+"``BORNINFO`` は SCPH 計算と同じものを使ってください。 ``MODE = kappa`` では、 ``TMIN = TMAX = "
+"FC2_TEMPERATURE`` として 1 回の計算につき 1 つの温度を計算します。結果は 1 つの ``PREFIX``.kappa.h5 "
+"に蓄積されます。 :ref:`DFC2FILE <anphon_dfc2file>` と :ref:`FC2_TEMPERATURE "
+"<anphon_fc2_temperature>` を参照してください。 ``tools/dfc2.py`` ( ``dfc2`` の HDF5 "
+"版) と ``dfc2`` プログラムも引き続き同梱されています。どちらも 1.x と 2.0 の ``PREFIX``.scph_dfc2 "
+"ファイルを読み込めます。"
+
+#: ../../source/migration.rst:308
+msgid ""
+"**Relaxed structures.** The 1.5 note that the structural optimization "
+"cannot be combined with thermal conductivity or bubble calculations no "
+"longer applies:"
+msgstr "**緩和構造。** 構造最適化を熱伝導率やバブル計算と組み合わせられないという 1.5 の注意書きは、もはや当てはまりません:"
+
+#: ../../source/migration.rst:311
+msgid ""
+"``BUBBLE = 1, 2, 3`` can be used with ``RELAX_STR > 0``. ``FE_BUBBLE`` "
+"still cannot."
+msgstr ""
+"``BUBBLE = 1, 2, 3`` は ``RELAX_STR > 0`` と併用できます。 ``FE_BUBBLE`` "
+"は引き続き併用できません。"
+
+#: ../../source/migration.rst:312
+msgid ""
+"``RELAXED_STRUCTURE = 1`` with ``FC2_TEMPERATURE`` runs any mode "
+"(``kappa``, ``phonons``, ...) on the structure relaxed at that "
+"temperature. The state file of the relaxation run must be given as "
+"``DFC2FILE`` (or ``FC2FILE``, ``FCSFILE``); its prefix is that of the "
+"earlier run, not the ``PREFIX`` of the new one (:ref:`RELAXED_STRUCTURE "
+"<anphon_relaxed_structure>`). For example:"
+msgstr ""
+"``FC2_TEMPERATURE`` とともに ``RELAXED_STRUCTURE = 1`` を指定すると、任意のモード ( "
+"``kappa`` 、 ``phonons`` など) をその温度で緩和した構造に対して実行できます。緩和計算の状態ファイルは "
+"``DFC2FILE`` (または ``FC2FILE`` 、 ``FCSFILE`` ) "
+"として与える必要があります。そのファイル名の接頭辞は新しい計算の ``PREFIX`` ではなく、以前の計算のものです ( "
+":ref:`RELAXED_STRUCTURE <anphon_relaxed_structure>` )。例:"
+
+#: ../../source/migration.rst:327
+msgid ""
+"**Cell relaxation inputs.** ``STRAIN_COUPLING`` (``&relax``) replaces the "
+"``RENORM_*`` tags. Its units digit adds up the inputs read from the "
+"strain-coupling files: 1 = elastic constants, 2 = strain--force coupling, "
+"4 = strain--harmonic-IFC coupling (:ref:`STRAIN_COUPLING "
+"<anphon_strain_coupling>`). The default, 7, reads all three, which is what"
+" the 1.5 defaults did."
+msgstr ""
+"**セル緩和の入力。** ``STRAIN_COUPLING`` ( ``&relax`` ) が ``RENORM_*`` "
+"タグに置き換わります。一の位は、歪み結合ファイルから読み込む入力の和で指定します: 1 = 弾性定数、2 = 歪み--力の結合、4 = 歪み--調和"
+" IFC の結合 ( :ref:`STRAIN_COUPLING <anphon_strain_coupling>` )。デフォルトの 7 は 3 "
+"つすべてを読み込み、1.5 のデフォルトの動作と同じです。"
+
+#: ../../source/migration.rst:338
+msgid ""
+"(defaults: ``RENORM_2TO1ST = 2``, ``RENORM_3TO2ND = 2``, ``RENORM_34TO1ST "
+"= 0``)"
+msgstr ""
+"(デフォルト: ``RENORM_2TO1ST = 2`` 、 ``RENORM_3TO2ND = 2`` 、 ``RENORM_34TO1ST ="
+" 0`` )"
+
+#: ../../source/migration.rst:339
+msgid "``STRAIN_COUPLING = 7`` (default)"
+msgstr "``STRAIN_COUPLING = 7`` (デフォルト)"
+
+#: ../../source/migration.rst:340
+msgid "``RENORM_2TO1ST = 0``"
+msgstr "``RENORM_2TO1ST = 0``"
+
+#: ../../source/migration.rst:341
+msgid "clear bit 2, e.g. ``STRAIN_COUPLING = 5``"
+msgstr "ビット 2 を外す。例: ``STRAIN_COUPLING = 5``"
+
+#: ../../source/migration.rst:342
+msgid "``RENORM_2TO1ST = 1``"
+msgstr "``RENORM_2TO1ST = 1``"
+
+#: ../../source/migration.rst:343
+msgid "tens digit 1, e.g. ``STRAIN_COUPLING = 15``"
+msgstr "十の位を 1 にする。例: ``STRAIN_COUPLING = 15``"
+
+#: ../../source/migration.rst:344
+msgid "``RENORM_34TO1ST = 1`` (with ``RENORM_2TO1ST = 1``)"
+msgstr "``RENORM_34TO1ST = 1`` ( ``RENORM_2TO1ST = 1`` と併用)"
+
+#: ../../source/migration.rst:345
+msgid "tens digit 2, e.g. ``STRAIN_COUPLING = 25``"
+msgstr "十の位を 2 にする。例: ``STRAIN_COUPLING = 25``"
+
+#: ../../source/migration.rst:346
+msgid "``RENORM_3TO2ND = 1``"
+msgstr "``RENORM_3TO2ND = 1``"
+
+#: ../../source/migration.rst:347
+msgid "clear bit 4, e.g. ``STRAIN_COUPLING = 3``"
+msgstr "ビット 4 を外す。例: ``STRAIN_COUPLING = 3``"
+
+#: ../../source/migration.rst:348
+msgid "``RENORM_3TO2ND = 2`` or ``3``"
+msgstr "``RENORM_3TO2ND = 2`` または ``3``"
+
+#: ../../source/migration.rst:349
+msgid "bit 4; a subset of strain patterns is detected from the file"
+msgstr "ビット 4。歪みパターンの部分集合はファイルから検出されます"
+
+#: ../../source/migration.rst:351
+msgid ""
+"The old tags still work; the warning they print names the equivalent "
+"``STRAIN_COUPLING`` value. The text files in ``STRAIN_IFC_DIR`` still "
+"work, and the HDF5 container ``STRAINFILE`` (made by the strain tools, "
+":ref:`label_strain_tools`) is the recommended replacement. Elastic "
+"constants in the text files may now be given in GPa."
+msgstr ""
+"旧タグも引き続き使用でき、その際に出力される警告に対応する ``STRAIN_COUPLING`` の値が示されます。 "
+"``STRAIN_IFC_DIR`` 内のテキストファイルも引き続き使用できますが、代わりに HDF5 コンテナ ``STRAINFILE`` "
+"(歪みツールで作成。 :ref:`label_strain_tools` ) を使うことを推奨します。テキストファイル中の弾性定数は GPa "
+"単位でも与えられるようになりました。"
+
+#: ../../source/migration.rst:356
+msgid ""
+"**Convergence.** Temperatures whose SCPH iteration or structural "
+"optimization did not converge are flagged in ``PREFIX``.scph.h5 / "
+"``PREFIX``.qha.h5. Their free energy, heat capacity, and entropy in "
+"``.scph_thermo`` / ``.qha_thermo`` (and the DOS, MSD, and ucorr rows) are "
+"written as NaN unless ``ALLOW_UNCONVERGED = 1``. Later runs refuse to read"
+" those temperatures unless ``ALLOW_UNCONVERGED = 1``."
+msgstr ""
+"**収束。** SCPH の反復または構造最適化が収束しなかった温度には、 ``PREFIX``.scph.h5 / "
+"``PREFIX``.qha.h5 でフラグが付けられます。 ``ALLOW_UNCONVERGED = 1`` でない限り、それらの温度の "
+"``.scph_thermo`` / ``.qha_thermo`` 中の自由エネルギー、比熱、エントロピー (および DOS、MSD、ucorr "
+"の行) は NaN として書き出されます。また後続の計算では、 ``ALLOW_UNCONVERGED = 1`` "
+"でない限りそれらの温度の読み込みを拒否します。"
+
+#: ../../source/migration.rst:365
+msgid "Output files"
+msgstr "出力ファイル"
+
+#: ../../source/migration.rst:367
+msgid "The formats of the HDF5 files are described in :doc:`hdf5_format`."
+msgstr "HDF5 ファイルの形式は :doc:`hdf5_format` で説明しています。"
+
+#: ../../source/migration.rst:375
+msgid "Note"
+msgstr "備考"
+
+#: ../../source/migration.rst:376
+msgid "``PREFIX``.xml, ``PREFIX``.fcs (*alm*)"
+msgstr "``PREFIX``.xml, ``PREFIX``.fcs (*alm*)"
+
+#: ../../source/migration.rst:377
+msgid "``PREFIX``.h5"
+msgstr "``PREFIX``.h5"
+
+#: ../../source/migration.rst:378
+msgid "old files with ``FCS_ALAMODE = 1``"
+msgstr "``FCS_ALAMODE = 1`` で旧ファイルを出力"
+
+#: ../../source/migration.rst:379
+msgid "``PREFIX``.result (``MODE = RTA``)"
+msgstr "``PREFIX``.result (``MODE = RTA``)"
+
+#: ../../source/migration.rst:380
+msgid "``PREFIX``.kappa.h5"
+msgstr "``PREFIX``.kappa.h5"
+
+#: ../../source/migration.rst:381
+msgid ""
+"results and restart data (:ref:`label_hdf5_kappa`); ``.result`` with "
+"``FILE_FORMAT = text``"
+msgstr ""
+"計算結果とリスタートデータ ( :ref:`label_hdf5_kappa` )。 ``FILE_FORMAT = text`` で "
+"``.result`` を出力"
+
+#: ../../source/migration.rst:382
+msgid "``PREFIX``.scph_dymat"
+msgstr "``PREFIX``.scph_dymat"
+
+#: ../../source/migration.rst:383
+msgid "``PREFIX``.scph.h5"
+msgstr "``PREFIX``.scph.h5"
+
+#: ../../source/migration.rst:384
+msgid ""
+"results and restart data (:ref:`label_hdf5_scph`); ``.scph_dymat`` with "
+"``FILE_FORMAT = text``"
+msgstr ""
+"計算結果とリスタートデータ ( :ref:`label_hdf5_scph` )。 ``FILE_FORMAT = text`` で "
+"``.scph_dymat`` を出力"
+
+#: ../../source/migration.rst:385
+msgid "``PREFIX``.renorm_harm_dymat (QHA)"
+msgstr "``PREFIX``.renorm_harm_dymat (QHA)"
+
+#: ../../source/migration.rst:386
+msgid "``PREFIX``.qha.h5"
+msgstr "``PREFIX``.qha.h5"
+
+#: ../../source/migration.rst:387
+msgid "``.renorm_harm_dymat`` with ``FILE_FORMAT = text``"
+msgstr "``FILE_FORMAT = text`` で ``.renorm_harm_dymat`` を出力"
+
+#: ../../source/migration.rst:388
+msgid "``PREFIX``\\ [.band | .mesh].evec and .evec.hdf5 (``PRINTEVEC = 1``)"
+msgstr "``PREFIX``\\ [.band | .mesh].evec と .evec.hdf5 ( ``PRINTEVEC = 1`` )"
+
+#: ../../source/migration.rst:389
+msgid "``PREFIX``\\ [.band | .mesh].evec.h5"
+msgstr "``PREFIX``\\ [.band | .mesh].evec.h5"
+
+#: ../../source/migration.rst:390
+msgid "same datasets; text ``.evec`` only with ``FILE_FORMAT = text``"
+msgstr "データセットは同じ。テキストの ``.evec`` は ``FILE_FORMAT = text`` の場合のみ"
+
+#: ../../source/migration.rst:392
+msgid "``PREFIX``\\ [.band | .mesh].eval.h5"
+msgstr "``PREFIX``\\ [.band | .mesh].eval.h5"
+
+#: ../../source/migration.rst:393
+msgid "new tag ``PRINTEVAL``"
+msgstr "新しいタグ ``PRINTEVAL``"
+
+#: ../../source/migration.rst:394
+msgid "``PREFIX``\\_+.xml, ``PREFIX``\\_-.xml (``NEWFCS = 1``)"
+msgstr "``PREFIX``\\_+.xml, ``PREFIX``\\_-.xml (``NEWFCS = 1``)"
+
+#: ../../source/migration.rst:395
+msgid "``PREFIX``\\_+.h5, ``PREFIX``\\_-.h5"
+msgstr "``PREFIX``\\_+.h5, ``PREFIX``\\_-.h5"
+
+#: ../../source/migration.rst:396
+msgid "``.xml`` with ``FILE_FORMAT = text``"
+msgstr "``FILE_FORMAT = text`` で ``.xml`` を出力"
+
+#: ../../source/migration.rst:398
+msgid "``PREFIX``.selfenergy.h5"
+msgstr "``PREFIX``.selfenergy.h5"
+
+#: ../../source/migration.rst:399
+msgid "``MODE = selfenergy``"
+msgstr "``MODE = selfenergy``"
+
+#: ../../source/migration.rst:401
+msgid ""
+"The text outputs (``.bands``, ``.dos``, ``.thermo``, ``.kl``, "
+"``.kl_spec``, ``.self_isotope``, ``.scph_bands``, ``.scph_thermo``, "
+"``.scph_dfc2``, ``.V0``, ...) are still written in both formats. "
+"``.scph_thermo`` and ``.qha_thermo`` now hold the free energies with full "
+"precision. With ``BCONNECT = 1, 2``, the bands are now matched by "
+"eigenvectors and frequencies, also across breaks of the path. The matching"
+" also applies to ``.scph_bands`` and ``.qha_bands`` (:ref:`BCONNECT "
+"<anphon_bconnect>`). The log and the HDF5 files record the input variables"
+" and the git commit of the binary."
+msgstr ""
+"テキスト出力 ( ``.bands`` 、 ``.dos`` 、 ``.thermo`` 、 ``.kl`` 、 ``.kl_spec`` 、 "
+"``.self_isotope`` 、 ``.scph_bands`` 、 ``.scph_thermo`` 、 ``.scph_dfc2`` 、 "
+"``.V0`` など) は、どちらの形式でも引き続き書き出されます。 ``.scph_thermo`` と ``.qha_thermo`` "
+"には自由エネルギーが十分な精度で書き出されるようになりました。 ``BCONNECT = 1, 2`` "
+"では、固有ベクトルと振動数によってバンドを対応付けるようになり、経路の切れ目をまたいでも対応付けが行われます。この対応付けは "
+"``.scph_bands`` と ``.qha_bands`` にも適用されます ( :ref:`BCONNECT "
+"<anphon_bconnect>` )。ログと HDF5 ファイルには、入力変数とバイナリの git コミットが記録されます。"
+
+#: ../../source/migration.rst:408
+msgid ""
+"**Restarting from 1.5 files.** A ``PREFIX``.result file is imported into "
+"``PREFIX``.kappa.h5 once and left untouched, provided that the restart is "
+"enabled (``RESTART``, on by default when the file exists), "
+"``FC2_TEMPERATURE`` is not given, and ``PREFIX``.kappa.h5 holds no "
+"linewidths of that channel yet. Since ``TREVSYM = 1`` changes the "
+"irreducible :math:`k` points of non-centrosymmetric crystals, continue "
+"such a run with ``TREVSYM = 0`` (or start with a new ``PREFIX``). "
+"``PREFIX``.scph_dymat files of 1.x are read as they are for ``NONANALYTIC "
+"= 0``, converted for ``NONANALYTIC = 2, 3``, and refused for ``NONANALYTIC"
+" = 1`` (see :ref:`label_hdf5_scph_nonanalytic`). Migrated text restart "
+"data are not marked as converged."
+msgstr ""
+"**1.5 のファイルからのリスタート。** リスタートが有効 ( ``RESTART`` 。ファイルが存在すればデフォルトで有効) で、 "
+"``FC2_TEMPERATURE`` が指定されておらず、 ``PREFIX``.kappa.h5 にそのチャネルの線幅がまだ含まれていない場合、"
+" ``PREFIX``.result ファイルは ``PREFIX``.kappa.h5 に一度だけ取り込まれ、元のファイルは変更されません。 "
+"``TREVSYM = 1`` は反転対称性のない結晶の既約 :math:`k` 点を変えるため、そのような計算の続きは ``TREVSYM = "
+"0`` で実行してください (または新しい ``PREFIX`` で最初から実行してください)。1.x の "
+"``PREFIX``.scph_dymat ファイルは、 ``NONANALYTIC = 0`` ではそのまま読み込まれ、 "
+"``NONANALYTIC = 2, 3`` では変換され、 ``NONANALYTIC = 1`` では読み込みを拒否されます ( "
+":ref:`label_hdf5_scph_nonanalytic` を参照)。テキストから移行したリスタートデータには収束済みの印は付きません。"
+
+#: ../../source/migration.rst:417
+msgid ""
+"A restart starts automatically when ``PREFIX``.kappa.h5, "
+"``PREFIX``.scph.h5, ... (or the 1.5 text files) exist. Remove them or "
+"change ``PREFIX`` to start from scratch."
+msgstr ""
+"``PREFIX``.kappa.h5 、 ``PREFIX``.scph.h5 など (または 1.5 のテキストファイル) "
+"が存在すると、自動的にリスタートします。最初から計算するには、これらを削除するか ``PREFIX`` を変更してください。"
+
+#: ../../source/migration.rst:424
+msgid "Results that change"
+msgstr "結果が変わる点"
+
+#: ../../source/migration.rst:426
+msgid ""
+"Rerunning a 1.5 input with 2.0 can give different numbers for these "
+"reasons:"
+msgstr "1.5 の入力を 2.0 で再実行すると、以下の理由で数値が変わることがあります:"
+
+#: ../../source/migration.rst:428
+msgid ""
+"**Isotope scattering is on** (``ISOTOPE = 1``), which lowers "
+":math:`\\kappa`, most strongly around its low-temperature peak."
+msgstr ""
+"**同位体散乱が有効** ( ``ISOTOPE = 1`` ) になり、 :math:`\\kappa` "
+"が低下します。低温のピーク付近で最も大きく低下します。"
+
+#: ../../source/migration.rst:429
+msgid ""
+"**Group velocities.** The thermal conductivity uses the velocity matrix of"
+" degenerate blocks, which does not depend on the choice of eigenvectors. "
+"1.5 took finite differences of sorted eigenvalues, which mixes branches at"
+" crossings and degeneracies. The change is large in supercells and for "
+"degenerate branches: a supercell and the primitive cell sampled at the "
+"same :math:`q` points now give the same :math:`\\kappa`. The velocities "
+"are also symmetrized over the little group of :math:`k`, and the "
+"translational modes at :math:`\\Gamma` have zero velocity."
+msgstr ""
+"**群速度。** 熱伝導率の計算には縮退ブロックの速度行列を用いるようになり、これは固有ベクトルの選び方に依存しません。1.5 "
+"ではソートした固有値の有限差分をとっていたため、交差や縮退のある点で分枝が混ざっていました。この変更の影響はスーパーセルや縮退した分枝で大きく、同じ"
+" :math:`q` 点でサンプリングしたスーパーセルと基本セルが同じ :math:`\\kappa` を与えるようになりました。また速度は "
+":math:`k` の小群について対称化され、 :math:`\\Gamma` 点の並進モードの速度はゼロになります。"
+
+#: ../../source/migration.rst:434
+msgid ""
+"**Tetrahedron weights** (``ISMEAR = -1``) are averaged over the symmetry-"
+"equivalent triplets and the degenerate modes for the three-phonon and "
+"isotope linewidths, ``SELF_W``, and ``FSTATE_W``."
+msgstr ""
+"**四面体法の重み** ( ``ISMEAR = -1`` ) は、3 フォノン散乱と同位体散乱の線幅、 ``SELF_W`` 、 "
+"``FSTATE_W`` について、対称性で等価な三つ組と縮退モードにわたって平均されます。"
+
+#: ../../source/migration.rst:436
+msgid ""
+"**Time-reversal symmetry** (``TREVSYM = 1``) can shift the results of non-"
+"centrosymmetric crystals slightly with ``ISMEAR = -1``, within the "
+":math:`k`-mesh convergence error."
+msgstr ""
+"**時間反転対称性** ( ``TREVSYM = 1`` ) により、 ``ISMEAR = -1`` の場合に反転対称性のない結晶の結果が "
+":math:`k` メッシュの収束誤差の範囲内でわずかに変わることがあります。"
+
+#: ../../source/migration.rst:438
+msgid ""
+"**Physical constants** are the CODATA 2018 values instead of older hard-"
+"coded constants, which changes the last digits."
+msgstr "**物理定数** には、以前のハードコードされた値の代わりに CODATA 2018 の値を用いるため、末尾の桁が変わります。"
+
+#: ../../source/migration.rst:439
+msgid ""
+"**Non-analytic correction** with ``NONANALYTIC = 1`` (Parlinski): the "
+"phase factor of the non-analytic term now uses the atomic positions of the"
+" primitive cell, the gauge of the force constants, instead of those of the"
+" mapped supercell atoms. Results of new runs can therefore differ from 1.5"
+" when the two positions differ by a lattice vector."
+msgstr ""
+"``NONANALYTIC = 1`` (Parlinski 法) の **非解析的補正** : "
+"非解析項の位相因子に、対応するスーパーセル原子の位置ではなく、力定数のゲージである基本セルの原子位置を用いるようになりました。そのため、両者の位置が格子ベクトル分ずれている場合、新しい計算の結果は"
+" 1.5 と異なることがあります。"
+
+#: ../../source/migration.rst:442
+msgid ""
+"**alm** results change when the default ``FCSYM_BASIS`` matters (``enet``,"
+" ``adaptive-lasso``) and when nearly dependent constraints are dropped "
+"(see :ref:`label_migration_alm`)."
+msgstr ""
+"**alm** の結果は、デフォルトの ``FCSYM_BASIS`` が影響する場合 ( ``enet`` 、 ``adaptive-"
+"lasso`` ) と、ほぼ従属な拘束条件が除外される場合に変わります ( :ref:`label_migration_alm` を参照)。"
+
+#: ../../source/migration.rst:445
+msgid ""
+"**Example: Si.** The table compares :math:`\\kappa_{xx}` (W/mK, RTA) of "
+"the Si tutorial run by the 1.5.0 and 2.0 binaries with the same force "
+"constants: one **alm** 2.0 fit of ``example/Si/reference/DFSET_harmonic`` "
+"and ``DFSET_cubic`` (the settings of ``test/test_si.py``), written as "
+"``.xml`` and read by both versions (2.0 gives the same numbers from the "
+"``.h5`` file of the same fit). The *anphon* input is the 1.5 tutorial "
+"input: ``KD = Si``, ``MASS = 28.0855``, the fcc primitive cell with "
+":math:`a = 10.203` Bohr, a :math:`10\\times 10\\times 10` :math:`k` mesh, "
+"the tetrahedron method (``ISMEAR = -1``, the default of both versions), "
+"and ``ISOTOPE`` set explicitly (in ``&analysis`` for 1.5, in ``&kappa`` "
+"for 2.0)."
+msgstr ""
+"**例: Si。** 下表は、Si のチュートリアルを同じ力定数を用いて 1.5.0 と 2.0 のバイナリで実行したときの "
+":math:`\\kappa_{xx}` (W/mK、RTA) を比較したものです。力定数は "
+"``example/Si/reference/DFSET_harmonic`` と ``DFSET_cubic`` を **alm** 2.0 で "
+"1 回フィットしたもの ( ``test/test_si.py`` の設定) で、 ``.xml`` として書き出して両バージョンで読み込みました "
+"(2.0 では同じフィットの ``.h5`` ファイルからも同じ数値が得られます)。 *anphon* の入力は 1.5 "
+"のチュートリアルの入力です: ``KD = Si`` 、 ``MASS = 28.0855`` 、 :math:`a = 10.203` Bohr "
+"の fcc 基本セル、 :math:`10\\times 10\\times 10` の :math:`k` メッシュ、四面体法 ( "
+"``ISMEAR = -1`` 、両バージョンのデフォルト)、および明示的に設定した ``ISOTOPE`` (1.5 では "
+"``&analysis`` 、2.0 では ``&kappa`` で指定)。"
+
+#: ../../source/migration.rst:457
+msgid "Version and ``ISOTOPE``"
+msgstr "バージョンと ``ISOTOPE``"
+
+#: ../../source/migration.rst:458
+msgid "20 K"
+msgstr "20 K"
+
+#: ../../source/migration.rst:459
+msgid "50 K"
+msgstr "50 K"
+
+#: ../../source/migration.rst:460
+msgid "100 K"
+msgstr "100 K"
+
+#: ../../source/migration.rst:461
+msgid "300 K"
+msgstr "300 K"
+
+#: ../../source/migration.rst:462
+msgid "1000 K"
+msgstr "1000 K"
+
+#: ../../source/migration.rst:463
+msgid "1.5.0, ``ISOTOPE = 0`` (1.5 default)"
+msgstr "1.5.0、 ``ISOTOPE = 0`` (1.5 のデフォルト)"
+
+#: ../../source/migration.rst:464
+msgid "41339"
+msgstr "41339"
+
+#: ../../source/migration.rst:465
+msgid "4942.7"
+msgstr "4942.7"
+
+#: ../../source/migration.rst:466
+msgid "817.88"
+msgstr "817.88"
+
+#: ../../source/migration.rst:467
+msgid "112.25"
+msgstr "112.25"
+
+#: ../../source/migration.rst:468
+msgid "29.832"
+msgstr "29.832"
+
+#: ../../source/migration.rst:469
+msgid "2.0, ``ISOTOPE = 0``"
+msgstr "2.0、 ``ISOTOPE = 0``"
+
+#: ../../source/migration.rst:470
+msgid "39431"
+msgstr "39431"
+
+#: ../../source/migration.rst:471
+msgid "5063.8"
+msgstr "5063.8"
+
+#: ../../source/migration.rst:472
+msgid "821.58"
+msgstr "821.58"
+
+#: ../../source/migration.rst:473
+msgid "112.35"
+msgstr "112.35"
+
+#: ../../source/migration.rst:474
+msgid "29.934"
+msgstr "29.934"
+
+#: ../../source/migration.rst:475
+msgid "1.5.0, ``ISOTOPE = 1``"
+msgstr "1.5.0、 ``ISOTOPE = 1``"
+
+#: ../../source/migration.rst:476
+msgid "2305.6"
+msgstr "2305.6"
+
+#: ../../source/migration.rst:477
+msgid "1504.0"
+msgstr "1504.0"
+
+#: ../../source/migration.rst:478
+msgid "553.52"
+msgstr "553.52"
+
+#: ../../source/migration.rst:479
+msgid "104.35"
+msgstr "104.35"
+
+#: ../../source/migration.rst:480
+msgid "29.198"
+msgstr "29.198"
+
+#: ../../source/migration.rst:481
+msgid "2.0, ``ISOTOPE = 1`` (2.0 default)"
+msgstr "2.0、 ``ISOTOPE = 1`` (2.0 のデフォルト)"
+
+#: ../../source/migration.rst:482
+msgid "2366.0"
+msgstr "2366.0"
+
+#: ../../source/migration.rst:483
+msgid "1485.4"
+msgstr "1485.4"
+
+#: ../../source/migration.rst:484
+msgid "551.46"
+msgstr "551.46"
+
+#: ../../source/migration.rst:485
+msgid "104.37"
+msgstr "104.37"
+
+#: ../../source/migration.rst:486
+msgid "29.285"
+msgstr "29.285"
+
+#: ../../source/migration.rst:488
+msgid ""
+"At 300 K, the default isotope scattering lowers :math:`\\kappa` by 7.1 % "
+"(112.35 to 104.37 W/mK), and the other changes (velocities, tetrahedron "
+"weights, constants) change it by less than 0.1 % (112.25 to 112.35 W/mK "
+"without isotopes). The remaining differences grow at low temperature, "
+"where :math:`\\kappa` on this coarse mesh is dominated by few modes near "
+":math:`\\Gamma` and is not converged anyway."
+msgstr ""
+"300 K では、デフォルトの同位体散乱により :math:`\\kappa` が 7.1 % 低下し (112.35 から 104.37 "
+"W/mK)、その他の変更 (速度、四面体法の重み、物理定数) による変化は 0.1 % 未満です (同位体なしで 112.25 から 112.35 "
+"W/mK)。残りの差は低温で大きくなりますが、低温ではこの粗いメッシュでの :math:`\\kappa` は :math:`\\Gamma` "
+"点近傍の少数のモードに支配されており、そもそも収束していません。"
+
+#: ../../source/migration.rst:497
+msgid "Scripts in ``tools``"
+msgstr "``tools`` 内のスクリプト"
+
+#: ../../source/migration.rst:505
+msgid "``analyze_phonons.py --calc tau --temp 300 PREFIX.result``"
+msgstr "``analyze_phonons.py --calc tau --temp 300 PREFIX.result``"
+
+#: ../../source/migration.rst:506
+msgid ""
+"``analyzer.py --calc tau --temp 300 --h5 PREFIX.kappa.h5``; a 1.5 file is "
+"read with ``--3ph PREFIX.result``. ``analyze_phonons.py`` and its C++ "
+"helper are removed"
+msgstr ""
+"``analyzer.py --calc tau --temp 300 --h5 PREFIX.kappa.h5`` 。1.5 のファイルは "
+"``--3ph PREFIX.result`` で読み込みます。 ``analyze_phonons.py`` とその C++ "
+"ヘルパーは削除されました"
+
+#: ../../source/migration.rst:508
+msgid "``makedisp_qe.py``"
+msgstr "``makedisp_qe.py``"
+
+#: ../../source/migration.rst:509
+msgid ""
+"removed; use ``displace.py --QE``, which can now also build the supercell"
+msgstr "削除されました。 ``displace.py --QE`` を使ってください (スーパーセルの構築もできるようになりました)"
+
+#: ../../source/migration.rst:510
+msgid "``displace.py --random_normalcoord``"
+msgstr "``displace.py --random_normalcoord``"
+
+#: ../../source/migration.rst:511
+msgid ""
+"the standard deviation of each mode is capped so that its typical atomic "
+"displacement does not exceed 0.20 of the nearest-neighbour distance "
+"(individual samples can exceed it), samples are truncated at "
+":math:`4\\sigma`, and positive frequencies below 10 cm\\ :sup:`-1` (except"
+" the acoustic modes at :math:`\\Gamma`) are raised to 10 cm\\ :sup:`-1`. "
+"The default random seed is fixed (12345). See ``--no_cap_sigma_by_nn``, "
+"``--nn_frac``, ``--truncate_k``, ``--omega_min``, ``--random_seed``"
+msgstr ""
+"各モードの標準偏差は、典型的な原子変位が最近接原子間距離の 0.20 倍を超えないように上限が設けられ "
+"(個々のサンプルはこれを超えることがあります)、サンプルは :math:`4\\sigma` で打ち切られます。また 10 cm\\ "
+":sup:`-1` 未満の正の振動数 ( :math:`\\Gamma` 点の音響モードを除く) は 10 cm\\ :sup:`-1` "
+"に引き上げられます。乱数シードのデフォルト値は固定 (12345) です。 ``--no_cap_sigma_by_nn`` 、 "
+"``--nn_frac`` 、 ``--truncate_k`` 、 ``--omega_min`` 、 ``--random_seed`` "
+"を参照してください"
+
+#: ../../source/migration.rst:516
+msgid "``plotband.py``, ``plotdos.py``"
+msgstr "``plotband.py``, ``plotdos.py``"
+
+#: ../../source/migration.rst:517
+msgid "unchanged options; ``-o`` saves the figure to a file"
+msgstr "オプションは変更なし。 ``-o`` で図をファイルに保存します"
+
+#: ../../source/migration.rst:519
+msgid ""
+"new: ``fcconvert.py`` (convert force constants to and from phonopy, "
+"phono3py, and ShengBTE; :ref:`label_fc_conversion`), ``fcsinfo.py``, "
+"``calcpes.py``, ``dfc2.py``, and the strain tools ``elastic.py``, "
+"``strainifc.py``, ``strainfile.py``"
+msgstr ""
+"新規: ``fcconvert.py`` (phonopy、phono3py、ShengBTE との間で力定数を相互変換。 "
+":ref:`label_fc_conversion` )、 ``fcsinfo.py`` 、 ``calcpes.py`` 、 "
+"``dfc2.py`` 、および歪みツール ``elastic.py`` 、 ``strainifc.py`` 、 "
+"``strainfile.py``"
+
+#: ../../source/migration.rst:522
+msgid ""
+"The Python scripts use the CODATA 2018 constants "
+"(``tools/alamode_constants.py``), and ``displace.py`` needs PyYAML to read"
+" YAML pattern files."
+msgstr ""
+"Python スクリプトは CODATA 2018 の物理定数 ( ``tools/alamode_constants.py`` ) "
+"を使います。また ``displace.py`` で YAML 形式のパターンファイルを読み込むには PyYAML が必要です。"
+
+#: ../../source/migration.rst:529
+msgid "Python"
+msgstr "Python"
+
+#: ../../source/migration.rst:531
+msgid ""
+"The Python interface is part of the source tree. The distribution "
+"``alamode`` contains two packages, ``alm`` and ``anphon``. Build it with "
+"``pip install .`` in the ``python`` directory (:ref:`label_python_api`). "
+"It needs Python >= 3.9 and, for the ``anphon`` package, an MPI library; to"
+" build ``alm`` only, use ``pip install . -C "
+"cmake.define.ALAMODE_PYTHON_ANPHON=OFF``."
+msgstr ""
+"Python インターフェースはソースツリーに含まれるようになりました。配布パッケージ ``alamode`` には ``alm`` と "
+"``anphon`` の 2 つのパッケージが含まれます。 ``python`` ディレクトリで ``pip install .`` "
+"を実行してビルドします ( :ref:`label_python_api` )。Python >= 3.9 が必要で、 ``anphon`` "
+"パッケージには MPI ライブラリも必要です。 ``alm`` のみをビルドするには ``pip install . -C "
+"cmake.define.ALAMODE_PYTHON_ANPHON=OFF`` を使ってください。"
+
+#: ../../source/migration.rst:535
+msgid ""
+"``alm`` replaces the standalone ALM Python module of 1.x and keeps its "
+"high-level API (``define``, ``set_training_data``, ``optimize``, "
+"``get_fc``, ``set_fc``, ``save_fc``, ``optimizer_control``). phonopy's ALM"
+" interface works with it unchanged. Errors are raised as Python exceptions"
+" instead of terminating the process. See :ref:`alm_python`."
+msgstr ""
+"``alm`` は 1.x の独立した ALM Python モジュールを置き換えるもので、その高レベル API ( ``define`` 、 "
+"``set_training_data`` 、 ``optimize`` 、 ``get_fc`` 、 ``set_fc`` 、 "
+"``save_fc`` 、 ``optimizer_control`` ) を引き継いでいます。phonopy の ALM "
+"インターフェースはそのまま動作します。エラーはプロセスを終了させる代わりに Python の例外として送出されます。 "
+":ref:`alm_python` を参照してください。"
+
+#: ../../source/migration.rst:538
+msgid ""
+"The default ``TOL_CONST`` of the Python API is now :math:`10^{-6}`, as in "
+"the command-line program."
+msgstr ""
+"Python API の ``TOL_CONST`` のデフォルト値は、コマンドラインプログラムと同じ :math:`10^{-6}` "
+"になりました。"
+
+#: ../../source/migration.rst:539
+msgid ""
+"``anphon`` is new: it runs *anphon* from Python and reads the HDF5 results"
+" (:ref:`anphon_python`)."
+msgstr ""
+"``anphon`` は新規のパッケージで、Python から *anphon* を実行し、HDF5 形式の結果を読み込みます ( "
+":ref:`anphon_python` )。"
+
+#: ../../source/migration.rst:541
+msgid ""
+"The 1.x Python module ``alm`` (for example the conda-forge package "
+"``alm``) provides the same top-level module name. Uninstall it before "
+"installing 2.0 (``conda remove alm`` or ``pip uninstall alm``), so that "
+"``import alm`` picks up the 2.0 package."
+msgstr ""
+"1.x の Python モジュール ``alm`` (例えば conda-forge のパッケージ ``alm`` ) "
+"は同じトップレベルのモジュール名を持ちます。 ``import alm`` で 2.0 のパッケージが読み込まれるように、2.0 "
+"をインストールする前にアンインストールしてください ( ``conda remove alm`` または ``pip uninstall alm``"
+" )。"

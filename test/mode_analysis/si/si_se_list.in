@@ -1,0 +1,22 @@
+&general
+ PREFIX = si_se_list; MODE = selfenergy; FCSFILE = si222_cubic.h5; KD = Si
+ TMIN = 100; TMAX = 300; DT = 100
+ ISMEAR = 0; EPSILON = 2.0
+ FILE_FORMAT = text
+/
+&cell
+  10.203
+  0.0 0.5 0.5
+  0.5 0.0 0.5
+  0.5 0.5 0.0
+/
+&kpoint
+  0
+  0.1 0.2 0.3
+  0.15 0.2 0.3
+/
+&selfenergy
+ KMESH = 10 10 10
+ BRANCHES = 3
+ LINEWIDTH = 1
+/
